@@ -1,0 +1,13 @@
+
+pub const OID_PBES2 :&str = "1.2.840.113549.1.5.13";
+pub const OID_PBKDF2 :&str = "1.2.840.113549.1.5.12";
+pub const OID_AES_256_CBC :&str = "2.16.840.1.101.3.4.1.42";
+pub const OID_RSA_ENCRYPTION :&str = "1.2.840.113549.1.1.1";
+pub const OID_SHA256_WITH_RSA_ENCRYPTION :&str = "1.2.840.113549.1.1.11";
+pub const OID_PKCS8_SHROUDED_KEY_BAG :&str = "1.2.840.113549.1.12.10.1.2";
+pub const OID_PKCS12_CERT_BAG : &str = "1.2.840.113549.1.12.10.1.3";
+pub const OID_PKCS7_ENCRYPTED_DATA :&str = "1.2.840.113549.1.7.6";
+pub const OID_PKCS7_DATA :&str = "1.2.840.113549.1.7.1";
+pub const OID_PKCS12_SAFE_BAG_X509_CERT :&str = "1.2.840.113549.1.9.22.1";
+pub const OID_SHA256_DIGEST :&str = "2.16.840.1.101.3.4.2.1";
+pub const OID_SHA256_DIGEST_SET :&str = "1.2.840.113549.1.9.4";
