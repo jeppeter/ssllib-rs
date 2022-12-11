@@ -12,5 +12,6 @@ bytes = "^0.5.3"
 regex = "1"
 sha2 = "^0.10.2"
 serde_json = "^1.0.42"
+rsa = "^0.6.1"
 asn1obj = { path = "../asn1obj/asn1obj"}
 asn1obj_codegen = { path = "../asn1obj/asn1obj_codegen"}

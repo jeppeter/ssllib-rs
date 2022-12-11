@@ -12,6 +12,9 @@ use std::error::Error;
 use std::io::{Write};
 
 use crate::{ssllib_new_error,ssllib_error_class};
+use crate::{ssllib_log_error};
+use crate::asn1rsa::*;
+use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
 
 
 ssllib_error_class!{SslX509Error}
@@ -182,4 +185,111 @@ pub struct Asn1X509AlgorElem {
 #[derive(Clone)]
 pub struct Asn1X509Algor {
 	pub elem : Asn1Seq<Asn1X509AlgorElem>,
+}
+
+//#[asn1_sequence(debug=enable)]
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1X509ExtensionElem {
+	pub object :Asn1Object,
+	pub critical : Asn1Opt<Asn1Boolean>,
+	pub value : Asn1OctData,
+}
+
+//#[asn1_sequence(debug=enable)]
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1X509Extension {
+	pub elem :Asn1Seq<Asn1X509ExtensionElem>,
+}
+
+//#[asn1_sequence(debug=enable)]
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1X509CinfElem {
+	pub version : Asn1Opt<Asn1ImpSet<Asn1Integer,0>>,
+	pub serial_number :Asn1BigNum,
+	pub signature : Asn1X509Algor,
+	pub issuer : Asn1X509Name,
+	pub validity : Asn1X509Val,
+	pub subject :Asn1X509Name,
+	pub key : Asn1X509Pubkey,
+	pub issuerUID : Asn1Opt<Asn1Imp<Asn1BitString,1>>,
+	pub subjectUID : Asn1Opt<Asn1Imp<Asn1BitString,2>>,
+	pub extensions : Asn1Opt<Asn1ImpSet<Asn1Seq<Asn1X509Extension>,3>>,
+}
+
+//#[asn1_sequence(debug=enable)]
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1X509Cinf {
+	pub elem : Asn1Seq<Asn1X509CinfElem>,
+}
+
+//#[asn1_sequence(debug=enable)]
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1X509Revoked {
+	pub serialNumber : Asn1Integer,
+	pub revocationDate : Asn1Time,
+	pub extensions : Asn1Opt<Asn1Seq<Asn1X509Extension>>,
+}
+
+//#[asn1_sequence(debug=enable)]
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1X509CrlInfo {
+	pub version : Asn1Opt<Asn1Integer>,
+	pub sig_alg : Asn1X509Algor,
+	pub issuer : Asn1X509Name,
+	pub lastUpdate : Asn1Time,
+	pub nextUpdate :Asn1Time,
+	pub revoked : Asn1Opt<Asn1Seq<Asn1X509Revoked>>,
+	pub extensions : Asn1Opt<Asn1Seq<Asn1X509Extension>>,
+}
+
+//#[asn1_sequence(debug=enable)]
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1X509Crl {
+	pub crl : Asn1X509CrlInfo,
+	pub sig_alg :Asn1X509Algor,
+	pub signature : Asn1BitString,
+}
+
+//#[asn1_sequence(debug=enable)]
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1X509Elem {
+	pub certinfo : Asn1X509Cinf,
+	pub sig_alg : Asn1X509Algor,
+	pub signature : Asn1BitData,
+}
+
+//#[asn1_sequence(debug=enable)]
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1X509 {
+	pub elem : Asn1Seq<Asn1X509Elem>,
+}
+
+impl Asn1X509 {
+	pub fn is_self_signed(&self) -> bool {
+		if self.elem.val.len() != 1 {
+			ssllib_log_error!("{} len != 1" ,self.elem.val.len());
+			return false;
+		}
+		let certinfo :&Asn1X509Cinf = &self.elem.val[0].certinfo;
+
+		if certinfo.elem.val.len() != 1 {
+			ssllib_log_error!("certinfo {} len != 1" ,certinfo.elem.val.len());
+			return false;
+		}
+
+		if certinfo.elem.val[0].issuer.eq(&certinfo.elem.val[0].subject) {
+			return true;
+		}
+
+		return false;
+	}
 }
