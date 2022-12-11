@@ -25,3 +25,10 @@ pub struct Asn1Pkcs8PrivKeyInfoElem {
 	pub pkey : Asn1OctData,
 	pub attributes : Asn1Opt<Asn1ImpSet<Asn1X509Attribute,0>>,
 }
+
+//#[asn1_sequence(debug=enable)]
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1Pkcs8PrivKeyInfo {
+	pub elem : Asn1Seq<Asn1Pkcs8PrivKeyInfoElem>,
+}

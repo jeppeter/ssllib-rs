@@ -9,3 +9,4 @@ pub mod x509;
 pub mod pkcs7;
 pub mod asn1auths;
 pub mod pkcs8;
+pub mod pkcs12;

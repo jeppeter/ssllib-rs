@@ -293,3 +293,16 @@ impl Asn1X509 {
 		return false;
 	}
 }
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1X509SigElem {
+	pub algor : Asn1X509Algor,
+	pub digest : Asn1OctData,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1X509Sig {
+	pub elem : Asn1Seq<Asn1X509SigElem>,
+}

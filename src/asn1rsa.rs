@@ -18,7 +18,10 @@ use rsa::hash::{Hash};
 use rsa::padding::{PaddingScheme};
 
 use crate::impls::*;
-use crate::{ssllib_new_error,ssllib_error_class};
+
+use crate::{ssllib_new_error,ssllib_error_class,ssllib_buffer_trace};
+use crate::{ssllib_format_buffer_log};
+use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
 
 ssllib_error_class!{SslAsn1RsaError}
 
@@ -77,4 +80,68 @@ pub struct Asn1X509PubkeyElem {
 #[derive(Clone)]
 pub struct Asn1X509Pubkey {
 	pub elem :Asn1Seq<Asn1X509PubkeyElem>,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1RsaPrivateKeyElem {
+	pub version :Asn1Integer,
+	pub modulus : Asn1BigNum,
+	pub pubexp : Asn1BigNum,
+	pub privexp : Asn1BigNum,
+	pub prime1 :Asn1BigNum,
+	pub prime2 :Asn1BigNum,
+	pub exp1 : Asn1BigNum,
+	pub exp2 :Asn1BigNum,
+	pub coeff : Asn1BigNum,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1RsaPrivateKey {
+	pub elem : Asn1Seq<Asn1RsaPrivateKeyElem>,
+}
+
+impl Asn1SignOp for Asn1RsaPrivateKey {
+	fn sign(&self,data :&[u8],digop :Box<dyn Asn1DigestOp>) -> Result<Vec<u8>,Box<dyn Error>> {
+		let retv :Vec<u8>;
+		if self.elem.val.len() != 1 {
+			ssllib_new_error!{SslAsn1RsaError,"{} not valid len",self.elem.val.len()}
+		}
+
+		let n = rsaBigUint::from_bytes_be(&self.elem.val[0].modulus.val.to_bytes_be());
+		let d = rsaBigUint::from_bytes_be(&self.elem.val[0].pubexp.val.to_bytes_be());
+		let e = rsaBigUint::from_bytes_be(&self.elem.val[0].privexp.val.to_bytes_be());
+		let mut primes :Vec<rsaBigUint> = Vec::new();
+		primes.push(rsaBigUint::from_bytes_be(&self.elem.val[0].prime1.val.to_bytes_be()));
+		primes.push(rsaBigUint::from_bytes_be(&self.elem.val[0].prime2.val.to_bytes_be()));
+		let po = RsaPrivateKey::from_components(n,d,e,primes);
+		let digest = digop.digest(data)?;
+		retv = po.sign(PaddingScheme::new_pkcs1v15_sign(Some(Hash::SHA2_256)),&digest)?;
+		ssllib_buffer_trace!(retv.as_ptr(),retv.len(),"sign value");
+		Ok(retv)
+	}
+}
+
+impl Asn1VerifyOp for Asn1RsaPrivateKey {
+	fn verify(&self, origdata :&[u8],signdata :&[u8], digop :Box<dyn Asn1DigestOp>) -> Result<bool,Box<dyn Error>> {
+		let mut retv :bool = false;
+		if self.elem.val.len() != 1 {
+			ssllib_new_error!{SslAsn1RsaError,"{} != 1 len",self.elem.val.len()}
+		}
+		let n = rsaBigUint::from_bytes_be(&self.elem.val[0].modulus.val.to_bytes_be());
+		let d = rsaBigUint::from_bytes_be(&self.elem.val[0].pubexp.val.to_bytes_be());
+		let e = rsaBigUint::from_bytes_be(&self.elem.val[0].privexp.val.to_bytes_be());
+		let mut primes :Vec<rsaBigUint> = Vec::new();
+		primes.push(rsaBigUint::from_bytes_be(&self.elem.val[0].prime1.val.to_bytes_be()));
+		primes.push(rsaBigUint::from_bytes_be(&self.elem.val[0].prime2.val.to_bytes_be()));
+		let po = RsaPrivateKey::from_components(n,d,e,primes);
+		let pubk = po.to_public_key();
+		let digest = digop.digest(origdata)?;
+		let ores = pubk.verify(PaddingScheme::new_pkcs1v15_sign(Some(Hash::SHA2_256)),&digest,signdata);
+		if ores.is_ok() {
+			retv = true;
+		} 
+		Ok(retv)
+	}	
 }
