@@ -161,3 +161,161 @@ impl Asn1Pkcs7SignerInfo {
 	}
 
 }
+
+//#[asn1_sequence(debug=enable)]
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1Pkcs7SignedElem {
+	pub version :Asn1Integer,
+	pub md_algs : Asn1Set<Asn1X509Algor>,
+	pub contents : Asn1Pkcs7Content,
+	pub cert :Asn1Opt<Asn1ImpSet<Asn1X509,0>>,
+	pub crl : Asn1ImpSet<Asn1X509Crl,1>,
+	pub signer_info : Asn1Set<Asn1Pkcs7SignerInfo>,
+}
+
+//#[asn1_sequence(debug=enable)]
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1Pkcs7Signed {
+	pub elem : Asn1Seq<Asn1Pkcs7SignedElem>,
+}
+
+
+impl Asn1Pkcs7Signed {
+	pub fn get_certs(&self) -> Result<Vec<Asn1X509>,Box<dyn Error>> {
+		let mut retv :Vec<Asn1X509> = Vec::new();
+		if self.elem.val.len() != 1 && self.elem.val.len() != 0 {
+			ssllib_new_error!{SslPkcs7Error,"elem [{}] not valid", self.elem.val.len()}
+		}
+		if self.elem.val.len() > 0 {
+			if self.elem.val[0].cert.val.is_some() {
+				let b = self.elem.val[0].cert.val.as_ref().unwrap();
+				for v in b.val.iter() {
+					let code = v.encode_asn1()?;
+					let mut cv :Asn1X509 = Asn1X509::init_asn1();
+					let _ = cv.decode_asn1(&code)?;
+					retv.push(cv);
+				}
+			}
+		}
+		Ok(retv)
+	}
+	pub fn set_certs(&mut self, certs :&Vec<Asn1X509>) -> Result<(),Box<dyn Error>> {
+		let mut cimp :Asn1ImpSet<Asn1X509,0> = Asn1ImpSet::init_asn1();
+		cimp.val = certs.clone();
+		if self.elem.val.len() != 1 && self.elem.val.len() != 0 {
+			ssllib_new_error!{SslPkcs7Error,"elem [{}] not valid",self.elem.val.len()}
+		}
+		if self.elem.val.len() == 0 {
+			let c = Asn1Pkcs7SignedElem::init_asn1();
+			self.elem.val.push(c);
+		}
+		self.elem.val[0].cert.val = Some(cimp);
+		return Ok(());
+	}
+
+	pub fn get_signer_info_mut(&mut self,i :usize) -> Option<&mut Asn1Pkcs7SignerInfo> {
+		if self.elem.val.len() != 1 && self.elem.val.len() != 0 {
+			return None;
+		}
+
+		if self.elem.val.len() != 0 {
+			if i < self.elem.val[0].signer_info.val.len() {
+				return Some(&mut self.elem.val[0].signer_info.val[i]);
+			}
+		}
+		return None;
+	}
+
+
+}
+
+//#[asn1_sequence(debug=enable)]
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1Pkcs7EncContentElem {
+	pub content_type : Asn1Object,
+	pub algorithm : Asn1X509Algor,
+	pub enc_data :Asn1Imp<Asn1OctData,0>,
+}
+
+//#[asn1_sequence(debug=enable)]
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1Pkcs7EncContent {
+	pub elem :Asn1Seq<Asn1Pkcs7EncContentElem>,
+}
+
+//#[asn1_sequence(debug=enable)]
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1Pkcs7EncryptElem {
+	pub version : Asn1Integer,
+	pub enc_data : Asn1Pkcs7EncContent,
+}
+
+//#[asn1_sequence(debug=enable)]
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1Pkcs7Encrypt {
+	pub elem : Asn1Seq<Asn1Pkcs7EncryptElem>,
+}
+
+//#[asn1_obj_selector(debug=enable,anyobj=default,signed="1.2.840.113549.1.7.2",encryptdata="1.2.840.113549.1.7.6",data="1.2.840.113549.1.7.1")]
+#[asn1_obj_selector(anyobj=default,signed="1.2.840.113549.1.7.2",encryptdata="1.2.840.113549.1.7.6",data="1.2.840.113549.1.7.1")]
+#[derive(Clone)]
+pub struct Asn1Pkcs7Selector {
+	pub val :Asn1Object,
+}
+
+//#[asn1_choice(selector=selector,debug=enable)]
+#[asn1_choice(selector=selector)]
+#[derive(Clone)]
+pub struct Asn1Pkcs7Elem {
+	pub selector :Asn1Pkcs7Selector,
+	pub signed : Asn1Ndef<Asn1Pkcs7Signed,0>,
+	pub encryptdata : Asn1Ndef<Asn1Pkcs7Encrypt,0>,
+	pub data : Asn1Ndef<Asn1OctData,0>,
+	pub anyobj :Asn1Any,
+}
+
+//#[asn1_sequence(debug=enable)]
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1Pkcs7 {
+	pub elem :Asn1Seq<Asn1Pkcs7Elem>,
+}
+
+#[allow(dead_code)]
+impl Asn1Pkcs7 {
+	pub fn is_signed_data(&self) -> bool {
+		if self.elem.val.len() < 1 {
+			return false;
+		}
+		let ores = self.elem.val[0].selector.encode_select();
+		if ores.is_err() {
+			return false;
+		}
+		let val = ores.unwrap();
+		if val == "signed" {
+			return true;
+		}
+		return false;
+	}
+
+	pub fn get_signed_data(&self) -> Result<&Asn1Pkcs7Signed,Box<dyn Error>> {
+		if self.is_signed_data() {
+			let p = self.elem.val[0].signed.val.as_ref().unwrap();
+			return Ok(p);
+		}
+		ssllib_new_error!{SslPkcs7Error,"not signed data"}
+	}
+
+	pub fn get_signed_data_mut(&mut self) -> Result<&mut Asn1Pkcs7Signed,Box<dyn Error>> {
+		if self.is_signed_data() {
+			return Ok(self.elem.val[0].signed.val.as_mut().unwrap());
+		}
+		ssllib_new_error!{SslPkcs7Error,"not signed data"}	
+	}
+}
