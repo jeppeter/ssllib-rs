@@ -306,3 +306,85 @@ pub struct Asn1X509SigElem {
 pub struct Asn1X509Sig {
 	pub elem : Asn1Seq<Asn1X509SigElem>,
 }
+
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1X509ReqInfoElem {
+	pub version : Asn1Integer,
+	pub subject : Asn1X509Name,
+	pub pubkey : Asn1X509Pubkey,
+	pub attributes : Asn1Opt<Asn1ImpSet<Asn1X509Attribute,0>>,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1X509ReqInfo {
+	pub elem : Asn1Seq<Asn1X509ReqInfoElem>,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1X509ReqElem {
+	pub req_info : Asn1X509ReqInfo,
+	pub sig_alg : Asn1X509Algor,
+	pub signature : Asn1BitData,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1X509Req {
+	pub elem : Asn1Seq<Asn1X509ReqElem>,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1RsaPubkeyFormElem {
+	pub algor : Asn1X509Algor,
+	pub data  : Asn1BitData,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1RsaPubkeyForm {
+	pub elem :Asn1Seq<Asn1RsaPubkeyFormElem>,
+}
+
+#[derive(Clone)]
+#[asn1_sequence()]
+pub struct Asn1OtherNameElem {
+	pub typeid :Asn1Object,
+	pub value :Asn1Ndef<Asn1Any,0>,
+}
+
+#[derive(Clone)]
+#[asn1_sequence()]
+pub struct Asn1OtherName {
+	pub elem :Asn1Seq<Asn1OtherNameElem>,
+}
+
+#[derive(Clone)]
+#[asn1_sequence()]
+pub struct Asn1EdiPartyNameElem {
+	pub nameassigner :Asn1Opt<Asn1Ndef<Asn1PrintableString,0>>,
+	pub partyname :Asn1Ndef<Asn1PrintableString,1>,
+}
+
+#[derive(Clone)]
+#[asn1_sequence()]
+pub struct Asn1EdiPartyName {
+	pub elem :Asn1Seq<Asn1EdiPartyNameElem>,
+}
+
+#[asn1_int_choice(debug=0,selector=stype,othername=0,rfc822name=1,dnsname=2,directoryname=4,uri=6,ipaddress=7,registerid=8)]
+#[derive(Clone)]
+pub struct Asn1GeneralName {
+	pub stype :i32,
+	pub othername : Asn1Imp<Asn1OtherName,0>,
+	pub rfc822name :Asn1Imp<Asn1IA5String,1>,
+	pub dnsname :Asn1Imp<Asn1IA5String,2>,
+	pub directoryname : Asn1Imp<Asn1Seq<Asn1X509Name>,4>,
+	pub uri : Asn1Imp<Asn1IA5String,6>,
+	pub ipaddress :Asn1Imp<Asn1IA5String,7>,
+	pub registerid :Asn1Imp<Asn1Object,8>,
+}
