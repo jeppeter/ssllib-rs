@@ -7,6 +7,7 @@ use asn1obj::strop::*;
 use asn1obj::asn1impl::*;
 #[allow(unused_imports)]
 use asn1obj::*;
+use asn1obj::consts::*;
 
 use std::error::Error;
 use std::io::{Write};
@@ -14,6 +15,7 @@ use std::io::{Write};
 use crate::{ssllib_new_error,ssllib_error_class};
 use crate::{ssllib_log_error};
 use crate::rsa::*;
+use crate::consts::*;
 use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
 
 
@@ -316,11 +318,48 @@ pub struct Asn1Pbkdf2ParamElem {
 	pub prf : Asn1Opt<Asn1X509Algor>,
 }
 
+impl Asn1Pbkdf2ParamElem {
+	pub fn get_enc_key(&self) -> Result<Vec<u8>,Box<dyn Error>> {
+		let retv :Vec<u8> = Vec::new();
+		Ok(retv)
+	}
+
+	pub fn set_enc_type(&mut self,salt :&[u8],types :&str,params :&[u8]) -> Result<(),Box<dyn Error>> {		
+		if types == KEY_HMAC_WITH_SHA256 && params.len() == 4 {
+			self.salt.content = salt.to_vec().clone();
+			self.salt.tag = ASN1_OCT_STRING_FLAG as u64;
+			let mut times :u32 = 0;
+			for i in 0..params.len() {
+				times |= (params[i] as u32) << ((3 - i) * 8);
+			}
+			self.iter.set_value(times as i64);
+			self.keylength = Asn1Opt::init_asn1();
+			let mut  aglr = Asn1X509Algor::init_asn1();
+			let mut algrelm = Asn1X509AlgorElem::init_asn1();
+			let _ = algrelm.algorithm.set_value(OID_HMAC_WITH_SHA256)?;
+			let mut atype :Asn1Any = Asn1Any::init_asn1();
+			atype.tag = ASN1_NULL_FLAG as u64;
+			algrelm.parameters = Asn1Opt::init_asn1();
+			algrelm.parameters.val = Some(atype.clone());
+			aglr.elem.val.push(algrelm);
+			self.prf = Asn1Opt::init_asn1();
+			self.prf.val = Some(aglr.clone());
+		} else {
+			ssllib_new_error!{SslX509Error,"not support type [{}] params len[{}]", types,params.len()}
+		}
+
+		Ok(())
+	}
+
+}
+
+
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct Asn1Pbkdf2Param {
 	pub elem : Asn1Seq<Asn1Pbkdf2ParamElem>,
 }
+
 
 #[asn1_sequence()]
 #[derive(Clone)]
