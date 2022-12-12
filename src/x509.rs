@@ -19,6 +19,7 @@ use crate::consts::*;
 use crate::digest::*;
 use crate::impls::*;
 use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
+use crate::config::ConfigValue;
 
 
 ssllib_error_class!{SslX509Error}
@@ -321,7 +322,7 @@ pub struct Asn1Pbkdf2ParamElem {
 }
 
 impl Asn1Pbkdf2ParamElem {
-	pub fn get_enc_key(&self,params :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
+	pub fn get_enc_key(&self,params :&ConfigValue) -> Result<Vec<u8>,Box<dyn Error>> {
 		let retv :Vec<u8> ;
 		/*now to get */
 		if self.prf.val.is_none() {
@@ -333,7 +334,8 @@ impl Asn1Pbkdf2ParamElem {
 		}
 		let ktype :String = algr.elem.val[0].algorithm.get_value();
 		if ktype == OID_HMAC_WITH_SHA256 {
-			let hsha256 :HmacSha256Digest = HmacSha256Digest::new(self.iter.val as u32,params)?;
+			let passin :Vec<u8> = params.get_array_u8_must(KEY_JSON_PASSIN)?;
+			let hsha256 :HmacSha256Digest = HmacSha256Digest::new(self.iter.val as u32,&passin)?;
 			retv = hsha256.digest(&(self.salt.content))?;
 		} else {
 			ssllib_new_error!{SslX509Error,"not support algorithm [{}]", ktype}
@@ -341,15 +343,13 @@ impl Asn1Pbkdf2ParamElem {
 		Ok(retv)
 	}
 
-	pub fn set_enc_type(&mut self,salt :&[u8],types :&str,params :&[u8]) -> Result<(),Box<dyn Error>> {		
-		if types == KEY_HMAC_WITH_SHA256 && params.len() == 4 {
-			self.salt.content = salt.to_vec().clone();
+	pub fn set_enc_type(&mut self,config :&ConfigValue) -> Result<(),Box<dyn Error>> {		
+		let types = config.get_string_must(KEY_JSON_TYPE)?;		
+		if types == KEY_HMAC_WITH_SHA256  {
+			let v8 :Vec<u8> = config.get_array_u8_must(KEY_JSON_SALT)?;
+			self.salt.content = v8.clone();
 			self.salt.tag = ASN1_OCT_STRING_FLAG as u64;
-			let mut times :u32 = 0;
-			for i in 0..params.len() {
-				times |= (params[i] as u32) << ((3 - i) * 8);
-			}
-			self.iter.set_value(times as i64);
+			self.iter.set_value(config.get_i64_must(KEY_JSON_TIMES)?);
 			self.keylength = Asn1Opt::init_asn1();
 			let mut  aglr = Asn1X509Algor::init_asn1();
 			let mut algrelm = Asn1X509AlgorElem::init_asn1();
@@ -362,7 +362,7 @@ impl Asn1Pbkdf2ParamElem {
 			self.prf = Asn1Opt::init_asn1();
 			self.prf.val = Some(aglr.clone());
 		} else {
-			ssllib_new_error!{SslX509Error,"not support type [{}] params len[{}]", types,params.len()}
+			ssllib_new_error!{SslX509Error,"not support type [{}]", types}
 		}
 
 		Ok(())
@@ -377,21 +377,21 @@ pub struct Asn1Pbkdf2Param {
 }
 
 impl Asn1Pbkdf2Param {
-	pub fn get_enc_key(&self,params :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
+	pub fn get_enc_key(&self,params :&ConfigValue) -> Result<Vec<u8>,Box<dyn Error>> {
 		if self.elem.val.len() != 1 {
 			ssllib_new_error!{SslX509Error,"Asn1Pbkdf2Param len [{}] != 1" ,self.elem.val.len()}
 		}
 		return self.elem.val[0].get_enc_key(params);
 	}
 
-	pub fn set_enc_type(&mut self,salt :&[u8],types :&str,params :&[u8]) -> Result<(),Box<dyn Error>> {
+	pub fn set_enc_type(&mut self,params :&ConfigValue) -> Result<(),Box<dyn Error>> {
 		if self.elem.val.len() != 0 && self.elem.val.len() != 1 {
 			ssllib_new_error!{SslX509Error,"Asn1Pbkdf2Param len [{}] != 1 or 0" ,self.elem.val.len()}
 		}
 		if self.elem.val.len() == 0 {
 			self.elem.val.push(Asn1Pbkdf2ParamElem::init_asn1());
 		}
-		return self.elem.val[0].set_enc_type(salt,types,params);
+		return self.elem.val[0].set_enc_type(params);
 	}
 }
 

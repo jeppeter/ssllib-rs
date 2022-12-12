@@ -2,6 +2,7 @@
 pub const KEY_JSON_TYPE :&str = "type";
 pub const KEY_JSON_SALT :&str = "salt";
 pub const KEY_JSON_TIMES :&str = "times";
+pub const KEY_JSON_PASSIN :&str = "passin";
 
 
 pub const KEY_HMAC_WITH_SHA256 :&str = "hmacWithSha256";

@@ -109,6 +109,19 @@ impl ConfigValue {
 		return self._get_i64_must(&vmap,&fname);
 	}
 
+	pub fn get_u8_must(&self,key :&str) -> Result<u8,Box<dyn Error>> {
+		let (dnames,fname) = self._split_path(key)?;
+		let vmap = self._get_map_path(&dnames)?;
+		let ores =  self._get_i64_must(&vmap,&fname);
+		if ores.is_err() {
+			let e = ores.err().unwrap();
+			return Err(e);
+		}
+		let retu8 :u8 = ores.unwrap() as u8;
+		return Ok(retu8);
+	}
+
+
 	pub fn get_i64_def(&self, key :&str, defval :i64) -> i64 {
 		let ores = self.get_i64_must(key);
 		if ores.is_err() {
@@ -117,8 +130,18 @@ impl ConfigValue {
 		return ores.unwrap();
 	}
 
-	fn _get_array_idx_str(&self, vmap :&serde_json::value::Value, key :&str, idx :usize) -> Result<String,Box<dyn Error>> {
+	pub fn get_u8_def(&self,key :&str,defval :u8) -> u8 {
+		let ores = self.get_u8_must(key);
+		if ores.is_err() {
+			return defval;
+		}
+		return ores.unwrap();
+	}
+
+
+	fn _get_array_str(&self, vmap :&serde_json::value::Value, key :&str) -> Result<Vec<String>,Box<dyn Error>> {
 		let v = vmap.get(key);
+		let mut retv :Vec<String> = Vec::new();
 		if v.is_none() {
 			ssllib_new_error!{SslConfigError,"[{}] can not get",key}
 		}
@@ -127,18 +150,26 @@ impl ConfigValue {
 			ssllib_new_error!{SslConfigError,"[{}] not array", key}
 		}
 		let karr = vk.as_array().unwrap();
-		if karr.len() < idx {
-			ssllib_new_error!{SslConfigError,"[{}].[{}] out range",key,idx}
+		for i in 0..karr.len() {
+			let sv = serde_json::json!(karr[i].clone());
+			if !sv.is_string() {
+				ssllib_new_error!{SslConfigError,"[{}].[{}] not string",key,i}
+			}
+			retv.push(format!("{}",sv.as_str().unwrap()))
 		}
-		let sv = serde_json::json!(karr[idx].clone());
-		if !sv.is_string() {
-			ssllib_new_error!{SslConfigError,"[{}].[{}] not string",key,idx}
-		}
-		return Ok(format!("{}",sv.as_str().unwrap()));
+		return Ok(retv);
 	}
 
-	fn _get_array_idx_len(&self, vmap :&serde_json::value::Value, key :&str) -> Result<usize,Box<dyn Error>> {
+	pub fn get_array_str_must(&self,key :&str)  ->  Result<Vec<String>,Box<dyn Error>> {
+		let (dnames,fname) = self._split_path(key)?;
+		let vmap = self._get_map_path(&dnames)?;
+		return self._get_array_str(&vmap,&fname);
+	}
+
+
+	fn _get_array_i64(&self, vmap :&serde_json::value::Value, key :&str) -> Result<Vec<i64>,Box<dyn Error>> {
 		let v = vmap.get(key);
+		let mut retv :Vec<i64> = Vec::new();
 		if v.is_none() {
 			ssllib_new_error!{SslConfigError,"[{}] can not get",key}
 		}
@@ -147,48 +178,35 @@ impl ConfigValue {
 			ssllib_new_error!{SslConfigError,"[{}] not array", key}
 		}
 		let karr = vk.as_array().unwrap();
-		return Ok(karr.len());
+		for i in 0..karr.len() {
+			let sv = serde_json::json!(karr[i].clone());
+			if !sv.is_i64() {
+				ssllib_new_error!{SslConfigError,"[{}].[{}] not i64", key,i}
+			}
+			retv.push(sv.as_i64().unwrap());
+		}
+		return Ok(retv);
 	}
 
-
-	pub fn get_array_idx_str_must(&self,key :&str,idx :usize)  ->  Result<String,Box<dyn Error>> {
+	pub fn get_array_i64_must(&self,key :&str)  ->  Result<Vec<i64>,Box<dyn Error>> {
 		let (dnames,fname) = self._split_path(key)?;
 		let vmap = self._get_map_path(&dnames)?;
-		return self._get_array_idx_str(&vmap,&fname,idx);
+		return self._get_array_i64(&vmap,&fname);
 	}
 
-	pub fn get_array_idx_str_len(&self,key :&str)  ->  Result<usize,Box<dyn Error>> {
+	pub fn get_array_u8_must(&self,key :&str)  ->  Result<Vec<u8>,Box<dyn Error>> {
 		let (dnames,fname) = self._split_path(key)?;
 		let vmap = self._get_map_path(&dnames)?;
-		return self._get_array_idx_len(&vmap,&fname);
+		let ores =  self._get_array_i64(&vmap,&fname);
+		if ores.is_err() {
+			let e = ores.err().unwrap();
+			return Err(e);
+		}
+		let mut retu8 :Vec<u8> = Vec::new();
+		for k in ores.unwrap().iter() {
+			retu8.push( (*k) as u8);
+		}
+		return Ok(retu8);
 	}
-
-
-	fn _get_array_idx_i64(&self, vmap :&serde_json::value::Value, key :&str, idx :usize) -> Result<i64,Box<dyn Error>> {
-		let v = vmap.get(key);
-		if v.is_none() {
-			ssllib_new_error!{SslConfigError,"[{}] can not get",key}
-		}
-		let vk = v.unwrap();
-		if !vk.is_array() {
-			ssllib_new_error!{SslConfigError,"[{}] not array", key}
-		}
-		let karr = vk.as_array().unwrap();
-		if karr.len() < idx {
-			ssllib_new_error!{SslConfigError,"[{}].[{}] out range",key,idx}
-		}
-		let sv = serde_json::json!(karr[idx].clone());
-		if !sv.is_i64() {
-			ssllib_new_error!{SslConfigError,"[{}].[{}] not i64",key,idx}
-		}
-		return Ok(sv.as_i64().unwrap());
-	}
-
-	pub fn get_array_idx_i64_must(&self,key :&str,idx :usize)  ->  Result<i64,Box<dyn Error>> {
-		let (dnames,fname) = self._split_path(key)?;
-		let vmap = self._get_map_path(&dnames)?;
-		return self._get_array_idx_i64(&vmap,&fname,idx);
-	}
-
 }
 
