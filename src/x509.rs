@@ -16,6 +16,8 @@ use crate::{ssllib_new_error,ssllib_error_class};
 use crate::{ssllib_log_error};
 use crate::rsa::*;
 use crate::consts::*;
+use crate::digest::*;
+use crate::impls::*;
 use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
 
 
@@ -319,8 +321,23 @@ pub struct Asn1Pbkdf2ParamElem {
 }
 
 impl Asn1Pbkdf2ParamElem {
-	pub fn get_enc_key(&self) -> Result<Vec<u8>,Box<dyn Error>> {
-		let retv :Vec<u8> = Vec::new();
+	pub fn get_enc_key(&self,params :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
+		let retv :Vec<u8> ;
+		/*now to get */
+		if self.prf.val.is_none() {
+			ssllib_new_error!{SslX509Error,"no prf setted"}
+		}
+		let algr :&Asn1X509Algor = self.prf.val.as_ref().unwrap();
+		if algr.elem.val.len() != 1 {
+			ssllib_new_error!{SslX509Error,"no algr for prf"}
+		}
+		let ktype :String = algr.elem.val[0].algorithm.get_value();
+		if ktype == OID_HMAC_WITH_SHA256 {
+			let hsha256 :HmacSha256Digest = HmacSha256Digest::new(self.iter.val as u32,params)?;
+			retv = hsha256.digest(&(self.salt.content))?;
+		} else {
+			ssllib_new_error!{SslX509Error,"not support algorithm [{}]", ktype}
+		}
 		Ok(retv)
 	}
 
@@ -350,7 +367,6 @@ impl Asn1Pbkdf2ParamElem {
 
 		Ok(())
 	}
-
 }
 
 
@@ -358,6 +374,25 @@ impl Asn1Pbkdf2ParamElem {
 #[derive(Clone)]
 pub struct Asn1Pbkdf2Param {
 	pub elem : Asn1Seq<Asn1Pbkdf2ParamElem>,
+}
+
+impl Asn1Pbkdf2Param {
+	pub fn get_enc_key(&self,params :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
+		if self.elem.val.len() != 1 {
+			ssllib_new_error!{SslX509Error,"Asn1Pbkdf2Param len [{}] != 1" ,self.elem.val.len()}
+		}
+		return self.elem.val[0].get_enc_key(params);
+	}
+
+	pub fn set_enc_type(&mut self,salt :&[u8],types :&str,params :&[u8]) -> Result<(),Box<dyn Error>> {
+		if self.elem.val.len() != 0 && self.elem.val.len() != 1 {
+			ssllib_new_error!{SslX509Error,"Asn1Pbkdf2Param len [{}] != 1 or 0" ,self.elem.val.len()}
+		}
+		if self.elem.val.len() == 0 {
+			self.elem.val.push(Asn1Pbkdf2ParamElem::init_asn1());
+		}
+		return self.elem.val[0].set_enc_type(salt,types,params);
+	}
 }
 
 
