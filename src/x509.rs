@@ -13,7 +13,7 @@ use std::io::{Write};
 
 use crate::{ssllib_new_error,ssllib_error_class};
 use crate::{ssllib_log_error};
-use crate::asn1rsa::*;
+use crate::rsa::*;
 use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
 
 
