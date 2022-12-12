@@ -12,12 +12,17 @@ use std::error::Error;
 use std::io::{Write};
 
 #[allow(unused_imports)]
-use rsa::{RsaPublicKey,RsaPrivateKey,PublicKey};
+use rsa::{RsaPublicKey,RsaPrivateKey,PublicKey,PublicKeyParts};
 use rsa::BigUint as rsaBigUint;
 use rsa::hash::{Hash};
 use rsa::padding::{PaddingScheme};
 
+use num_bigint::traits::ModInverse;
+use num_bigint::{BigUint};
+
+
 use crate::impls::*;
+use crate::fileop::RandFile;
 
 use crate::{ssllib_new_error,ssllib_error_class,ssllib_buffer_trace};
 use crate::{ssllib_format_buffer_log};
@@ -146,3 +151,46 @@ impl Asn1VerifyOp for Asn1RsaPrivateKey {
 	}	
 }
 
+impl Asn1RsaPrivateKey {
+	pub fn generate(bitsize :usize, randfile :Option<String>) -> Result<Asn1RsaPrivateKey,Box<dyn Error>> {
+		let key :RsaPrivateKey;
+		let mut retv :Asn1RsaPrivateKey = Asn1RsaPrivateKey::init_asn1();
+		if randfile.is_none() {
+			let mut gencore  = rand::thread_rng();
+			key = RsaPrivateKey::new(&mut gencore,bitsize)?;
+		} else {
+			let fname = randfile.as_ref().unwrap();
+			let mut rf = RandFile::new(fname)?;
+			key = RsaPrivateKey::new(&mut rf,bitsize)?;
+		}
+
+		/*now to get the random number*/
+		retv.elem.val = Vec::new();
+		retv.elem.val.push(Asn1RsaPrivateKeyElem::init_asn1());
+		/*for the version is 2*/
+		retv.elem.val[0].version.set_value(2 as i64);
+		retv.elem.val[0].modulus.set_value(&(key.n().to_bytes_be()));
+		retv.elem.val[0].pubexp.set_value(&(key.e().to_bytes_be()));
+		retv.elem.val[0].privexp.set_value(&(key.d().to_bytes_be()));
+		let primes = key.primes();
+		retv.elem.val[0].prime1.set_value(&(primes[0].to_bytes_be()));
+		retv.elem.val[0].prime2.set_value(&(primes[1].to_bytes_be()));
+		let p :BigUint = BigUint::from_bytes_be(&(primes[0].to_bytes_be()));
+		let q :BigUint = BigUint::from_bytes_be(&(primes[1].to_bytes_be()));
+		let r1 :BigUint = p.clone() - 1 as u32;
+		let r2 :BigUint = q.clone() - 1 as u32;
+		let e :BigUint = BigUint::from_bytes_be(&(key.e().to_bytes_be()));
+		let dbase = r1.clone() * r2.clone();
+		let d2 = e.clone().mod_inverse(&dbase).unwrap();
+		let d = d2.to_biguint().unwrap();
+		let exp1 = d.clone() % r1.clone();
+		let exp2 = d.clone() % r2.clone();
+
+		retv.elem.val[0].exp1.set_value(&(exp1.to_bytes_be()));
+		retv.elem.val[0].exp2.set_value(&(exp2.to_bytes_be()));
+		let co2 = q.clone().mod_inverse(&p).unwrap();
+		let co = co2.to_biguint().unwrap();
+		retv.elem.val[0].coeff.set_value(&(co.to_bytes_be()));
+		Ok(retv)
+	}
+}
