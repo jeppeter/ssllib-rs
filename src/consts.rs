@@ -1,4 +1,9 @@
 
+pub const KEY_JSON_TYPE :&str = "type";
+pub const KEY_JSON_SALT :&str = "salt";
+pub const KEY_JSON_TIMES :&str = "times";
+
+
 pub const KEY_HMAC_WITH_SHA256 :&str = "hmacWithSha256";
 
 pub const OID_PBES2 :&str = "1.2.840.113549.1.5.13";
