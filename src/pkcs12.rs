@@ -22,47 +22,6 @@ pub struct Asn1AuthSafes {
 }
 
 
-#[asn1_sequence()]
-#[derive(Clone)]
-pub struct Asn1Pbe2ParamElem {
-	pub keyfunc : Asn1X509Algor,
-	pub encryption : Asn1X509Algor,
-}
-
-
-#[asn1_sequence()]
-#[derive(Clone)]
-pub struct Asn1Pbe2Param {
-	pub elem : Asn1Seq<Asn1Pbe2ParamElem>,
-}
-#[asn1_sequence()]
-#[derive(Clone)]
-pub struct Asn1Pbkdf2ParamElem {
-	pub salt : Asn1Any,
-	pub iter : Asn1Integer,
-	pub keylength :Asn1Opt<Asn1Integer>,
-	pub prf : Asn1Opt<Asn1X509Algor>,
-}
-
-#[asn1_sequence()]
-#[derive(Clone)]
-pub struct Asn1Pbkdf2Param {
-	pub elem : Asn1Seq<Asn1Pbkdf2ParamElem>,
-}
-
-#[asn1_sequence()]
-#[derive(Clone)]
-pub struct Asn1NetscapePkeyElem {
-	pub version :Asn1Integer,
-	pub algor : Asn1X509Algor,
-	pub privdata :Asn1OctData,
-}
-
-#[asn1_sequence()]
-#[derive(Clone)]
-pub struct Asn1NetscapePkey {
-	pub elem : Asn1Seq<Asn1NetscapePkeyElem>,
-}
 
 #[asn1_sequence()]
 #[derive(Clone)]
