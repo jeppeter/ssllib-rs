@@ -56,6 +56,63 @@ impl ConfigValue {
 		Ok(retv)
 	}
 
+	fn _set_str_array(&mut self,paths :&[String],key :&str, strv:&Vec<String>) -> Result<Option<Vec<String>>,Box<dyn Error>> {
+		let mut forms :String = "[".to_string();
+		for i in 0..strv.len() {
+			if i > 0 {
+				forms.push_str(",");
+			}
+			forms.push_str(&format!("\"{}\"",strv[i]));
+		}
+		forms.push_str("]");
+		let vs :serde_json::value::Value = serde_json::from_str(&forms)?;
+		let vmap  = self.val.pointer_mut(&(self._get_path_whole(paths))).unwrap();
+		let mut retv :Option<Vec<String>> = None;
+		let mut allok :bool = true;
+		let mut allstr :Vec<String> = Vec::new();
+
+		if key.len() > 0 {
+			let ores = vmap.get(key);
+			if ores.is_some() {
+				let ck = ores.unwrap();
+				if ck.is_array() {
+					let carr = ck.as_array().unwrap();
+					for k in carr.iter() {
+						if !k.is_string() {
+							allok = false;
+							break;
+						}
+						allstr.push(format!("{}",k.as_str().unwrap()));
+					}
+
+					if allok {
+						retv = Some(allstr.clone());
+					}
+				}
+			}
+			vmap[key] = vs;
+		} else {
+			if vmap.is_array() {
+				let carr = vmap.as_array().unwrap();
+				for k in carr.iter() {
+					if !k.is_string() {
+						allok = false;
+						break;
+					}
+					allstr.push(format!("{}",k.as_str().unwrap()));
+				}
+
+				if allok {
+					retv = Some(allstr.clone());
+				}				
+			}
+			*vmap = vs;
+		}
+		Ok(retv)
+	}
+
+
+
 	fn _set_u8(&mut self,paths :&[String],key :&str, val :u8) -> Result<Option<u8>,Box<dyn Error>> {
 		let vs :serde_json::value::Value = serde_json::from_str(&format!("{}",val))?;
 		let vmap  = self.val.pointer_mut(&(self._get_path_whole(paths))).unwrap();
@@ -80,6 +137,61 @@ impl ConfigValue {
 	}
 
 
+	fn _set_u8_array(&mut self,paths :&[String],key :&str, strv:&Vec<u8>) -> Result<Option<Vec<u8>>,Box<dyn Error>> {
+		let mut forms :String = "[".to_string();
+		for i in 0..strv.len() {
+			if i > 0 {
+				forms.push_str(",");
+			}
+			forms.push_str(&format!("{}",strv[i]));
+		}
+		forms.push_str("]");
+		let vs :serde_json::value::Value = serde_json::from_str(&forms)?;
+		let vmap  = self.val.pointer_mut(&(self._get_path_whole(paths))).unwrap();
+		let mut retv :Option<Vec<u8>> = None;
+		let mut allok :bool = true;
+		let mut allstr :Vec<u8> = Vec::new();
+
+		if key.len() > 0 {
+			let ores = vmap.get(key);
+			if ores.is_some() {
+				let ck = ores.unwrap();
+				if ck.is_array() {
+					let carr = ck.as_array().unwrap();
+					for k in carr.iter() {
+						if !k.is_i64() {
+							allok = false;
+							break;
+						}
+						allstr.push(k.as_i64().unwrap() as u8);
+					}
+
+					if allok {
+						retv = Some(allstr.clone());
+					}
+				}
+			}
+			vmap[key] = vs;
+		} else {
+			if vmap.is_array() {
+				let carr = vmap.as_array().unwrap();
+				for k in carr.iter() {
+					if !k.is_i64() {
+						allok = false;
+						break;
+					}
+					allstr.push(k.as_i64().unwrap() as u8);
+				}
+
+				if allok {
+					retv = Some(allstr.clone());
+				}
+			}
+			*vmap = vs;
+		}
+		Ok(retv)
+	}
+
 	fn _set_i64(&mut self,paths :&[String],key :&str, val :i64) -> Result<Option<i64>,Box<dyn Error>> {
 		let vs :serde_json::value::Value = serde_json::from_str(&format!("{}",val))?;
 		let vmap  = self.val.pointer_mut(&(self._get_path_whole(paths))).unwrap();
@@ -97,6 +209,61 @@ impl ConfigValue {
 		} else {
 			if vmap.is_i64() {
 				retv = Some(vmap.as_i64().unwrap());
+			}
+			*vmap = vs;
+		}
+		Ok(retv)
+	}
+
+	fn _set_i64_array(&mut self,paths :&[String],key :&str, strv:&Vec<i64>) -> Result<Option<Vec<i64>>,Box<dyn Error>> {
+		let mut forms :String = "[".to_string();
+		for i in 0..strv.len() {
+			if i > 0 {
+				forms.push_str(",");
+			}
+			forms.push_str(&format!("{}",strv[i]));
+		}
+		forms.push_str("]");
+		let vs :serde_json::value::Value = serde_json::from_str(&forms)?;
+		let vmap  = self.val.pointer_mut(&(self._get_path_whole(paths))).unwrap();
+		let mut retv :Option<Vec<i64>> = None;
+		let mut allok :bool = true;
+		let mut allstr :Vec<i64> = Vec::new();
+
+		if key.len() > 0 {
+			let ores = vmap.get(key);
+			if ores.is_some() {
+				let ck = ores.unwrap();
+				if ck.is_array() {
+					let carr = ck.as_array().unwrap();
+					for k in carr.iter() {
+						if !k.is_i64() {
+							allok = false;
+							break;
+						}
+						allstr.push(k.as_i64().unwrap());
+					}
+
+					if allok {
+						retv = Some(allstr.clone());
+					}
+				}
+			}
+			vmap[key] = vs;
+		} else {
+			if vmap.is_array() {
+				let carr = vmap.as_array().unwrap();
+				for k in carr.iter() {
+					if !k.is_i64() {
+						allok = false;
+						break;
+					}
+					allstr.push(k.as_i64().unwrap());
+				}
+
+				if allok {
+					retv = Some(allstr.clone());
+				}
 			}
 			*vmap = vs;
 		}
@@ -159,6 +326,24 @@ impl ConfigValue {
 		let (paths,bname) = self._split_path(key)?;
 		let _ = self._get_map_path_write(&paths)?;
 		return self._set_i64(&paths,&bname,val);
+	}
+
+	pub fn set_str_array_must(&mut self,key :&str, val :&Vec<String>) -> Result<Option<Vec<String>>,Box<dyn Error>> {
+		let (paths,bname) = self._split_path(key)?;
+		let _ = self._get_map_path_write(&paths)?;
+		return self._set_str_array(&paths,&bname,val);
+	}
+
+	pub fn set_u8_array_must(&mut self,key :&str, val :&Vec<u8>) -> Result<Option<Vec<u8>>,Box<dyn Error>> {
+		let (paths,bname) = self._split_path(key)?;
+		let _ = self._get_map_path_write(&paths)?;
+		return self._set_u8_array(&paths,&bname,val);
+	}
+
+	pub fn set_i64_array_must(&mut self,key :&str, val :&Vec<i64>) -> Result<Option<Vec<i64>>,Box<dyn Error>> {
+		let (paths,bname) = self._split_path(key)?;
+		let _ = self._get_map_path_write(&paths)?;
+		return self._set_i64_array(&paths,&bname,val);
 	}
 
 
