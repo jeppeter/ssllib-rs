@@ -56,6 +56,54 @@ impl ConfigValue {
 		Ok(retv)
 	}
 
+	fn _set_u8(&mut self,paths :&[String],key :&str, val :u8) -> Result<Option<u8>,Box<dyn Error>> {
+		let vs :serde_json::value::Value = serde_json::from_str(&format!("{}",val))?;
+		let vmap  = self.val.pointer_mut(&(self._get_path_whole(paths))).unwrap();
+		let mut retv :Option<u8> = None;
+
+		if key.len() > 0 {
+			let ores = vmap.get(key);
+			if ores.is_some() {
+				let ck = ores.unwrap();
+				if ck.is_i64() {
+					retv = Some(ck.as_i64().unwrap() as u8);
+				}
+			}
+			vmap[key] = vs;
+		} else {
+			if vmap.is_i64() {
+				retv = Some(vmap.as_i64().unwrap() as u8);
+			}
+			*vmap = vs;
+		}
+		Ok(retv)
+	}
+
+
+	fn _set_i64(&mut self,paths :&[String],key :&str, val :i64) -> Result<Option<i64>,Box<dyn Error>> {
+		let vs :serde_json::value::Value = serde_json::from_str(&format!("{}",val))?;
+		let vmap  = self.val.pointer_mut(&(self._get_path_whole(paths))).unwrap();
+		let mut retv :Option<i64> = None;
+
+		if key.len() > 0 {
+			let ores = vmap.get(key);
+			if ores.is_some() {
+				let ck = ores.unwrap();
+				if ck.is_i64() {
+					retv = Some(ck.as_i64().unwrap());
+				}
+			}
+			vmap[key] = vs;
+		} else {
+			if vmap.is_i64() {
+				retv = Some(vmap.as_i64().unwrap());
+			}
+			*vmap = vs;
+		}
+		Ok(retv)
+	}
+
+
 	fn _get_map_path_write(&mut self,paths :&[String]) -> Result<(),Box<dyn Error>> {
 		let mut s :String;
 		if paths.len() > 0 {
@@ -99,6 +147,19 @@ impl ConfigValue {
 		return self._set_str(&paths,&bname,strv);
 	}
 
+
+	pub fn set_u8_must(&mut self,key :&str, val :u8) -> Result<Option<u8>,Box<dyn Error>> {
+		let (paths,bname) = self._split_path(key)?;
+		let _ = self._get_map_path_write(&paths)?;
+		return self._set_u8(&paths,&bname,val);
+	}
+
+
+	pub fn set_i64_must(&mut self,key :&str, val :i64) -> Result<Option<i64>,Box<dyn Error>> {
+		let (paths,bname) = self._split_path(key)?;
+		let _ = self._get_map_path_write(&paths)?;
+		return self._set_i64(&paths,&bname,val);
+	}
 
 
 	fn _split_path(&self,path :&str) -> Result<(Vec<String>,String),Box<dyn Error>> {
