@@ -2,6 +2,7 @@
 use crate::{ssllib_error_class,ssllib_new_error};
 use std::error::Error;
 
+
 ssllib_error_class!{SslConfigError}
 
 pub struct ConfigValue {
@@ -19,6 +20,7 @@ impl ConfigValue {
 			val : ores.unwrap(),
 		})
 	}
+
 
 	fn _split_path(&self,path :&str) -> Result<(Vec<String>,String),Box<dyn Error>> {
 		let bname :String = format!("{}",path);

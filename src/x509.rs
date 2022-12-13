@@ -185,11 +185,46 @@ pub struct Asn1X509AlgorElem {
 	pub parameters : Asn1Opt<Asn1Any>,
 }
 
+impl Asn1X509AlgorElem {
+	pub fn set_algorithm(&mut self, objname :&str) -> Result<String,Box<dyn Error>> {
+		let oval = self.algorithm.set_value(objname)?;
+		Ok(oval)
+	}
+
+	pub fn set_param_null(&mut self) -> Result<Option<Asn1Any>,Box<dyn Error>> {
+		let mut retv :Option<Asn1Any> = None;
+		let mut anyv :Asn1Any = Asn1Any::init_asn1();
+		if self.parameters.val.is_some() {
+			retv = Some(self.parameters.val.as_ref().unwrap().clone());
+		}
+
+		anyv.tag = ASN1_NULL_FLAG as u64;
+		self.parameters.val = Some(anyv.clone());
+		Ok(retv)
+	}
+
+	pub fn set_parama(&mut self, val :&Asn1Any) -> Result<Option<Asn1Any>,Box<dyn Error>> {
+		let mut retv :Option<Asn1Any> = None;
+		if self.parameters.val.is_some() {
+			retv = Some(self.parameters.val.as_ref().unwrap().clone());
+		}
+		self.parameters.val = Some(val.clone());
+		Ok(retv)
+	}
+}
+
 //#[asn1_sequence(debug=enable)]
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct Asn1X509Algor {
 	pub elem : Asn1Seq<Asn1X509AlgorElem>,
+}
+
+impl Asn1X509Algor {
+	pub fn set_algorithm(&mut self,objname :&str) -> Result<String,Box<dyn Error>> {
+		let _ = self.elem.make_safe_one("Asn1X509Algor")?;
+		return self.elem.val[0].set_algorithm(objname);
+	}
 }
 
 //#[asn1_sequence(debug=enable)]
@@ -280,17 +315,9 @@ pub struct Asn1X509 {
 
 impl Asn1X509 {
 	pub fn is_self_signed(&self) -> bool {
-		if self.elem.val.len() != 1 {
-			ssllib_log_error!("{} len != 1" ,self.elem.val.len());
-			return false;
-		}
+		self.elem.sure_safe_one("Asn1X509").unwrap();
 		let certinfo :&Asn1X509Cinf = &self.elem.val[0].certinfo;
-
-		if certinfo.elem.val.len() != 1 {
-			ssllib_log_error!("certinfo {} len != 1" ,certinfo.elem.val.len());
-			return false;
-		}
-
+		certinfo.elem.sure_safe_one("Asn1X509 certinfo").unwrap();
 		if certinfo.elem.val[0].issuer.eq(&certinfo.elem.val[0].subject) {
 			return true;
 		}
@@ -329,9 +356,7 @@ impl Asn1Pbkdf2ParamElem {
 			ssllib_new_error!{SslX509Error,"no prf setted"}
 		}
 		let algr :&Asn1X509Algor = self.prf.val.as_ref().unwrap();
-		if algr.elem.val.len() != 1 {
-			ssllib_new_error!{SslX509Error,"no algr for prf"}
-		}
+		let _ = algr.elem.sure_safe_one("Asn1Pbkdf2ParamElem prf")?;
 		let ktype :String = algr.elem.val[0].algorithm.get_value();
 		if ktype == OID_HMAC_WITH_SHA256 {
 			let passin :Vec<u8> = params.get_array_u8_must(KEY_JSON_PASSIN)?;
@@ -378,19 +403,12 @@ pub struct Asn1Pbkdf2Param {
 
 impl Asn1Pbkdf2Param {
 	pub fn get_enc_key(&self,params :&ConfigValue) -> Result<Vec<u8>,Box<dyn Error>> {
-		if self.elem.val.len() != 1 {
-			ssllib_new_error!{SslX509Error,"Asn1Pbkdf2Param len [{}] != 1" ,self.elem.val.len()}
-		}
+		let _ = self.elem.sure_safe_one("Asn1Pbkdf2Param")?;
 		return self.elem.val[0].get_enc_key(params);
 	}
 
 	pub fn set_enc_type(&mut self,params :&ConfigValue) -> Result<(),Box<dyn Error>> {
-		if self.elem.val.len() != 0 && self.elem.val.len() != 1 {
-			ssllib_new_error!{SslX509Error,"Asn1Pbkdf2Param len [{}] != 1 or 0" ,self.elem.val.len()}
-		}
-		if self.elem.val.len() == 0 {
-			self.elem.val.push(Asn1Pbkdf2ParamElem::init_asn1());
-		}
+		let _ = self.elem.make_safe_one("Asn1Pbkdf2Param")?;
 		return self.elem.val[0].set_enc_type(params);
 	}
 }
@@ -404,12 +422,28 @@ pub struct Asn1NetscapePkeyElem {
 	pub privdata :Asn1OctData,
 }
 
+impl Asn1NetscapePkeyElem {
+	pub fn set_encrypt_keys(&mut self,config :&ConfigValue) -> Result<(),Box<dyn Error>> {
+		let types = config.get_string_must(KEY_JSON_TYPE)?;
+		if types == KEY_JSON_RSA {
+			self.version.set_value(0);
+		} else {
+			ssllib_new_error!{SslX509Error,"not support type [{}]", types}
+		}
+
+		Ok(())
+	}
+}
+
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct Asn1NetscapePkey {
 	pub elem : Asn1Seq<Asn1NetscapePkeyElem>,
 }
 
+impl Asn1NetscapePkey {
+
+}
 
 #[asn1_sequence()]
 #[derive(Clone)]
