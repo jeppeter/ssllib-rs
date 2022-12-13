@@ -21,6 +21,46 @@ impl ConfigValue {
 		})
 	}
 
+	fn _set_str(&self,vmap :&mut serde_json::value::Value,key :&str, strv:&str) -> Result<(),Box<dyn Error>> {
+		let vs :serde_json::value::Value = serde_json::from_str(&format!("\"{}\"",strv))?;
+		if key.len() > 0 {
+			vmap[key] = vs;
+		} else {
+			*vmap = vs;
+		}
+		Ok(())
+	}
+
+	fn _get_map_path_write(&mut self,paths :&Vec<String>) -> Result<&mut serde_json::value::Value,Box<dyn Error>> {
+		let mut retv :&mut serde_json::value::Value = &mut self.val;
+		if paths.len() > 0 {
+			for i in 0..paths.len() {
+				if !retv.is_object() {
+					ssllib_new_error!{SslConfigError,"{} not object",paths[i]}
+				}
+				let mut ores = retv.get_mut(&(paths[i]));
+				let kv :&mut serde_json::value::Value;
+				if ores.is_none() {
+					retv[&paths[i]] = serde_json::json!({});
+					kv = &mut retv[&paths[i]];
+				} else {
+					kv = ores.as_mut().unwrap();
+				}
+				retv = kv;
+			}
+			if !retv.is_object() {
+				ssllib_new_error!{SslConfigError,"{:?} not support value", paths}
+			}
+		}
+		Ok(retv)
+	}
+
+	pub fn set_str_must(&mut self,key :&str, strv :&str) -> Result<(),Box<dyn Error>> {
+		let (paths,bname) = self._split_path(key)?;
+		let kv :&mut serde_json::value::Value = self._get_map_path_write(&paths)?;
+		return self._set_str(kv,&bname,strv);
+	}
+
 
 	fn _split_path(&self,path :&str) -> Result<(Vec<String>,String),Box<dyn Error>> {
 		let bname :String = format!("{}",path);

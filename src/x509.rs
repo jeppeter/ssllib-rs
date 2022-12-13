@@ -203,7 +203,7 @@ impl Asn1X509AlgorElem {
 		Ok(retv)
 	}
 
-	pub fn set_parama(&mut self, val :&Asn1Any) -> Result<Option<Asn1Any>,Box<dyn Error>> {
+	pub fn set_param(&mut self, val :&Asn1Any) -> Result<Option<Asn1Any>,Box<dyn Error>> {
 		let mut retv :Option<Asn1Any> = None;
 		if self.parameters.val.is_some() {
 			retv = Some(self.parameters.val.as_ref().unwrap().clone());
@@ -225,6 +225,17 @@ impl Asn1X509Algor {
 		let _ = self.elem.make_safe_one("Asn1X509Algor")?;
 		return self.elem.val[0].set_algorithm(objname);
 	}
+
+	pub fn set_param_null(&mut self) -> Result<Option<Asn1Any>,Box<dyn Error>> {
+		let _ = self.elem.make_safe_one("Asn1X509Algor")?;
+		return self.elem.val[0].set_param_null();
+	}
+
+	pub fn set_param(&mut self, val :&Asn1Any) -> Result<Option<Asn1Any>,Box<dyn Error>> {
+		let _ = self.elem.make_safe_one("Asn1X509Algor")?;
+		return self.elem.val[0].set_param(val);
+	}
+
 }
 
 //#[asn1_sequence(debug=enable)]
@@ -427,6 +438,9 @@ impl Asn1NetscapePkeyElem {
 		let types = config.get_string_must(KEY_JSON_TYPE)?;
 		if types == KEY_JSON_RSA {
 			self.version.set_value(0);
+			let _ = self.algor.set_algorithm(OID_RSA_ENCRYPTION)?;
+			let _ = self.algor.set_param_null()?;
+			self.privdata.data = config.get_array_u8_must(KEY_JSON_DATA)?;
 		} else {
 			ssllib_new_error!{SslX509Error,"not support type [{}]", types}
 		}
@@ -441,9 +455,6 @@ pub struct Asn1NetscapePkey {
 	pub elem : Asn1Seq<Asn1NetscapePkeyElem>,
 }
 
-impl Asn1NetscapePkey {
-
-}
 
 #[asn1_sequence()]
 #[derive(Clone)]
