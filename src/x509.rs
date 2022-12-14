@@ -191,6 +191,11 @@ impl Asn1X509AlgorElem {
 		Ok(oval)
 	}
 
+	pub fn get_algorithm(&self) -> Result<String,Box<dyn Error>> {
+		let oval = self.algorithm.get_value();
+		Ok(oval)
+	}
+
 	pub fn get_param(&self) -> Result<Option<Asn1Any>,Box<dyn Error>> {
 		let mut retv :Option<Asn1Any> = None;
 		if self.parameters.val.is_some() {
@@ -209,9 +214,13 @@ impl Asn1X509AlgorElem {
 	}
 
 
-	pub fn set_param(&mut self, val :&Asn1Any) -> Result<Option<Asn1Any>,Box<dyn Error>> {
+	pub fn set_param(&mut self, val :Option<Asn1Any>) -> Result<Option<Asn1Any>,Box<dyn Error>> {
 		let retv = self.get_param()?;
-		self.parameters.val = Some(val.clone());
+		if val.is_none() {
+			self.parameters.val = None;
+		} else {
+			self.parameters.val = Some(val.as_ref().unwrap().clone());
+		}		
 		Ok(retv)
 	}
 }
@@ -229,6 +238,11 @@ impl Asn1X509Algor {
 		return self.elem.val[0].set_algorithm(objname);
 	}
 
+	pub fn get_algorithm(&self) -> Result<String,Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("Asn1X509Algor")?;
+		return self.elem.val[0].get_algorithm();
+	}
+
 	pub fn get_param(&self) -> Result<Option<Asn1Any>,Box<dyn Error>> {
 		let _ = self.elem.check_safe_one("Asn1X509Algor")?;
 		return self.elem.val[0].get_param();
@@ -240,7 +254,7 @@ impl Asn1X509Algor {
 		return self.elem.val[0].set_param_null();
 	}
 
-	pub fn set_param(&mut self, val :&Asn1Any) -> Result<Option<Asn1Any>,Box<dyn Error>> {
+	pub fn set_param(&mut self, val :Option<Asn1Any>) -> Result<Option<Asn1Any>,Box<dyn Error>> {
 		let _ = self.elem.make_safe_one("Asn1X509Algor")?;
 		return self.elem.val[0].set_param(val);
 	}
@@ -358,8 +372,16 @@ impl Asn1Pbe2ParamElem {
 		return self.keyfunc.set_algorithm(func);
 	}
 
+	pub fn set_keyfunc_params(&mut self, params :Option<Asn1Any>) -> Result<Option<Asn1Any>, Box<dyn Error>> {
+		return self.keyfunc.set_param(params);
+	}
+
 	pub fn get_keyfunc_params(&self) -> Result<Option<Asn1Any>,Box<dyn Error>> {
 		return self.keyfunc.get_param();
+	}
+
+	pub fn set_encrypt(&mut self, encobj :&str) -> Result<String,Box<dyn Error>> {
+		return self.encryption.set_algorithm(encobj);
 	}
 
 
