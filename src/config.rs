@@ -1,7 +1,6 @@
 
 use crate::{ssllib_error_class,ssllib_new_error};
 use std::error::Error;
-use std::cell::RefCell;
 
 
 ssllib_error_class!{SslConfigError}

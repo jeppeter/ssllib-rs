@@ -13,12 +13,12 @@ use std::error::Error;
 use std::io::{Write};
 
 use crate::{ssllib_new_error,ssllib_error_class};
-use crate::{ssllib_log_error};
+//use crate::{ssllib_log_error};
 use crate::rsa::*;
 use crate::consts::*;
 use crate::digest::*;
 use crate::impls::*;
-use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
+//use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
 use crate::config::ConfigValue;
 
 
@@ -191,23 +191,26 @@ impl Asn1X509AlgorElem {
 		Ok(oval)
 	}
 
-	pub fn set_param_null(&mut self) -> Result<Option<Asn1Any>,Box<dyn Error>> {
+	pub fn get_param(&self) -> Result<Option<Asn1Any>,Box<dyn Error>> {
 		let mut retv :Option<Asn1Any> = None;
-		let mut anyv :Asn1Any = Asn1Any::init_asn1();
 		if self.parameters.val.is_some() {
 			retv = Some(self.parameters.val.as_ref().unwrap().clone());
 		}
+		return Ok(retv)
+	}
 
+
+	pub fn set_param_null(&mut self) -> Result<Option<Asn1Any>,Box<dyn Error>> {
+		let retv = self.get_param()?;
+		let mut anyv :Asn1Any = Asn1Any::init_asn1();
 		anyv.tag = ASN1_NULL_FLAG as u64;
 		self.parameters.val = Some(anyv.clone());
 		Ok(retv)
 	}
 
+
 	pub fn set_param(&mut self, val :&Asn1Any) -> Result<Option<Asn1Any>,Box<dyn Error>> {
-		let mut retv :Option<Asn1Any> = None;
-		if self.parameters.val.is_some() {
-			retv = Some(self.parameters.val.as_ref().unwrap().clone());
-		}
+		let retv = self.get_param()?;
 		self.parameters.val = Some(val.clone());
 		Ok(retv)
 	}
@@ -225,6 +228,12 @@ impl Asn1X509Algor {
 		let _ = self.elem.make_safe_one("Asn1X509Algor")?;
 		return self.elem.val[0].set_algorithm(objname);
 	}
+
+	pub fn get_param(&self) -> Result<Option<Asn1Any>,Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("Asn1X509Algor")?;
+		return self.elem.val[0].get_param();
+	}
+
 
 	pub fn set_param_null(&mut self) -> Result<Option<Asn1Any>,Box<dyn Error>> {
 		let _ = self.elem.make_safe_one("Asn1X509Algor")?;
@@ -342,6 +351,18 @@ impl Asn1X509 {
 pub struct Asn1Pbe2ParamElem {
 	pub keyfunc : Asn1X509Algor,
 	pub encryption : Asn1X509Algor,
+}
+
+impl Asn1Pbe2ParamElem {
+	pub fn set_keyfunc(&mut self, func :&str) -> Result<String,Box<dyn Error>> {
+		return self.keyfunc.set_algorithm(func);
+	}
+
+	pub fn get_keyfunc_params(&self) -> Result<Option<Asn1Any>,Box<dyn Error>> {
+		return self.keyfunc.get_param();
+	}
+
+
 }
 
 
