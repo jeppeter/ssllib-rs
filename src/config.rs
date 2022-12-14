@@ -5,6 +5,7 @@ use std::error::Error;
 
 ssllib_error_class!{SslConfigError}
 
+#[derive(Clone)]
 pub struct ConfigValue {
 	val :serde_json::value::Value,
 }
@@ -307,39 +308,39 @@ impl ConfigValue {
 		Ok(())
 	}
 
-	pub fn set_str_must(&mut self,key :&str, strv :&str) -> Result<Option<String>,Box<dyn Error>> {
+	pub fn set_str(&mut self,key :&str, strv :&str) -> Result<Option<String>,Box<dyn Error>> {
 		let (paths,bname) = self._split_path(key)?;
 		let _ = self._get_map_path_write(&paths)?;
 		return self._set_str(&paths,&bname,strv);
 	}
 
 
-	pub fn set_u8_must(&mut self,key :&str, val :u8) -> Result<Option<u8>,Box<dyn Error>> {
+	pub fn set_u8(&mut self,key :&str, val :u8) -> Result<Option<u8>,Box<dyn Error>> {
 		let (paths,bname) = self._split_path(key)?;
 		let _ = self._get_map_path_write(&paths)?;
 		return self._set_u8(&paths,&bname,val);
 	}
 
 
-	pub fn set_i64_must(&mut self,key :&str, val :i64) -> Result<Option<i64>,Box<dyn Error>> {
+	pub fn set_i64(&mut self,key :&str, val :i64) -> Result<Option<i64>,Box<dyn Error>> {
 		let (paths,bname) = self._split_path(key)?;
 		let _ = self._get_map_path_write(&paths)?;
 		return self._set_i64(&paths,&bname,val);
 	}
 
-	pub fn set_str_array_must(&mut self,key :&str, val :&Vec<String>) -> Result<Option<Vec<String>>,Box<dyn Error>> {
+	pub fn set_str_array(&mut self,key :&str, val :&Vec<String>) -> Result<Option<Vec<String>>,Box<dyn Error>> {
 		let (paths,bname) = self._split_path(key)?;
 		let _ = self._get_map_path_write(&paths)?;
 		return self._set_str_array(&paths,&bname,val);
 	}
 
-	pub fn set_u8_array_must(&mut self,key :&str, val :&Vec<u8>) -> Result<Option<Vec<u8>>,Box<dyn Error>> {
+	pub fn set_u8_array(&mut self,key :&str, val :&Vec<u8>) -> Result<Option<Vec<u8>>,Box<dyn Error>> {
 		let (paths,bname) = self._split_path(key)?;
 		let _ = self._get_map_path_write(&paths)?;
 		return self._set_u8_array(&paths,&bname,val);
 	}
 
-	pub fn set_i64_array_must(&mut self,key :&str, val :&Vec<i64>) -> Result<Option<Vec<i64>>,Box<dyn Error>> {
+	pub fn set_i64_array(&mut self,key :&str, val :&Vec<i64>) -> Result<Option<Vec<i64>>,Box<dyn Error>> {
 		let (paths,bname) = self._split_path(key)?;
 		let _ = self._get_map_path_write(&paths)?;
 		return self._set_i64_array(&paths,&bname,val);
@@ -415,27 +416,27 @@ impl ConfigValue {
 		Ok(v64)
 	}
 
-	pub fn get_string_must(&self,key :&str) -> Result<String,Box<dyn Error>> {
+	pub fn get_string(&self,key :&str) -> Result<String,Box<dyn Error>> {
 		let (dnames,fname) = self._split_path(key)?;
 		let vmap = self._get_map_path(&dnames)?;
 		return self._get_str_must(&vmap,&fname);
 	}
 
 	pub fn get_string_def(&self,key :&str,defval :&str) -> String {
-		let ores = self.get_string_must(key);
+		let ores = self.get_string(key);
 		if ores.is_err() {
 			return format!("{}",defval);
 		}
 		return ores.unwrap();
 	}
 
-	pub fn get_i64_must(&self,key :&str) -> Result<i64,Box<dyn Error>> {
+	pub fn get_i64(&self,key :&str) -> Result<i64,Box<dyn Error>> {
 		let (dnames,fname) = self._split_path(key)?;
 		let vmap = self._get_map_path(&dnames)?;
 		return self._get_i64_must(&vmap,&fname);
 	}
 
-	pub fn get_u8_must(&self,key :&str) -> Result<u8,Box<dyn Error>> {
+	pub fn get_u8(&self,key :&str) -> Result<u8,Box<dyn Error>> {
 		let (dnames,fname) = self._split_path(key)?;
 		let vmap = self._get_map_path(&dnames)?;
 		let ores =  self._get_i64_must(&vmap,&fname);
@@ -449,7 +450,7 @@ impl ConfigValue {
 
 
 	pub fn get_i64_def(&self, key :&str, defval :i64) -> i64 {
-		let ores = self.get_i64_must(key);
+		let ores = self.get_i64(key);
 		if ores.is_err() {
 			return defval;
 		}
@@ -457,7 +458,7 @@ impl ConfigValue {
 	}
 
 	pub fn get_u8_def(&self,key :&str,defval :u8) -> u8 {
-		let ores = self.get_u8_must(key);
+		let ores = self.get_u8(key);
 		if ores.is_err() {
 			return defval;
 		}
@@ -486,7 +487,7 @@ impl ConfigValue {
 		return Ok(retv);
 	}
 
-	pub fn get_array_str_must(&self,key :&str)  ->  Result<Vec<String>,Box<dyn Error>> {
+	pub fn get_array_str(&self,key :&str)  ->  Result<Vec<String>,Box<dyn Error>> {
 		let (dnames,fname) = self._split_path(key)?;
 		let vmap = self._get_map_path(&dnames)?;
 		return self._get_array_str(&vmap,&fname);
@@ -514,13 +515,13 @@ impl ConfigValue {
 		return Ok(retv);
 	}
 
-	pub fn get_array_i64_must(&self,key :&str)  ->  Result<Vec<i64>,Box<dyn Error>> {
+	pub fn get_array_i64(&self,key :&str)  ->  Result<Vec<i64>,Box<dyn Error>> {
 		let (dnames,fname) = self._split_path(key)?;
 		let vmap = self._get_map_path(&dnames)?;
 		return self._get_array_i64(&vmap,&fname);
 	}
 
-	pub fn get_array_u8_must(&self,key :&str)  ->  Result<Vec<u8>,Box<dyn Error>> {
+	pub fn get_array_u8(&self,key :&str)  ->  Result<Vec<u8>,Box<dyn Error>> {
 		let (dnames,fname) = self._split_path(key)?;
 		let vmap = self._get_map_path(&dnames)?;
 		let ores =  self._get_array_i64(&vmap,&fname);
@@ -533,6 +534,45 @@ impl ConfigValue {
 			retu8.push( (*k) as u8);
 		}
 		return Ok(retu8);
+	}
+
+	fn _set_config(&mut self,paths :&Vec<String>,val :&ConfigValue) -> Result<(),Box<dyn Error>> {
+		let vs :serde_json::value::Value = val.val.clone();
+		let vmap  = self.val.pointer_mut(&(self._get_path_whole(paths))).unwrap();
+		*vmap = vs;
+		Ok(())
+	}
+
+	pub fn set_config(&mut self,key :&str, val :&ConfigValue) -> Result<Option<ConfigValue>,Box<dyn Error>> {
+		let mut retv :Option<ConfigValue> = None;
+		let ores = self.get_config(key);
+		if ores.is_ok() {
+			retv = ores.unwrap();
+		}
+		let (mut dnames, fname) = self._split_path(key)?;
+		dnames.push(fname);
+
+		/*now to make sure*/
+		let _ = self._get_map_path_write(&dnames)?;
+		/*now to set */
+		let _ = self._set_config(&dnames,val)?;
+		return Ok(retv);
+	}
+
+	pub fn get_config(&self,key :&str) -> Result<Option<ConfigValue>,Box<dyn Error>> {
+		let ( mut dnames,fname) = self._split_path(key)?;
+		dnames.push(fname);
+		let ores = self._get_map_path(&dnames);
+		if ores.is_err() {
+			return Ok(None);
+		}
+		let vk = ores.unwrap();
+		if !vk.is_object() {
+			ssllib_new_error!{SslConfigError,"{} not valid object", key}
+		}
+		let cs = serde_json::to_string_pretty(&vk)?;
+		let retv = Some(ConfigValue::new(&cs)?);
+		Ok(retv)
 	}
 }
 

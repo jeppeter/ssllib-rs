@@ -411,7 +411,7 @@ impl Asn1Pbkdf2ParamElem {
 		let _ = algr.elem.sure_safe_one("Asn1Pbkdf2ParamElem prf")?;
 		let ktype :String = algr.elem.val[0].algorithm.get_value();
 		if ktype == OID_HMAC_WITH_SHA256 {
-			let passin :Vec<u8> = params.get_array_u8_must(KEY_JSON_PASSIN)?;
+			let passin :Vec<u8> = params.get_array_u8(KEY_JSON_PASSIN)?;
 			let hsha256 :HmacSha256Digest = HmacSha256Digest::new(self.iter.val as u32,&passin)?;
 			retv = hsha256.digest(&(self.salt.content))?;
 		} else {
@@ -421,12 +421,12 @@ impl Asn1Pbkdf2ParamElem {
 	}
 
 	pub fn set_enc_type(&mut self,config :&ConfigValue) -> Result<(),Box<dyn Error>> {		
-		let types = config.get_string_must(KEY_JSON_TYPE)?;		
+		let types = config.get_string(KEY_JSON_TYPE)?;		
 		if types == KEY_HMAC_WITH_SHA256  {
-			let v8 :Vec<u8> = config.get_array_u8_must(KEY_JSON_SALT)?;
+			let v8 :Vec<u8> = config.get_array_u8(KEY_JSON_SALT)?;
 			self.salt.content = v8.clone();
 			self.salt.tag = ASN1_OCT_STRING_FLAG as u64;
-			self.iter.set_value(config.get_i64_must(KEY_JSON_TIMES)?);
+			self.iter.set_value(config.get_i64(KEY_JSON_TIMES)?);
 			self.keylength = Asn1Opt::init_asn1();
 			let mut  aglr = Asn1X509Algor::init_asn1();
 			let mut algrelm = Asn1X509AlgorElem::init_asn1();
@@ -476,12 +476,12 @@ pub struct Asn1NetscapePkeyElem {
 
 impl Asn1NetscapePkeyElem {
 	pub fn set_encrypt_keys(&mut self,config :&ConfigValue) -> Result<(),Box<dyn Error>> {
-		let types = config.get_string_must(KEY_JSON_TYPE)?;
+		let types = config.get_string(KEY_JSON_TYPE)?;
 		if types == KEY_JSON_RSA {
 			self.version.set_value(0);
 			let _ = self.algor.set_algorithm(OID_RSA_ENCRYPTION)?;
 			let _ = self.algor.set_param_null()?;
-			self.privdata.data = config.get_array_u8_must(KEY_JSON_DATA)?;
+			self.privdata.data = config.get_array_u8(KEY_JSON_DATA)?;
 		} else {
 			ssllib_new_error!{SslX509Error,"not support type [{}]", types}
 		}
@@ -512,6 +512,12 @@ impl Asn1X509SigElem {
 
 	pub fn get_encode_packet(&self) -> Result<ConfigValue,Box<dyn Error>> {
 		let mut config :ConfigValue = ConfigValue::new("{}")?;
+		let cv :String = self.algor.get_algorithm()?;
+		if cv == OID_PBES2 {
+
+		} else {
+			ssllib_new_error!{SslX509Error,"[{}] packet not support", cv}
+		}
 		Ok(config)
 	}
 }
