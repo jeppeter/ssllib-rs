@@ -6,15 +6,15 @@ ssllib_error_class!{SslEncDeError}
 
 extern crate crypto;
 use crypto::buffer::{ReadBuffer,WriteBuffer};
-use crypto::symmetriccipher::{BlockEncryptor,BlockDecryptor};
+//use crypto::symmetriccipher::{BlockEncryptor,BlockDecryptor};
 //use crypto;
-use aes;
-use aes::cipher::KeyIvInit;
-use aes::cipher::AsyncStreamCipher;
-use aes::cipher::BlockEncryptMut;
-use aes::cipher::BlockDecryptMut;
-use cbc;
-use cfb_mode;
+//use aes;
+//use aes::cipher::KeyIvInit;
+//use aes::cipher::AsyncStreamCipher;
+//use aes::cipher::BlockEncryptMut;
+//use aes::cipher::BlockDecryptMut;
+//use cbc;
+//use cfb_mode;
 
 use std::error::Error;
 
@@ -24,8 +24,8 @@ pub struct Aes256Algo {
 	key :Vec<u8>,
 }
 
-type Aes256CbcEnc = cbc::Encryptor<aes::Aes256>;
-type Aes256CbcDec = cbc::Decryptor<aes::Aes256>;
+//type Aes256CbcEnc = cbc::Encryptor<aes::Aes256>;
+//type Aes256CbcDec = cbc::Decryptor<aes::Aes256>;
 
 
 impl Aes256Algo {

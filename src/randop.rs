@@ -2,7 +2,7 @@
 use rand;
 use crate::fileop::*;
 use std::error::Error;
-use rand_core::CryptoRng;
+//use rand_core::CryptoRng;
 use rand_core::RngCore;
 
 pub struct RandOps {

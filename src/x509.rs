@@ -383,8 +383,6 @@ impl Asn1Pbe2ParamElem {
 	pub fn set_encrypt(&mut self, encobj :&str) -> Result<String,Box<dyn Error>> {
 		return self.encryption.set_algorithm(encobj);
 	}
-
-
 }
 
 
@@ -506,10 +504,34 @@ pub struct Asn1X509SigElem {
 	pub digest : Asn1OctData,
 }
 
+#[allow(unused_variables,unused_mut)]
+impl Asn1X509SigElem {
+	pub fn set_encode_packet(&mut self, config :&ConfigValue) -> Result<(),Box<dyn Error>> {
+		Ok(())
+	}
+
+	pub fn get_encode_packet(&self) -> Result<ConfigValue,Box<dyn Error>> {
+		let mut config :ConfigValue = ConfigValue::new("{}")?;
+		Ok(config)
+	}
+}
+
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct Asn1X509Sig {
 	pub elem : Asn1Seq<Asn1X509SigElem>,
+}
+
+impl Asn1X509Sig {
+	pub fn set_encode_packet(&mut self, config :&ConfigValue) -> Result<(),Box<dyn Error>> {
+		let _ = self.elem.make_safe_one("Asn1X509Sig")?;
+		return self.elem.val[0].set_encode_packet(config);
+	}
+
+	pub fn get_encode_packet(&self) -> Result<ConfigValue,Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("Asn1X509Sig")?;
+		return self.elem.val[0].get_encode_packet();
+	}
 }
 
 
