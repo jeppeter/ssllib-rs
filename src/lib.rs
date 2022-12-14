@@ -4,6 +4,7 @@ mod errors;
 mod logger;
 pub mod impls;
 mod fileop;
+pub mod randop;
 pub mod config;
 pub mod digest;
 pub mod encde;

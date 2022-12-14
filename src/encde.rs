@@ -29,7 +29,7 @@ type Aes256CbcDec = cbc::Decryptor<aes::Aes256>;
 
 
 impl Aes256Algo {
-	fn new(iv :&[u8],key :&[u8]) -> Result<Self,Box<dyn Error>> {
+	pub fn new(iv :&[u8],key :&[u8]) -> Result<Self,Box<dyn Error>> {
 		let retv = Aes256Algo {
 			iv : iv.to_vec(),
 			key :key.to_vec(),
