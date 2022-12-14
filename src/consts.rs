@@ -5,6 +5,8 @@ pub const KEY_JSON_TIMES :&str = "times";
 pub const KEY_JSON_PASSIN :&str = "passin";
 pub const KEY_JSON_RSA :&str = "rsa";
 pub const KEY_JSON_DATA :&str = "data";
+pub const KEY_JSON_PBES2 :&str = "pbes2";
+pub const KEY_JSON_PBKDF2 :&str = "pbkdf2";
 
 
 pub const KEY_HMAC_WITH_SHA256 :&str = "hmacWithSha256";

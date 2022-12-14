@@ -380,8 +380,32 @@ impl Asn1Pbe2ParamElem {
 		return self.keyfunc.get_param();
 	}
 
+	pub fn get_keyfunc_algo(&self) -> Result<String,Box<dyn Error>> {
+		return self.keyfunc.get_algorithm();
+	}
+
 	pub fn set_encrypt(&mut self, encobj :&str) -> Result<String,Box<dyn Error>> {
 		return self.encryption.set_algorithm(encobj);
+	}
+
+	pub fn get_encode_packet(&self) -> Result<ConfigValue,Box<dyn Error>> {
+		let mut config :ConfigValue = ConfigValue::new("{}")?;
+		let algr = self.keyfunc.get_algorithm()?;
+		if algr == OID_PBKDF2 {
+			let _ = config.set_str(KEY_JSON_TYPE,KEY_JSON_PBKDF2)?;
+			let pres = self.encryption.get_param()?;
+			if pres.is_none() {
+				ssllib_new_error!{SslX509Error,"no encryption get"}
+			}
+			let decdata = pres.unwrap().content.clone();
+			let mut pbkdf2 :Asn1Pbkdf2ParamElem = Asn1Pbkdf2ParamElem::init_asn1();
+			let _ = pbkdf2.decode_asn1(&decdata)?;
+			let ncfg = pbkdf2.get_encode_packet()?;
+			let _ = config.set_config(KEY_JSON_PBKDF2,&ncfg)?;
+		} else {
+			ssllib_new_error!{SslX509Error,"not support algr [{}]", algr}
+		}
+		Ok(config)
 	}
 }
 
@@ -443,6 +467,11 @@ impl Asn1Pbkdf2ParamElem {
 		}
 
 		Ok(())
+	}
+
+	pub fn get_encode_packet(&self) -> Result<ConfigValue,Box<dyn Error>> {
+		let config :ConfigValue = ConfigValue::new("{}").unwrap();
+		Ok(config)
 	}
 }
 
@@ -514,7 +543,11 @@ impl Asn1X509SigElem {
 		let mut config :ConfigValue = ConfigValue::new("{}")?;
 		let cv :String = self.algor.get_algorithm()?;
 		if cv == OID_PBES2 {
-
+			let encdata = self.digest.data.clone();
+			let mut  pbes2 :Asn1Pbe2ParamElem = Asn1Pbe2ParamElem::init_asn1();
+			let _ = pbes2.decode_asn1(&encdata)?;
+			let cfg = pbes2.get_encode_packet()?;
+			let _ = config.set_config(KEY_JSON_PBES2,&cfg)?;
 		} else {
 			ssllib_new_error!{SslX509Error,"[{}] packet not support", cv}
 		}
