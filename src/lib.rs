@@ -6,6 +6,7 @@ pub mod impls;
 mod fileop;
 pub mod config;
 pub mod digest;
+pub mod encde;
 pub mod rsa;
 pub mod x509;
 pub mod pkcs7;
