@@ -24,7 +24,6 @@ use crate::encde::*;
 use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
 use crate::config::ConfigValue;
 
-
 ssllib_error_class!{SslX509Error}
 
 #[asn1_sequence()]
@@ -514,17 +513,19 @@ pub struct Asn1NetscapePkeyElem {
 }
 
 impl Asn1NetscapePkeyElem {
-	pub fn set_encrypt_keys(&mut self,config :&ConfigValue) -> Result<(),Box<dyn Error>> {
-		let types = config.get_str(KEY_JSON_TYPE)?;
-		if types == KEY_JSON_RSA {
-			self.version.set_value(0);
-			let _ = self.algor.set_algorithm(OID_RSA_ENCRYPTION)?;
-			let _ = self.algor.set_param_null()?;
-			self.privdata.data = config.get_u8_array(KEY_JSON_DATA)?;
-		} else {
-			ssllib_new_error!{SslX509Error,"not support type [{}]", types}
-		}
+	pub fn set_privdata(&mut self,data :&[u8]) -> Result<(),Box<dyn Error>> {
+		self.privdata.data = data.clone();
+		Ok(())
+	}
 
+	pub fn set_algorithm(&mut self,env :&ConfigValue) -> Result<(),Box<dyn Error>> {
+		let cs = env.get_str(KEY_JSON_TYPE)?;
+		if cs == KEY_JSON_RSA {
+			let _ = self.algor.set_param_null()?;
+			let _= self.algor.set_algorithm(OID_RSA_ENCRYPTION)?;
+		} else {
+			ssllib_new_error!{SslX509Error,"[{}] [{}]",KEY_JSON_TYPE,cs}
+		}
 		Ok(())
 	}
 

@@ -91,6 +91,9 @@ pub fn load_privkey_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> 
 	{
 		"rsaprivdec<rsaprivdec_handler>##fname ... to encode base64##" : {
 			"$" : "+"
+		},
+		"rsaprivgen<rsaprivgen_handler>##bits [randfile] to generate bits##" : {
+			"$" : "+"
 		}
 	}
 	"#;
