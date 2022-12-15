@@ -13,13 +13,13 @@ use std::error::Error;
 use std::io::{Write};
 
 use crate::{ssllib_new_error,ssllib_error_class};
-//use crate::{ssllib_log_error};
+use crate::{ssllib_buffer_trace,ssllib_format_buffer_log,ssllib_log_trace};
 use crate::rsa::*;
 use crate::consts::*;
 use crate::digest::*;
 use crate::impls::*;
 use crate::encde::*;
-//use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
+use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
 use crate::config::ConfigValue;
 
 
@@ -401,17 +401,26 @@ impl Asn1Pbe2ParamElem {
 		let mut config :ConfigValue = ConfigValue::new("{}")?;
 		let algr = self.keyfunc.get_algorithm()?;
 		if algr == OID_PBKDF2 {
+			ssllib_log_trace!(" ");
 			let _ = config.set_str(KEY_JSON_TYPE,KEY_JSON_PBKDF2)?;
-			let pres = self.encryption.get_param()?;
+			ssllib_log_trace!(" ");
+			let pres = self.keyfunc.get_param()?;
 			if pres.is_none() {
 				ssllib_new_error!{SslX509Error,"no encryption get"}
 			}
+			ssllib_log_trace!(" ");
 			let decdata = pres.unwrap().content.clone();
+			ssllib_log_trace!(" ");
 			let mut pbkdf2 :Asn1Pbkdf2ParamElem = Asn1Pbkdf2ParamElem::init_asn1();
+			ssllib_log_trace!(" ");
 			let _ = pbkdf2.decode_asn1(&decdata)?;
+			ssllib_log_trace!(" ");
 			let ncfg = pbkdf2.get_encode_packet(env)?;
+			ssllib_log_trace!(" ");
 			let ktype = self.encryption.get_algorithm()?;
+			ssllib_log_trace!(" ");
 			if ktype == OID_AES_256_CBC {
+				ssllib_log_trace!(" ");
 				/*now we should give the */
 				let params = self.encryption.get_param()?;
 				if params.is_some() {
@@ -484,8 +493,8 @@ impl Asn1Pbkdf2ParamElem {
 		let algr :&Asn1X509Algor = self.prf.val.as_ref().unwrap();
 		let ktype :String = algr.get_algorithm()?;
 		if ktype == OID_HMAC_WITH_SHA256 {
-			let passin :Vec<u8> = env.get_u8_array(KEY_JSON_PASSIN)?;
-			let hsha256 :HmacSha256Digest = HmacSha256Digest::new(self.iter.val as u32,&passin)?;
+			let passin :String = env.get_str(KEY_JSON_PASSIN)?;
+			let hsha256 :HmacSha256Digest = HmacSha256Digest::new(self.iter.val as u32,passin.as_bytes())?;
 			let retv = hsha256.digest(&(self.salt.content))?;
 			let _ = config.set_u8_array(KEY_JSON_KEY,&retv)?;
 		} else {
@@ -550,13 +559,26 @@ impl Asn1X509SigElem {
 	pub fn get_encode_packet(&self,env :&ConfigValue) -> Result<ConfigValue,Box<dyn Error>> {
 		let mut config :ConfigValue = ConfigValue::new("{}")?;
 		let cv :String = self.algor.get_algorithm()?;
+		let mut nenv :ConfigValue = env.clone();
 		if cv == OID_PBES2 {
 			let encdata = self.digest.data.clone();
 			let mut  pbes2 :Asn1Pbe2ParamElem = Asn1Pbe2ParamElem::init_asn1();
-			let _ = pbes2.decode_asn1(&encdata)?;
-			let cfg = pbes2.get_encode_packet(env)?;
+			let ores = self.algor.get_param()?;
+			if ores.is_none() {
+				ssllib_new_error!{SslX509Error,"no params set"}
+			}
+			let anyv :Asn1Any = ores.unwrap();
+			ssllib_buffer_trace!(anyv.content.as_ptr(),anyv.content.len(),"anyv content");
+			let decdata = anyv.content.clone();
+			let _ = pbes2.decode_asn1(&decdata)?;
+			ssllib_log_trace!(" ");
+			let _ = nenv.set_u8_array(KEY_JSON_ENCDATA,&self.digest.data)?;
+			let cfg = pbes2.get_encode_packet(&nenv)?;
+			ssllib_log_trace!(" ");
 			let _ = config.set_str(KEY_JSON_TYPE,KEY_JSON_PBES2)?;
+			ssllib_log_trace!(" ");
 			let _ = config.set_config(KEY_JSON_PBES2,&cfg)?;
+			ssllib_log_trace!(" ");
 		} else {
 			ssllib_new_error!{SslX509Error,"[{}] packet not support", cv}
 		}

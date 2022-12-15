@@ -33,6 +33,7 @@ use asn1obj::asn1impl::*;
 use std::io::Write;
 
 
+extargs_error_class!{PrivKeyError}
 
 fn rsaprivdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
 	let sarr :Vec<String>;
@@ -50,8 +51,25 @@ fn rsaprivdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 		let _ = sig.decode_asn1(&data)?;
 		let _ = sig.print_asn1("Asn1X509Sig",0,&mut sout)?;
 		let cfg = sig.get_encode_packet(&envcfg)?;
-		let cs = cfg.format()?;
-		let _ = sout.write(cs.as_bytes())?;
+		let types = cfg.get_str(KEY_JSON_TYPE)?;
+		if types == KEY_JSON_PBES2 {
+			let ores = cfg.get_config(KEY_JSON_PBES2)?;
+			if ores.is_none() {
+				extargs_new_error!{PrivKeyError,"no [{}] found", KEY_JSON_PBES2}
+			}
+			let pbes2 = ores.unwrap();
+			let types2 = pbes2.get_str(KEY_JSON_TYPE)?;
+			if types2 == KEY_JSON_PBKDF2  {
+				let decdata = pbes2.get_u8_array(KEY_JSON_DECDATA)?;
+				let mut netpkey :Asn1NetscapePkey = Asn1NetscapePkey::init_asn1();
+				let _ = netpkey.decode_asn1(&decdata)?;
+				let _ = netpkey.print_asn1("Asn1NetscapePkey",0,&mut sout)?;
+			} else {
+				extargs_new_error!{PrivKeyError,"not support type[{}]",types2}	
+			}
+		} else {
+			extargs_new_error!{PrivKeyError,"not support type[{}]",types}
+		}
 	}
 
 	Ok(())
