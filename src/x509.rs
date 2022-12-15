@@ -514,7 +514,7 @@ pub struct Asn1NetscapePkeyElem {
 
 impl Asn1NetscapePkeyElem {
 	pub fn set_privdata(&mut self,data :&[u8]) -> Result<(),Box<dyn Error>> {
-		self.privdata.data = data.clone();
+		self.privdata.data = data.to_vec().clone();
 		Ok(())
 	}
 
@@ -553,6 +553,16 @@ impl Asn1NetscapePkey {
 		let _ = self.elem.check_safe_one("Asn1NetscapePkey")?;
 		return self.elem.val[0].get_privdata();
 	}
+
+	pub fn set_algorithm(&mut self, env :&ConfigValue) -> Result<(),Box<dyn Error>> {
+		let _ = self.elem.make_safe_one("Asn1NetscapePkey")?;
+		return self.elem.val[0].set_algorithm(env);
+	}
+	pub fn set_privdata(&mut self,data :&[u8]) -> Result<(),Box<dyn Error>> {
+		let _ = self.elem.make_safe_one("Asn1NetscapePkey")?;
+		return self.elem.val[0].set_privdata(data);
+	}
+
 }
 
 

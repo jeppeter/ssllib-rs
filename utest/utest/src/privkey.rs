@@ -85,7 +85,47 @@ fn rsaprivdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 	Ok(())
 }
 
-#[extargs_map_function(rsaprivdec_handler)]
+fn rsaprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
+	let sarr :Vec<String>;
+	let passout :String = ns.get_string("passout");
+	let mut sout = std::io::stdout();
+	let mut randfile :Option<String> = None;
+	let bits :usize;
+
+	init_log(ns.clone())?;
+	sarr = ns.get_array("subnargs");
+	if sarr.len() < 1 {
+		extargs_new_error!{PrivKeyError,"need bits"}
+	}
+
+	match i64::from_str_radix(&(sarr[0]),10) {
+		Ok(v) => {
+			bits = v as usize;
+		},
+		Err(e) => {
+			extargs_new_error!{PrivKeyError, "parse [{}] error [{:?}]", sarr[0], e}
+		}
+	}
+	if sarr.len() > 1 {
+		randfile = Some(format!("{}",sarr[1]));
+	}
+	let privk :Asn1RsaPrivateKey = Asn1RsaPrivateKey::generate(bits,randfile)?;
+	let data = privk.encode_asn1()?;
+	let mut netpkey :Asn1NetscapePkey = Asn1NetscapePkey::init_asn1();
+	let mut cfg :ConfigValue = ConfigValue::new("{}")?;
+	let _ = cfg.set_str(KEY_JSON_TYPE,KEY_JSON_RSA)?;
+	let _ = netpkey.set_algorithm(&cfg)?;
+	let _ = netpkey.set_privdata(&data)?;
+	let sdata = netpkey.encode_asn1()?;
+
+
+
+
+	Ok(())
+}
+
+
+#[extargs_map_function(rsaprivdec_handler,rsaprivgen_handler)]
 pub fn load_privkey_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
