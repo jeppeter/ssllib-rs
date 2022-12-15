@@ -18,5 +18,5 @@ pub trait Asn1EncryptOp {
 }
 
 pub trait Asn1DecryptOp {
-	fn encrypt(&self, data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>>;
+	fn decrypt(&self, data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>>;
 }

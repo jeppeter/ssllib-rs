@@ -69,7 +69,7 @@ impl Asn1EncryptOp for Aes256Algo {
 }
 
 impl Asn1DecryptOp for Aes256Algo {
-	fn encrypt(&self, encdata :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
+	fn decrypt(&self, encdata :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
 		let mut decryptor = crypto::aes::cbc_decryptor(
 			crypto::aes::KeySize::KeySize256,
 			&self.key,

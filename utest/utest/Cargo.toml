@@ -1,0 +1,22 @@
+[package]
+name = "utest"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ssllib = {path = "../../"}
+extargsparse_worker = "^0.1.8"
+extargsparse_codegen = "^0.1.2"
+lazy_static = "^1.4.0"
+regex = "1"
+chrono = "^0.4.0"
+log4rs = "^0.8.3"
+log = "^0.4.8"
+base64 = "^0.13.0"
+
+[target.'cfg(windows)'.dependencies.winapi]
+version = "0.3"
+features = ["winbase", "debugapi", "stringapiset", "winnls", "datetimeapi",
+	"sysinfoapi", "wincred","combaseapi","errhandlingapi"]
