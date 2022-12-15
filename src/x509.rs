@@ -534,12 +534,31 @@ impl Asn1NetscapePkeyElem {
 
 		Ok(())
 	}
+
+	pub fn get_algorithm(&self) -> Result<String,Box<dyn Error>> {
+		return self.algor.get_algorithm();
+	}
+
+	pub fn get_privdata(&self) -> Result<Vec<u8>,Box<dyn Error>> {
+		Ok(self.privdata.data.clone())
+	}
 }
 
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct Asn1NetscapePkey {
 	pub elem : Asn1Seq<Asn1NetscapePkeyElem>,
+}
+
+impl Asn1NetscapePkey {
+	pub fn get_algorithm(&self) -> Result<String,Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("Asn1NetscapePkey")?;
+		return self.elem.val[0].get_algorithm();
+	}
+	pub fn get_privdata(&self) -> Result<Vec<u8>,Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("Asn1NetscapePkey")?;
+		return self.elem.val[0].get_privdata();
+	}
 }
 
 

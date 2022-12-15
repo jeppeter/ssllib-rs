@@ -29,6 +29,7 @@ use super::pemlib::*;
 use ssllib::consts::*;
 use ssllib::config::*;
 use ssllib::x509::*;
+use ssllib::rsa::*;
 use asn1obj::asn1impl::*;
 use std::io::Write;
 
@@ -64,6 +65,15 @@ fn rsaprivdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 				let mut netpkey :Asn1NetscapePkey = Asn1NetscapePkey::init_asn1();
 				let _ = netpkey.decode_asn1(&decdata)?;
 				let _ = netpkey.print_asn1("Asn1NetscapePkey",0,&mut sout)?;
+				let cs = netpkey.get_algorithm()?;
+				if cs == OID_RSA_ENCRYPTION {
+					let mut privk :Asn1RsaPrivateKey = Asn1RsaPrivateKey::init_asn1();
+					let decdata = netpkey.get_privdata()?;
+					let _ = privk.decode_asn1(&decdata)?;
+					privk.print_asn1("Asn1RsaPrivateKey",0,&mut sout)?;
+				} else {
+					extargs_new_error!{PrivKeyError,"not support oid[{}]",cs}
+				}
 			} else {
 				extargs_new_error!{PrivKeyError,"not support type[{}]",types2}	
 			}
