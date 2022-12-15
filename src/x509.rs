@@ -416,9 +416,9 @@ impl Asn1Pbe2ParamElem {
 				let params = self.encryption.get_param()?;
 				if params.is_some() {
 					let anyv :&Asn1Any = params.as_ref().unwrap();
-					let encdata = env.get_array_u8(KEY_JSON_ENCDATA)?;
+					let encdata = env.get_u8_array(KEY_JSON_ENCDATA)?;
 					let ivkey = anyv.content.clone();
-					let aeskey = ncfg.get_array_u8(KEY_JSON_KEY)?;
+					let aeskey = ncfg.get_u8_array(KEY_JSON_KEY)?;
 					let aescbcenc = Aes256Algo::new(&ivkey,&aeskey)?;
 					let decdata = aescbcenc.decrypt(&encdata)?;
 					let _ = config.set_u8_array(KEY_JSON_DECDATA,&decdata)?;
@@ -453,9 +453,9 @@ pub struct Asn1Pbkdf2ParamElem {
 
 impl Asn1Pbkdf2ParamElem {
 	pub fn set_enc_type(&mut self,config :&ConfigValue) -> Result<(),Box<dyn Error>> {		
-		let types = config.get_string(KEY_JSON_TYPE)?;		
+		let types = config.get_str(KEY_JSON_TYPE)?;		
 		if types == KEY_HMAC_WITH_SHA256  {
-			let v8 :Vec<u8> = config.get_array_u8(KEY_JSON_SALT)?;
+			let v8 :Vec<u8> = config.get_u8_array(KEY_JSON_SALT)?;
 			self.salt.content = v8.clone();
 			self.salt.tag = ASN1_OCT_STRING_FLAG as u64;
 			self.iter.set_value(config.get_i64(KEY_JSON_TIMES)?);
@@ -485,7 +485,7 @@ impl Asn1Pbkdf2ParamElem {
 		let algr :&Asn1X509Algor = self.prf.val.as_ref().unwrap();
 		let ktype :String = algr.get_algorithm()?;
 		if ktype == OID_HMAC_WITH_SHA256 {
-			let passin :Vec<u8> = env.get_array_u8(KEY_JSON_PASSIN)?;
+			let passin :Vec<u8> = env.get_u8_array(KEY_JSON_PASSIN)?;
 			let hsha256 :HmacSha256Digest = HmacSha256Digest::new(self.iter.val as u32,&passin)?;
 			let retv = hsha256.digest(&(self.salt.content))?;
 			let _ = config.set_u8_array(KEY_JSON_KEY,&retv)?;
@@ -514,12 +514,12 @@ pub struct Asn1NetscapePkeyElem {
 
 impl Asn1NetscapePkeyElem {
 	pub fn set_encrypt_keys(&mut self,config :&ConfigValue) -> Result<(),Box<dyn Error>> {
-		let types = config.get_string(KEY_JSON_TYPE)?;
+		let types = config.get_str(KEY_JSON_TYPE)?;
 		if types == KEY_JSON_RSA {
 			self.version.set_value(0);
 			let _ = self.algor.set_algorithm(OID_RSA_ENCRYPTION)?;
 			let _ = self.algor.set_param_null()?;
-			self.privdata.data = config.get_array_u8(KEY_JSON_DATA)?;
+			self.privdata.data = config.get_u8_array(KEY_JSON_DATA)?;
 		} else {
 			ssllib_new_error!{SslX509Error,"not support type [{}]", types}
 		}

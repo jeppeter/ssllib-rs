@@ -1,6 +1,8 @@
 
 use crate::{ssllib_error_class,ssllib_new_error};
 use std::error::Error;
+use crate::{ssllib_log_trace};
+use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
 
 
 ssllib_error_class!{SslConfigError}
@@ -22,6 +24,11 @@ impl ConfigValue {
 		})
 	}
 
+	pub fn format(&self) -> Result<String,Box<dyn Error>> {
+		let cs = serde_json::to_string_pretty(&(self.val))?;
+		Ok(cs)
+	}
+
 	fn _get_path_whole(&self,paths :&[String]) -> String {
 		let mut s :String = "/".to_string();
 		for i in 0..paths.len() {
@@ -30,6 +37,10 @@ impl ConfigValue {
 			}
 			s.push_str(&paths[i]);
 		}
+		if s.len() == 1 {
+			s = "".to_string();
+		}
+		ssllib_log_trace!("path [{}]",s);
 		return s;
 	}
 
@@ -282,6 +293,9 @@ impl ConfigValue {
 					}
 					s.push_str(&paths[j]);
 				}
+				if s.len() == 1 {
+					s = "".to_string();
+				}
 				let ores = self.val.pointer(&s);
 				if ores.is_none() {
 					s = "/".to_string();
@@ -290,7 +304,10 @@ impl ConfigValue {
 							s.push_str("/");
 						}
 						s.push_str(&paths[j]);
-					}					
+					}
+					if s.len() == 1 {
+						s = "".to_string();
+					}
 					let ores2 = self.val.pointer_mut(&s);
 					if ores2.is_none() {
 						ssllib_new_error!{SslConfigError,"can not get [{}] pointer",s}
@@ -416,14 +433,14 @@ impl ConfigValue {
 		Ok(v64)
 	}
 
-	pub fn get_string(&self,key :&str) -> Result<String,Box<dyn Error>> {
+	pub fn get_str(&self,key :&str) -> Result<String,Box<dyn Error>> {
 		let (dnames,fname) = self._split_path(key)?;
 		let vmap = self._get_map_path(&dnames)?;
 		return self._get_str_must(&vmap,&fname);
 	}
 
-	pub fn get_string_def(&self,key :&str,defval :&str) -> String {
-		let ores = self.get_string(key);
+	pub fn get_str_def(&self,key :&str,defval :&str) -> String {
+		let ores = self.get_str(key);
 		if ores.is_err() {
 			return format!("{}",defval);
 		}
@@ -521,7 +538,7 @@ impl ConfigValue {
 		return self._get_array_i64(&vmap,&fname);
 	}
 
-	pub fn get_array_u8(&self,key :&str)  ->  Result<Vec<u8>,Box<dyn Error>> {
+	pub fn get_u8_array(&self,key :&str)  ->  Result<Vec<u8>,Box<dyn Error>> {
 		let (dnames,fname) = self._split_path(key)?;
 		let vmap = self._get_map_path(&dnames)?;
 		let ores =  self._get_array_i64(&vmap,&fname);

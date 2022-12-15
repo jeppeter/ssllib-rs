@@ -11,7 +11,7 @@ use std::error::Error;
 
 extargs_error_class!{StrOpError}
 
-
+#[allow(dead_code)]
 pub fn encode_base64(bb :&[u8]) -> String {
 	return base64::encode(bb);
 }
@@ -27,6 +27,7 @@ pub fn decode_base64(instr :&str) -> Result<Vec<u8>,Box<dyn Error>> {
 	Ok(bv)
 }
 
+#[allow(dead_code)]
 pub fn parse_u64(instr :&str) -> Result<u64,Box<dyn Error>> {
 	let mut cparse = format!("{}",instr);
 	let mut base :u32 = 10;

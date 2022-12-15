@@ -5,6 +5,7 @@ use winapi::um::{stringapiset::{MultiByteToWideChar,WideCharToMultiByte}, winnls
 /// check for unexpected null characters.
 ///
 /// Returns `None` if the input string is too long or anything goes wrong.
+#[allow(dead_code)]
 pub fn str_to_c_wstr(s: &str) -> Option<Box<[u16]>> {
     if s.len() == 0 {
         Some(Box::new([0]))
@@ -40,7 +41,7 @@ pub fn str_to_c_wstr(s: &str) -> Option<Box<[u16]>> {
     }
 }
 
-
+#[allow(dead_code)]
 pub fn wstr_to_str(s: &[u16]) -> Option<Box<[u8]>> {
     if s.len() == 0 {
         Some(Box::new([0]))

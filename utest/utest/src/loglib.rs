@@ -34,6 +34,7 @@ lazy_static! {
 	static ref LOGGER_LEVEL :Arc<Mutex<i64>> = Arc::new(Mutex::new(0 as i64));
 }
 
+#[allow(dead_code)]
 fn get_logger_level() -> i64 {
 	let scb = LOGGER_LEVEL.lock().unwrap();
 	let retv :i64;
@@ -216,11 +217,13 @@ pub fn prepare_log(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	Ok(())	
 }
 
+#[allow(dead_code)]
 pub fn log_get_timestamp() -> String {
 	let now = Local::now();
 	return format!("{}/{}/{} {}:{}:{}",now.year(),now.month(),now.day(),now.hour(),now.minute(),now.second());
 }
 
+#[allow(dead_code)]
 #[cfg(windows)]
 fn log_output_function_inner(level :i64, outs :&str) {
 	if level <= get_logger_level() {
@@ -260,6 +263,7 @@ fn log_output_function_inner(level :i64, outs :&str) {
 }
 
 
+#[allow(dead_code)]
 pub fn log_output_function(level :i64, outs :&str) {
 	return log_output_function_inner(level,outs);
 }

@@ -16,7 +16,7 @@ use std::error::Error;
 
 extargs_error_class!{FileOpError}
 
-
+#[allow(dead_code)]
 pub fn write_file_bytes(fname :&str, byts :&[u8]) -> Result<(),Box<dyn Error>> {
 	if fname.len() == 0 {
 		let res = io::stdout().write_all(byts);

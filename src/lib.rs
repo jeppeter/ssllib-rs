@@ -6,6 +6,8 @@ pub mod impls;
 mod fileop;
 pub mod randop;
 pub mod config;
+#[cfg(test)]
+mod config_test;
 pub mod digest;
 pub mod encde;
 pub mod rsa;
