@@ -397,7 +397,7 @@ impl Asn1Pbe2ParamElem {
 		return self.encryption.get_param();
 	}
 
-	pub fn get_encode_packet(&self,env :&ConfigValue) -> Result<ConfigValue,Box<dyn Error>> {
+	pub fn get_cmd(&self,env :&ConfigValue) -> Result<ConfigValue,Box<dyn Error>> {
 		let mut config :ConfigValue = ConfigValue::new("{}")?;
 		let algr = self.keyfunc.get_algorithm()?;
 		if algr == OID_PBKDF2 {
@@ -415,7 +415,7 @@ impl Asn1Pbe2ParamElem {
 			ssllib_log_trace!(" ");
 			let _ = pbkdf2.decode_asn1(&decdata)?;
 			ssllib_log_trace!(" ");
-			let ncfg = pbkdf2.get_encode_packet(env)?;
+			let ncfg = pbkdf2.get_cmd(env)?;
 			ssllib_log_trace!(" ");
 			let ktype = self.encryption.get_algorithm()?;
 			ssllib_log_trace!(" ");
@@ -485,7 +485,7 @@ impl Asn1Pbkdf2ParamElem {
 		Ok(())
 	}
 
-	pub fn get_encode_packet(&self,env :&ConfigValue) -> Result<ConfigValue,Box<dyn Error>> {
+	pub fn get_cmd(&self,env :&ConfigValue) -> Result<ConfigValue,Box<dyn Error>> {
 		let mut config :ConfigValue = ConfigValue::new("{}").unwrap();
 		if self.prf.val.is_none() {
 			ssllib_new_error!{SslX509Error,"no prf setted"}
@@ -556,7 +556,7 @@ impl Asn1X509SigElem {
 		Ok(())
 	}
 
-	pub fn get_encode_packet(&self,env :&ConfigValue) -> Result<ConfigValue,Box<dyn Error>> {
+	pub fn get_cmd(&self,env :&ConfigValue) -> Result<ConfigValue,Box<dyn Error>> {
 		let mut config :ConfigValue = ConfigValue::new("{}")?;
 		let cv :String = self.algor.get_algorithm()?;
 		let mut nenv :ConfigValue = env.clone();
@@ -573,7 +573,7 @@ impl Asn1X509SigElem {
 			let _ = pbes2.decode_asn1(&decdata)?;
 			ssllib_log_trace!(" ");
 			let _ = nenv.set_u8_array(KEY_JSON_ENCDATA,&self.digest.data)?;
-			let cfg = pbes2.get_encode_packet(&nenv)?;
+			let cfg = pbes2.get_cmd(&nenv)?;
 			ssllib_log_trace!(" ");
 			let _ = config.set_str(KEY_JSON_TYPE,KEY_JSON_PBES2)?;
 			ssllib_log_trace!(" ");
@@ -598,9 +598,9 @@ impl Asn1X509Sig {
 		return self.elem.val[0].set_encode_packet(config);
 	}
 
-	pub fn get_encode_packet(&self,env :&ConfigValue) -> Result<ConfigValue,Box<dyn Error>> {
+	pub fn get_cmd(&self,env :&ConfigValue) -> Result<ConfigValue,Box<dyn Error>> {
 		let _ = self.elem.check_safe_one("Asn1X509Sig")?;
-		return self.elem.val[0].get_encode_packet(env);
+		return self.elem.val[0].get_cmd(env);
 	}
 }
 

@@ -50,7 +50,7 @@ fn rsaprivdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 		let mut sig :Asn1X509Sig = Asn1X509Sig::init_asn1();
 		let _ = sig.decode_asn1(&data)?;
 		let _ = sig.print_asn1("Asn1X509Sig",0,&mut sout)?;
-		let cfg = sig.get_encode_packet(&envcfg)?;
+		let cfg = sig.get_cmd(&envcfg)?;
 		let types = cfg.get_str(KEY_JSON_TYPE)?;
 		if types == KEY_JSON_PBES2 {
 			let ores = cfg.get_config(KEY_JSON_PBES2)?;
