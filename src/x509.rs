@@ -13,12 +13,14 @@ use std::error::Error;
 use std::io::{Write};
 
 use crate::{ssllib_new_error,ssllib_error_class};
+#[allow(unused_imports)]
 use crate::{ssllib_buffer_trace,ssllib_format_buffer_log,ssllib_log_trace};
 use crate::rsa::*;
 use crate::consts::*;
 use crate::digest::*;
 use crate::impls::*;
 use crate::encde::*;
+#[allow(unused_imports)]
 use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
 use crate::config::ConfigValue;
 
@@ -401,26 +403,17 @@ impl Asn1Pbe2ParamElem {
 		let mut config :ConfigValue = ConfigValue::new("{}")?;
 		let algr = self.keyfunc.get_algorithm()?;
 		if algr == OID_PBKDF2 {
-			ssllib_log_trace!(" ");
 			let _ = config.set_str(KEY_JSON_TYPE,KEY_JSON_PBKDF2)?;
-			ssllib_log_trace!(" ");
 			let pres = self.keyfunc.get_param()?;
 			if pres.is_none() {
 				ssllib_new_error!{SslX509Error,"no encryption get"}
 			}
-			ssllib_log_trace!(" ");
 			let decdata = pres.unwrap().content.clone();
-			ssllib_log_trace!(" ");
 			let mut pbkdf2 :Asn1Pbkdf2ParamElem = Asn1Pbkdf2ParamElem::init_asn1();
-			ssllib_log_trace!(" ");
 			let _ = pbkdf2.decode_asn1(&decdata)?;
-			ssllib_log_trace!(" ");
 			let ncfg = pbkdf2.get_cmd(env)?;
-			ssllib_log_trace!(" ");
 			let ktype = self.encryption.get_algorithm()?;
-			ssllib_log_trace!(" ");
 			if ktype == OID_AES_256_CBC {
-				ssllib_log_trace!(" ");
 				/*now we should give the */
 				let params = self.encryption.get_param()?;
 				if params.is_some() {
@@ -587,17 +580,12 @@ impl Asn1X509SigElem {
 				ssllib_new_error!{SslX509Error,"no params set"}
 			}
 			let anyv :Asn1Any = ores.unwrap();
-			ssllib_buffer_trace!(anyv.content.as_ptr(),anyv.content.len(),"anyv content");
 			let decdata = anyv.content.clone();
 			let _ = pbes2.decode_asn1(&decdata)?;
-			ssllib_log_trace!(" ");
 			let _ = nenv.set_u8_array(KEY_JSON_ENCDATA,&self.digest.data)?;
 			let cfg = pbes2.get_cmd(&nenv)?;
-			ssllib_log_trace!(" ");
 			let _ = config.set_str(KEY_JSON_TYPE,KEY_JSON_PBES2)?;
-			ssllib_log_trace!(" ");
 			let _ = config.set_config(KEY_JSON_PBES2,&cfg)?;
-			ssllib_log_trace!(" ");
 		} else {
 			ssllib_new_error!{SslX509Error,"[{}] packet not support", cv}
 		}

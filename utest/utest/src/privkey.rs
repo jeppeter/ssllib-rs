@@ -31,8 +31,8 @@ use ssllib::config::*;
 use ssllib::x509::*;
 use ssllib::rsa::*;
 use asn1obj::asn1impl::*;
+#[allow(unused_imports)]
 use std::io::Write;
-
 
 extargs_error_class!{PrivKeyError}
 
