@@ -436,7 +436,6 @@ impl Asn1Pbe2ParamElem {
 	}
 }
 
-
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct Asn1Pbe2Param {

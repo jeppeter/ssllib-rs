@@ -48,6 +48,7 @@ fn rsaprivdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 		let _ = envcfg.set_str(KEY_JSON_PASSIN,&passin)?;
 		let mut sig :Asn1X509Sig = Asn1X509Sig::init_asn1();
 		let _ = sig.decode_asn1(&data)?;
+		let _ = sig.print_asn1("Asn1X509Sig",0,&mut sout)?;
 		let cfg = sig.get_encode_packet(&envcfg)?;
 		let cs = cfg.format()?;
 		let _ = sout.write(cs.as_bytes())?;
