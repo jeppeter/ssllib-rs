@@ -591,5 +591,13 @@ impl ConfigValue {
 		let retv = Some(ConfigValue::new(&cs)?);
 		Ok(retv)
 	}
+
+	pub fn get_config_must(&self,key :&str) -> Result<ConfigValue,Box<dyn Error>> {
+		let ores = self.get_config(key)?;
+		if ores.is_none() {
+			ssllib_new_error!{SslConfigError,"no [{}]",key}
+		}
+		return Ok(ores.unwrap());
+	}
 }
 

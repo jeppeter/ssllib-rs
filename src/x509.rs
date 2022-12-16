@@ -398,6 +398,24 @@ impl Asn1Pbe2ParamElem {
 		return self.encryption.get_param();
 	}
 
+	pub fn set_cmd(&mut self, env :&ConfigValue) -> Result<ConfigValue,Box<dyn Error>> {
+		let mut retv :ConfigValue = ConfigValue::new("{}")?;
+		let cv = env.get_str(KEY_JSON_TYPE)?;
+		if cv == KEY_JSON_PBKDF2 {
+			let enctype = env.get_str(KEY_JSON_ENCTYPE)?;
+			if enctype == KEY_JSON_AES256CBC {
+				let decdata = env.get_u8_array(KEY_JSON_DECDATA)?;
+
+			} else {
+				ssllib_new_error!{SslX509Error,"not support [{}][{}]",KEY_JSON_ENCTYPE,enctype}
+			}
+		} else {
+			ssllib_new_error!{SslX509Error,"not support type [{}]",cv}
+		}
+
+		Ok(retv)
+	}
+
 	pub fn get_cmd(&self,env :&ConfigValue) -> Result<ConfigValue,Box<dyn Error>> {
 		let mut config :ConfigValue = ConfigValue::new("{}")?;
 		let algr = self.keyfunc.get_algorithm()?;
@@ -414,6 +432,7 @@ impl Asn1Pbe2ParamElem {
 			let ktype = self.encryption.get_algorithm()?;
 			if ktype == OID_AES_256_CBC {
 				/*now we should give the */
+				let _ = config.set_str(KEY_JSON_ENCTYPE,KEY_JSON_AES256CBC)?;
 				let params = self.encryption.get_param()?;
 				if params.is_some() {
 					let anyv :&Asn1Any = params.as_ref().unwrap();
@@ -575,8 +594,22 @@ pub struct Asn1X509SigElem {
 
 #[allow(unused_variables,unused_mut)]
 impl Asn1X509SigElem {
-	pub fn set_encode_packet(&mut self, config :&ConfigValue) -> Result<(),Box<dyn Error>> {
-		Ok(())
+	pub fn set_cmd(&mut self, env :&ConfigValue) -> Result<ConfigValue,Box<dyn Error>> {
+		let cs = env.get_str(KEY_JSON_TYPE)?;
+		let retv :ConfigValue = ConfigValue::new("{}")?;
+		if cs == KEY_JSON_PBES2 {
+			let mut cfg = env.get_config_must(KEY_JSON_PBES2)?;
+			let mut pbes2 :Asn1Pbe2ParamElem = Asn1Pbe2ParamElem::init_asn1();
+			let ncfg = pbes2.set_cmd(&cfg)?;
+			let _ = self.algor.set_algorithm(OID_PBES2)?;
+			let mut anyv :Asn1Any = Asn1Any::init_asn1();
+			anyv.content = pbes2.encode_asn1()?;
+			self.digest.data = anyv.encode_asn1()?;
+			
+		} else {
+			ssllib_new_error!{SslX509Error, "not support type [{}]", cs}
+		}
+		Ok(retv)
 	}
 
 	pub fn get_cmd(&self,env :&ConfigValue) -> Result<ConfigValue,Box<dyn Error>> {
@@ -611,9 +644,9 @@ pub struct Asn1X509Sig {
 }
 
 impl Asn1X509Sig {
-	pub fn set_encode_packet(&mut self, config :&ConfigValue) -> Result<(),Box<dyn Error>> {
+	pub fn set_cmd(&mut self, config :&ConfigValue) -> Result<ConfigValue,Box<dyn Error>> {
 		let _ = self.elem.make_safe_one("Asn1X509Sig")?;
-		return self.elem.val[0].set_encode_packet(config);
+		return self.elem.val[0].set_cmd(config);
 	}
 
 	pub fn get_cmd(&self,env :&ConfigValue) -> Result<ConfigValue,Box<dyn Error>> {
