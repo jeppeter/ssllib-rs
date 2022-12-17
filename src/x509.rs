@@ -402,9 +402,23 @@ impl Asn1Pbe2ParamElem {
 		let mut retv :ConfigValue = ConfigValue::new("{}")?;
 		let cv = env.get_str(KEY_JSON_TYPE)?;
 		if cv == KEY_JSON_PBKDF2 {
+			let _ = self.keyfunc.set_algorithm(OID_PBKDF2)?;
 			let enctype = env.get_str(KEY_JSON_ENCTYPE)?;
 			if enctype == KEY_JSON_AES256CBC {
 				let decdata = env.get_u8_array(KEY_JSON_DECDATA)?;
+				let ores = env.get_str(KEY_JSON_RANDFILE);
+				let mut randfile :Option<String> = None;
+				if ores.is_ok() {
+					randfile = Some(format!("{}",ores.unwrap()));
+				}
+				let mut randc :RandOps = RandOps::new(randfile)?;
+				let ivkey = randc.get_bytes(8 as usize)?;
+				let aeskey = randc.get_bytes(32 as usize )?;
+				let aes256ccb :Aes256Algo = Aes256Algo::new(&ivkey,&aeskey)?;
+				let encdata = aes256ccb.encrypt(&decdata)?;
+				let mut anyv :Asn1Any = Asn1Any::init_asn1();
+				anyv.content = ivkey.clone();
+				let _ = self.encryption.set_param(&anyv)?;
 
 			} else {
 				ssllib_new_error!{SslX509Error,"not support [{}][{}]",KEY_JSON_ENCTYPE,enctype}
