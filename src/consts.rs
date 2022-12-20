@@ -4,6 +4,7 @@ pub const KEY_JSON_SALT :&str = "salt";
 pub const KEY_JSON_TIMES :&str = "times";
 pub const KEY_JSON_PASSIN :&str = "passin";
 pub const KEY_JSON_PASSOUT :&str = "passout";
+pub const KEY_JSON_AESKEY :&str = "aeskey";
 pub const KEY_JSON_ENCDATA :&str = "encdata";
 pub const KEY_JSON_DECDATA :&str = "decdata";
 pub const KEY_JSON_ENCTYPE :&str = "enctype";

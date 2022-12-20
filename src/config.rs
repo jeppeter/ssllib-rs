@@ -599,5 +599,17 @@ impl ConfigValue {
 		}
 		return Ok(ores.unwrap());
 	}
+
+	pub fn delete_key(&mut self, key :&str) -> Result<(),Box<dyn Error>> {
+		if !self.val.is_object() {
+			ssllib_new_error!{SslConfigError,"not object"}
+		}
+		let c = self.val.as_object_mut().unwrap();
+		if !c.contains_key(key) {
+			return Ok(());
+		}
+		let _ = c.remove_entry(key);
+		return Ok(());
+	}
 }
 

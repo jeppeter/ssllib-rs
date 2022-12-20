@@ -22,6 +22,7 @@ use std::any::Any;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 
+use super::*;
 use super::loglib::*;
 #[allow(unused_imports)]
 use super::fileop::*;
@@ -117,11 +118,23 @@ fn rsaprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 	let _ = cfg.set_str(KEY_JSON_PASSOUT,&passout)?;
 	let _ = netpkey.set_algorithm(&cfg)?;
 	let _ = netpkey.set_privdata(&data)?;
-	let _sdata = netpkey.encode_asn1()?;
-
-
-
-
+	let sdata = netpkey.encode_asn1()?;
+	let mut ncfg :ConfigValue= ConfigValue::new("{}")?;
+	let _ = ncfg.set_str(KEY_JSON_TYPE,KEY_JSON_PBKDF2)?;
+	let _ = ncfg.set_u8_array(KEY_JSON_DECDATA,&sdata)?;
+	let _ = ncfg.set_str(KEY_JSON_ENCTYPE,KEY_JSON_AES256CBC)?;
+	cfg = ConfigValue::new("{}")?;
+	let _ = cfg.set_str(KEY_JSON_TYPE,KEY_JSON_PBES2)?;
+	let _ = cfg.set_config(KEY_JSON_PBES2,&ncfg)?;
+	let mut sigv :Asn1X509Sig = Asn1X509Sig::init_asn1();
+	let _ = sigv.set_cmd(&cfg)?;
+	let data = sigv.encode_asn1()?;
+	let outfile = ns.get_string("output");
+	if outfile.len() > 0 {
+		let _ = write_file_bytes(&outfile,&data)?;
+	} else {
+		debug_buffer_trace!(data.as_ptr(),data.len(),"outbuf");
+	}
 
 	Ok(())
 }

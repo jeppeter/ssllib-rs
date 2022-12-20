@@ -421,6 +421,7 @@ impl Asn1Pbe2ParamElem {
 				anyv.content = ivkey.clone();
 				let _ = self.encryption.set_param(Some(anyv.clone()))?;
 				let _ = retv.set_u8_array(KEY_JSON_ENCDATA,&encdata)?;
+				let _ = retv.set_u8_array(KEY_JSON_AESKEY,&aeskey)?;
 
 			} else {
 				ssllib_new_error!{SslX509Error,"not support [{}][{}]",KEY_JSON_ENCTYPE,enctype}
