@@ -119,10 +119,14 @@ fn rsaprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 	let _ = netpkey.set_algorithm(&cfg)?;
 	let _ = netpkey.set_privdata(&data)?;
 	let sdata = netpkey.encode_asn1()?;
+	debug_buffer_trace!(sdata.as_ptr(),sdata.len(),"sdata");
 	let mut ncfg :ConfigValue= ConfigValue::new("{}")?;
 	let _ = ncfg.set_str(KEY_JSON_TYPE,KEY_JSON_PBKDF2)?;
 	let _ = ncfg.set_u8_array(KEY_JSON_DECDATA,&sdata)?;
 	let _ = ncfg.set_str(KEY_JSON_ENCTYPE,KEY_JSON_AES256CBC)?;
+	if sarr.len() > 1 {
+		let _ = ncfg.set_str(KEY_JSON_RANDFILE,&sarr[1])?;
+	}
 	cfg = ConfigValue::new("{}")?;
 	let _ = cfg.set_str(KEY_JSON_TYPE,KEY_JSON_PBES2)?;
 	let _ = cfg.set_config(KEY_JSON_PBES2,&ncfg)?;

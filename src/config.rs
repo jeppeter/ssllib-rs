@@ -1,8 +1,9 @@
 
-use crate::{ssllib_error_class,ssllib_new_error};
+#[allow(unused_imports)]
+use crate::*;
 use std::error::Error;
-use crate::{ssllib_log_trace};
-use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
+#[allow(unused_imports)]
+use crate::logger::*;
 
 
 ssllib_error_class!{SslConfigError}
@@ -40,12 +41,11 @@ impl ConfigValue {
 		if s.len() == 1 {
 			s = "".to_string();
 		}
-		ssllib_log_trace!("path [{}]",s);
 		return s;
 	}
 
 	fn _set_str(&mut self,paths :&[String],key :&str, strv:&str) -> Result<Option<String>,Box<dyn Error>> {
-		let vs :serde_json::value::Value = serde_json::from_str(&format!("\"{}\"",strv))?;
+		let vs :serde_json::value::Value = serde_json::json!(strv);
 		let vmap  = self.val.pointer_mut(&(self._get_path_whole(paths))).unwrap();
 		let mut retv :Option<String> = None;
 

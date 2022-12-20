@@ -411,6 +411,7 @@ impl Asn1Pbe2ParamElem {
 				let mut randfile :Option<String> = None;
 				if ores.is_ok() {
 					randfile = Some(format!("{}",ores.unwrap()));
+					ssllib_log_trace!("set randfile {:?}",randfile);
 				}
 				let mut randc :RandOps = RandOps::new(randfile)?;
 				let ivkey = randc.get_bytes(8 as usize)?;
@@ -419,9 +420,10 @@ impl Asn1Pbe2ParamElem {
 				let encdata = aes256ccb.encrypt(&decdata)?;
 				let mut anyv :Asn1Any = Asn1Any::init_asn1();
 				anyv.content = ivkey.clone();
+				ssllib_buffer_trace!(anyv.content.as_ptr(),anyv.content.len(),"ivkey set");
 				let _ = self.encryption.set_param(Some(anyv.clone()))?;
 				let _ = retv.set_u8_array(KEY_JSON_ENCDATA,&encdata)?;
-				let _ = retv.set_u8_array(KEY_JSON_AESKEY,&aeskey)?;
+				let _ = retv.set_u8_array(KEY_JSON_KEY,&aeskey)?;
 
 			} else {
 				ssllib_new_error!{SslX509Error,"not support [{}][{}]",KEY_JSON_ENCTYPE,enctype}
@@ -621,6 +623,7 @@ impl Asn1X509SigElem {
 			let _ = self.algor.set_algorithm(OID_PBES2)?;
 			let mut anyv :Asn1Any = Asn1Any::init_asn1();
 			anyv.content = pbes2.encode_asn1()?;
+			ssllib_buffer_trace!(anyv.content.as_ptr(),anyv.content.len()," pbes2 encode");
 			self.digest.data = anyv.encode_asn1()?;
 			
 		} else {
