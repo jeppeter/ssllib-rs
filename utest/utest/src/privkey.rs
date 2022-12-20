@@ -88,7 +88,7 @@ fn rsaprivdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 fn rsaprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
 	let sarr :Vec<String>;
 	let passout :String = ns.get_string("passout");
-	let mut sout = std::io::stdout();
+	//let mut sout = std::io::stdout();
 	let mut randfile :Option<String> = None;
 	let bits :usize;
 
@@ -114,9 +114,11 @@ fn rsaprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 	let mut netpkey :Asn1NetscapePkey = Asn1NetscapePkey::init_asn1();
 	let mut cfg :ConfigValue = ConfigValue::new("{}")?;
 	let _ = cfg.set_str(KEY_JSON_TYPE,KEY_JSON_RSA)?;
+	let _ = cfg.set_str(KEY_JSON_PASSOUT,&passout)?;
 	let _ = netpkey.set_algorithm(&cfg)?;
 	let _ = netpkey.set_privdata(&data)?;
-	let sdata = netpkey.encode_asn1()?;
+	let _sdata = netpkey.encode_asn1()?;
+
 
 
 

@@ -19,6 +19,7 @@ use crate::rsa::*;
 use crate::consts::*;
 use crate::digest::*;
 use crate::impls::*;
+use crate::randop::*;
 use crate::encde::*;
 #[allow(unused_imports)]
 use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
@@ -418,7 +419,8 @@ impl Asn1Pbe2ParamElem {
 				let encdata = aes256ccb.encrypt(&decdata)?;
 				let mut anyv :Asn1Any = Asn1Any::init_asn1();
 				anyv.content = ivkey.clone();
-				let _ = self.encryption.set_param(&anyv)?;
+				let _ = self.encryption.set_param(Some(anyv.clone()))?;
+				let _ = retv.set_u8_array(KEY_JSON_ENCDATA,&encdata)?;
 
 			} else {
 				ssllib_new_error!{SslX509Error,"not support [{}][{}]",KEY_JSON_ENCTYPE,enctype}
