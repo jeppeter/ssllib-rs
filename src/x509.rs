@@ -404,6 +404,19 @@ impl Asn1Pbe2ParamElem {
 		let cv = env.get_str(KEY_JSON_TYPE)?;
 		if cv == KEY_JSON_PBKDF2 {
 			let _ = self.keyfunc.set_algorithm(OID_PBKDF2)?;
+			let decdata = env.get_u8_array(KEY_JSON_DECDATA)?;
+			let mut anyv :Asn1Any = Asn1Any::init_asn1();
+			anyv.content = decdata.clone();
+			let _ = self.keyfunc.set_param(Some(anyv.clone()))?;
+			let mut pbkdf2 :Asn1Pbkdf2ParamElem = Asn1Pbkdf2ParamElem::init_asn1();
+			let _ = pbkdf2.decode_asn1(&decdata)?;
+			let mut ncfg :ConfigValue = ConfigValue::new("{}").unwrap();
+			let passin :String = env.get_str(KEY_JSON_PASSIN)?;
+			let _ = ncfg.set_str(KEY_JSON_PASSIN,&passin)?;
+			let ores = env.get_str(KEY_JSON_RANDFILE);
+			if ores.is_ok() {
+				let _ = ncfg.set_str(KEY_JSON_RANDFILE,&format!("{}",ores.unwrap()))?;
+			}
 			let enctype = env.get_str(KEY_JSON_ENCTYPE)?;
 			if enctype == KEY_JSON_AES256CBC {
 				let decdata = env.get_u8_array(KEY_JSON_DECDATA)?;
@@ -513,6 +526,34 @@ impl Asn1Pbkdf2ParamElem {
 		}
 
 		Ok(())
+	}
+
+	pub fn set_cmd(&mut self, env :&ConfigValue) -> Result<ConfigValue,Box<dyn Error>> {
+		let mut ncfg :ConfigValue = ConfigValue::new("{}").unwrap();
+		let dtype = env.get_str(KEY_JSON_DIGESTTYPE)?;
+		if dtype == KEY_HMAC_WITH_SHA256 {
+			let mut oid :Asn1X509Algor = Asn1X509Algor::init_asn1();
+			let _ = oid.set_algorithm(OID_HMAC_WITH_SHA256)?;
+			self.prf.val = Some(oid.clone());
+			let iter :i64 = env.get_i64(KEY_JSON_TIMES)?;
+			let passin :String = env.get_str(KEY_JSON_PASSIN)?;
+			let _ = self.iter.set_value(iter);
+			let hsha256 :HmacSha256Digest = HmacSha256Digest::new(self.iter.val as u32, passin.as_bytes())?;
+			let mut randops :RandOps ;
+			let ores = env.get_str(KEY_JSON_RANDFILE);
+			if ores.is_ok() {
+				randops = RandOps::new(Some(format!("{}",ores.unwrap()))).unwrap();
+			} else {
+				randops = RandOps::new(None).unwrap();
+			}
+			let salt :Vec<u8> = randops.get_bytes(8 as usize)?;
+			self.salt.content = salt.clone();
+			let retv = hsha256.digest(&salt)?;
+			let _ = ncfg.set_u8_array(KEY_JSON_KEY,&retv)?;			
+		} else {
+			ssllib_new_error!{SslX509Error,"not support type [{}]",dtype}
+		}
+		Ok(ncfg)
 	}
 
 	pub fn get_cmd(&self,env :&ConfigValue) -> Result<ConfigValue,Box<dyn Error>> {
@@ -644,7 +685,7 @@ impl Asn1X509SigElem {
 				ssllib_new_error!{SslX509Error,"no params set"}
 			}
 			let anyv :Asn1Any = ores.unwrap();
-			let decdata = anyv.content.clone();
+ 			let decdata = anyv.content.clone();
 			let _ = pbes2.decode_asn1(&decdata)?;
 			let _ = nenv.set_u8_array(KEY_JSON_ENCDATA,&self.digest.data)?;
 			let cfg = pbes2.get_cmd(&nenv)?;
