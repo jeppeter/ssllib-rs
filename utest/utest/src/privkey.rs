@@ -64,6 +64,7 @@ fn rsaprivdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 			if types2 == KEY_JSON_PBKDF2  {
 				let decdata = pbes2.get_u8_array(KEY_JSON_DECDATA)?;
 				let mut netpkey :Asn1NetscapePkey = Asn1NetscapePkey::init_asn1();
+				debug_buffer_trace!(decdata.as_ptr(),decdata.len(),"decdata");
 				let _ = netpkey.decode_asn1(&decdata)?;
 				let _ = netpkey.print_asn1("Asn1NetscapePkey",0,&mut sout)?;
 				let cs = netpkey.get_algorithm()?;
@@ -89,7 +90,7 @@ fn rsaprivdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 fn rsaprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
 	let sarr :Vec<String>;
 	let passout :String = ns.get_string("passout");
-	//let mut sout = std::io::stdout();
+	let mut sout = std::io::stdout();
 	let mut randfile :Option<String> = None;
 	let bits :usize;
 
@@ -112,6 +113,8 @@ fn rsaprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 	}
 	let privk :Asn1RsaPrivateKey = Asn1RsaPrivateKey::generate(bits,randfile)?;
 	let data = privk.encode_asn1()?;
+	privk.print_asn1("Asn1RsaPrivateKey",0,&mut sout)?;
+	debug_buffer_trace!(data.as_ptr(),data.len(),"data len");
 	let mut netpkey :Asn1NetscapePkey = Asn1NetscapePkey::init_asn1();
 	let mut cfg :ConfigValue = ConfigValue::new("{}")?;
 	let _ = cfg.set_str(KEY_JSON_TYPE,KEY_JSON_RSA)?;

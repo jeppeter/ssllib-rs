@@ -24,7 +24,6 @@ use crate::encde::*;
 #[allow(unused_imports)]
 use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
 use crate::config::ConfigValue;
-use asn1obj::consts::*;
 
 ssllib_error_class!{SslX509Error}
 
@@ -379,16 +378,14 @@ impl Asn1Pbe2ParamElem {
 		ssllib_log_trace!("type [{}]",cv);
 		if cv == KEY_JSON_PBKDF2 {
 			let _ = self.keyfunc.set_algorithm(OID_PBKDF2)?;
-			let decdata = env.get_u8_array(KEY_JSON_DECDATA)?;
 			let mut anyv :Asn1Any = Asn1Any::init_asn1();
-			anyv.content = decdata.clone();
 			let pcfg = env.get_config_must(KEY_JSON_PBKDF2)?;
-			let _ = self.keyfunc.set_param(Some(anyv.clone()))?;
 			let mut pbkdf2 :Asn1Pbkdf2ParamElem = Asn1Pbkdf2ParamElem::init_asn1();
 			ssllib_log_trace!(" ");
 			let rcfg :ConfigValue = pbkdf2.set_cmd(&pcfg)?;
 			ssllib_log_trace!(" ");
-			let cdata = pbkdf2.encode_asn1()?;
+			anyv.content = pbkdf2.encode_asn1()?;
+			let _ = self.keyfunc.set_param(Some(anyv.clone()))?;
 			let mut ncfg :ConfigValue = ConfigValue::new("{}").unwrap();
 			let passin :String = env.get_str(KEY_JSON_PASSIN)?;
 			let _ = ncfg.set_str(KEY_JSON_PASSIN,&passin)?;
@@ -407,9 +404,9 @@ impl Asn1Pbe2ParamElem {
 					ssllib_log_trace!("set randfile {:?}",randfile);
 				}
 				let mut randc :RandOps = RandOps::new(randfile)?;
-				let ivkey = randc.get_bytes(8 as usize)?;
-				let _ = self.encryption.set_param(Some(anyv.clone()))?;
-				let aeskey = env.get_u8_array(KEY_JSON_KEY)?;
+				let ivkey = randc.get_bytes(16 as usize)?;
+				let aeskey = rcfg.get_u8_array(KEY_JSON_KEY)?;
+				ssllib_log_trace!(" ");
 				let aes256ccb :Aes256Algo = Aes256Algo::new(&ivkey,&aeskey)?;
 				let encdata = aes256ccb.encrypt(&decdata)?;
 				let mut anyv :Asn1Any = Asn1Any::init_asn1();
@@ -417,6 +414,8 @@ impl Asn1Pbe2ParamElem {
 				anyv.tag = ASN1_OCT_STRING_FLAG as u64;
 				ssllib_buffer_trace!(anyv.content.as_ptr(),anyv.content.len(),"ivkey set");
 				let _ = self.encryption.set_param(Some(anyv.clone()))?;
+				ssllib_buffer_trace!(decdata.as_ptr(),decdata.len(),"decdata");
+				ssllib_buffer_trace!(encdata.as_ptr(),encdata.len(),"encdata");
 				let _ = retv.set_u8_array(KEY_JSON_ENCDATA,&encdata)?;
 			} else {
 				ssllib_new_error!{SslX509Error,"not support [{}][{}]",KEY_JSON_ENCTYPE,enctype}
@@ -450,7 +449,9 @@ impl Asn1Pbe2ParamElem {
 					let anyv :&Asn1Any = params.as_ref().unwrap();
 					let encdata = env.get_u8_array(KEY_JSON_ENCDATA)?;
 					let ivkey = anyv.content.clone();
+					ssllib_log_trace!(" ");
 					let aeskey = ncfg.get_u8_array(KEY_JSON_KEY)?;
+					ssllib_log_trace!(" ");
 					let aescbcenc = Aes256Algo::new(&ivkey,&aeskey)?;
 					let decdata = aescbcenc.decrypt(&encdata)?;
 					let _ = config.set_u8_array(KEY_JSON_DECDATA,&decdata)?;
@@ -505,10 +506,6 @@ impl Asn1Pbkdf2ParamElem {
 			self.salt.content = salt.clone();
 			let retv = hsha256.digest(&salt)?;
 			let _ = ncfg.set_u8_array(KEY_JSON_KEY,&retv)?;
-			let mut pbes2 :Asn1Pbe2ParamElem = Asn1Pbe2ParamElem::init_asn1();
-			let bcfg = pbes2.set_cmd(&ncfg)?;
-			let ucc = bcfg.get_u8_array(KEY_JSON_ENCDATA)?;
-			let _ = ncfg.set_u8_array(KEY_JSON_ENCDATA,&ucc)?;
 		} else {
 			ssllib_new_error!{SslX509Error,"not support type [{}]",dtype}
 		}
@@ -625,7 +622,11 @@ impl Asn1X509SigElem {
 			ssllib_log_trace!(" ");
 			let ncfg = pbes2.set_cmd(&cfg)?;
 			let _ = self.algor.set_algorithm(OID_PBES2)?;
-			self.digest.data = 	pbes2.encode_asn1()?;
+			let mut anyv :Asn1Any = Asn1Any::init_asn1();
+			anyv.content = pbes2.encode_asn1()?;
+			let _ = self.algor.set_param(Some(anyv.clone()))?;
+			self.digest.data = ncfg.get_u8_array(KEY_JSON_ENCDATA)?;
+			ssllib_buffer_trace!(self.digest.data.as_ptr(),self.digest.data.len(), "digest data");
 		} else {
 			ssllib_new_error!{SslX509Error, "not support type [{}]", cs}
 		}
@@ -637,7 +638,6 @@ impl Asn1X509SigElem {
 		let cv :String = self.algor.get_algorithm()?;
 		let mut nenv :ConfigValue = env.clone();
 		if cv == OID_PBES2 {
-			let encdata = self.digest.data.clone();
 			let mut  pbes2 :Asn1Pbe2ParamElem = Asn1Pbe2ParamElem::init_asn1();
 			let ores = self.algor.get_param()?;
 			if ores.is_none() {
@@ -645,7 +645,9 @@ impl Asn1X509SigElem {
 			}
 			let anyv :Asn1Any = ores.unwrap();
  			let decdata = anyv.content.clone();
+ 			ssllib_log_trace!(" ");
 			let _ = pbes2.decode_asn1(&decdata)?;
+			ssllib_log_trace!(" ");
 			let _ = nenv.set_u8_array(KEY_JSON_ENCDATA,&self.digest.data)?;
 			let cfg = pbes2.get_cmd(&nenv)?;
 			let _ = config.set_str(KEY_JSON_TYPE,KEY_JSON_PBES2)?;
