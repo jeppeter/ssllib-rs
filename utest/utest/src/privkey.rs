@@ -124,9 +124,17 @@ fn rsaprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 	let _ = ncfg.set_str(KEY_JSON_TYPE,KEY_JSON_PBKDF2)?;
 	let _ = ncfg.set_u8_array(KEY_JSON_DECDATA,&sdata)?;
 	let _ = ncfg.set_str(KEY_JSON_ENCTYPE,KEY_JSON_AES256CBC)?;
+	let mut bcfg :ConfigValue = ConfigValue::new("{}")?;
+	let _ = bcfg.set_str(KEY_JSON_DIGESTTYPE,KEY_HMAC_WITH_SHA256);
+	let _ = bcfg.set_i64(KEY_JSON_TIMES,2048)?;
+	let _ = bcfg.set_str(KEY_JSON_PASSIN,&passout)?;
+
 	if sarr.len() > 1 {
 		let _ = ncfg.set_str(KEY_JSON_RANDFILE,&sarr[1])?;
+		let _ = bcfg.set_str(KEY_JSON_RANDFILE,&sarr[1])?;
 	}
+	let _ = ncfg.set_config(KEY_JSON_PBKDF2,&bcfg)?;
+	let _ = ncfg.set_str(KEY_JSON_PASSIN,&passout)?;
 	cfg = ConfigValue::new("{}")?;
 	let _ = cfg.set_str(KEY_JSON_TYPE,KEY_JSON_PBES2)?;
 	let _ = cfg.set_config(KEY_JSON_PBES2,&ncfg)?;

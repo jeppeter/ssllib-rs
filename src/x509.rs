@@ -24,6 +24,7 @@ use crate::encde::*;
 #[allow(unused_imports)]
 use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
 use crate::config::ConfigValue;
+use asn1obj::consts::*;
 
 ssllib_error_class!{SslX509Error}
 
@@ -371,45 +372,23 @@ pub struct Asn1Pbe2ParamElem {
 }
 
 impl Asn1Pbe2ParamElem {
-	pub fn set_keyfunc(&mut self, func :&str) -> Result<String,Box<dyn Error>> {
-		return self.keyfunc.set_algorithm(func);
-	}
-
-	pub fn set_keyfunc_params(&mut self, params :Option<Asn1Any>) -> Result<Option<Asn1Any>, Box<dyn Error>> {
-		return self.keyfunc.set_param(params);
-	}
-
-	pub fn get_keyfunc_params(&self) -> Result<Option<Asn1Any>,Box<dyn Error>> {
-		return self.keyfunc.get_param();
-	}
-
-	pub fn get_keyfunc_algo(&self) -> Result<String,Box<dyn Error>> {
-		return self.keyfunc.get_algorithm();
-	}
-
-	pub fn set_encrypt(&mut self, encobj :&str) -> Result<String,Box<dyn Error>> {
-		return self.encryption.set_algorithm(encobj);
-	}
-
-	pub fn get_encrypt_algo(&self) -> Result<String,Box<dyn Error>> {
-		return self.encryption.get_algorithm();
-	}
-
-	pub fn get_encrypt_params(&self) -> Result<Option<Asn1Any>,Box<dyn Error>> {
-		return self.encryption.get_param();
-	}
-
 	pub fn set_cmd(&mut self, env :&ConfigValue) -> Result<ConfigValue,Box<dyn Error>> {
 		let mut retv :ConfigValue = ConfigValue::new("{}")?;
+		ssllib_log_trace!(" ");
 		let cv = env.get_str(KEY_JSON_TYPE)?;
+		ssllib_log_trace!("type [{}]",cv);
 		if cv == KEY_JSON_PBKDF2 {
 			let _ = self.keyfunc.set_algorithm(OID_PBKDF2)?;
 			let decdata = env.get_u8_array(KEY_JSON_DECDATA)?;
 			let mut anyv :Asn1Any = Asn1Any::init_asn1();
 			anyv.content = decdata.clone();
+			let pcfg = env.get_config_must(KEY_JSON_PBKDF2)?;
 			let _ = self.keyfunc.set_param(Some(anyv.clone()))?;
 			let mut pbkdf2 :Asn1Pbkdf2ParamElem = Asn1Pbkdf2ParamElem::init_asn1();
-			let _ = pbkdf2.decode_asn1(&decdata)?;
+			ssllib_log_trace!(" ");
+			let rcfg :ConfigValue = pbkdf2.set_cmd(&pcfg)?;
+			ssllib_log_trace!(" ");
+			let cdata = pbkdf2.encode_asn1()?;
 			let mut ncfg :ConfigValue = ConfigValue::new("{}").unwrap();
 			let passin :String = env.get_str(KEY_JSON_PASSIN)?;
 			let _ = ncfg.set_str(KEY_JSON_PASSIN,&passin)?;
@@ -419,6 +398,7 @@ impl Asn1Pbe2ParamElem {
 			}
 			let enctype = env.get_str(KEY_JSON_ENCTYPE)?;
 			if enctype == KEY_JSON_AES256CBC {
+				let _ = self.encryption.set_algorithm(OID_AES_256_CBC)?;
 				let decdata = env.get_u8_array(KEY_JSON_DECDATA)?;
 				let ores = env.get_str(KEY_JSON_RANDFILE);
 				let mut randfile :Option<String> = None;
@@ -428,16 +408,16 @@ impl Asn1Pbe2ParamElem {
 				}
 				let mut randc :RandOps = RandOps::new(randfile)?;
 				let ivkey = randc.get_bytes(8 as usize)?;
-				let aeskey = randc.get_bytes(32 as usize )?;
+				let _ = self.encryption.set_param(Some(anyv.clone()))?;
+				let aeskey = env.get_u8_array(KEY_JSON_KEY)?;
 				let aes256ccb :Aes256Algo = Aes256Algo::new(&ivkey,&aeskey)?;
 				let encdata = aes256ccb.encrypt(&decdata)?;
 				let mut anyv :Asn1Any = Asn1Any::init_asn1();
 				anyv.content = ivkey.clone();
+				anyv.tag = ASN1_OCT_STRING_FLAG as u64;
 				ssllib_buffer_trace!(anyv.content.as_ptr(),anyv.content.len(),"ivkey set");
 				let _ = self.encryption.set_param(Some(anyv.clone()))?;
 				let _ = retv.set_u8_array(KEY_JSON_ENCDATA,&encdata)?;
-				let _ = retv.set_u8_array(KEY_JSON_KEY,&aeskey)?;
-
 			} else {
 				ssllib_new_error!{SslX509Error,"not support [{}][{}]",KEY_JSON_ENCTYPE,enctype}
 			}
@@ -457,7 +437,7 @@ impl Asn1Pbe2ParamElem {
 			if pres.is_none() {
 				ssllib_new_error!{SslX509Error,"no encryption get"}
 			}
-			let decdata = pres.unwrap().content.clone();
+			let decdata = pres.unwrap().content.clone();			
 			let mut pbkdf2 :Asn1Pbkdf2ParamElem = Asn1Pbkdf2ParamElem::init_asn1();
 			let _ = pbkdf2.decode_asn1(&decdata)?;
 			let ncfg = pbkdf2.get_cmd(env)?;
@@ -503,31 +483,6 @@ pub struct Asn1Pbkdf2ParamElem {
 }
 
 impl Asn1Pbkdf2ParamElem {
-	pub fn set_enc_type(&mut self,config :&ConfigValue) -> Result<(),Box<dyn Error>> {		
-		let types = config.get_str(KEY_JSON_TYPE)?;		
-		if types == KEY_HMAC_WITH_SHA256  {
-			let v8 :Vec<u8> = config.get_u8_array(KEY_JSON_SALT)?;
-			self.salt.content = v8.clone();
-			self.salt.tag = ASN1_OCT_STRING_FLAG as u64;
-			self.iter.set_value(config.get_i64(KEY_JSON_TIMES)?);
-			self.keylength = Asn1Opt::init_asn1();
-			let mut  aglr = Asn1X509Algor::init_asn1();
-			let mut algrelm = Asn1X509AlgorElem::init_asn1();
-			let _ = algrelm.algorithm.set_value(OID_HMAC_WITH_SHA256)?;
-			let mut atype :Asn1Any = Asn1Any::init_asn1();
-			atype.tag = ASN1_NULL_FLAG as u64;
-			algrelm.parameters = Asn1Opt::init_asn1();
-			algrelm.parameters.val = Some(atype.clone());
-			aglr.elem.val.push(algrelm);
-			self.prf = Asn1Opt::init_asn1();
-			self.prf.val = Some(aglr.clone());
-		} else {
-			ssllib_new_error!{SslX509Error,"not support type [{}]", types}
-		}
-
-		Ok(())
-	}
-
 	pub fn set_cmd(&mut self, env :&ConfigValue) -> Result<ConfigValue,Box<dyn Error>> {
 		let mut ncfg :ConfigValue = ConfigValue::new("{}").unwrap();
 		let dtype = env.get_str(KEY_JSON_DIGESTTYPE)?;
@@ -549,7 +504,11 @@ impl Asn1Pbkdf2ParamElem {
 			let salt :Vec<u8> = randops.get_bytes(8 as usize)?;
 			self.salt.content = salt.clone();
 			let retv = hsha256.digest(&salt)?;
-			let _ = ncfg.set_u8_array(KEY_JSON_KEY,&retv)?;			
+			let _ = ncfg.set_u8_array(KEY_JSON_KEY,&retv)?;
+			let mut pbes2 :Asn1Pbe2ParamElem = Asn1Pbe2ParamElem::init_asn1();
+			let bcfg = pbes2.set_cmd(&ncfg)?;
+			let ucc = bcfg.get_u8_array(KEY_JSON_ENCDATA)?;
+			let _ = ncfg.set_u8_array(KEY_JSON_ENCDATA,&ucc)?;
 		} else {
 			ssllib_new_error!{SslX509Error,"not support type [{}]",dtype}
 		}
@@ -598,6 +557,7 @@ impl Asn1NetscapePkeyElem {
 	}
 
 	pub fn set_algorithm(&mut self,env :&ConfigValue) -> Result<(),Box<dyn Error>> {
+		ssllib_log_trace!(" ");
 		let cs = env.get_str(KEY_JSON_TYPE)?;
 		if cs == KEY_JSON_RSA {
 			let _ = self.algor.set_param_null()?;
@@ -655,18 +615,17 @@ pub struct Asn1X509SigElem {
 #[allow(unused_variables,unused_mut)]
 impl Asn1X509SigElem {
 	pub fn set_cmd(&mut self, env :&ConfigValue) -> Result<ConfigValue,Box<dyn Error>> {
+		ssllib_log_trace!(" ");
 		let cs = env.get_str(KEY_JSON_TYPE)?;
 		let retv :ConfigValue = ConfigValue::new("{}")?;
 		if cs == KEY_JSON_PBES2 {
+			ssllib_log_trace!(" ");
 			let mut cfg = env.get_config_must(KEY_JSON_PBES2)?;
 			let mut pbes2 :Asn1Pbe2ParamElem = Asn1Pbe2ParamElem::init_asn1();
+			ssllib_log_trace!(" ");
 			let ncfg = pbes2.set_cmd(&cfg)?;
 			let _ = self.algor.set_algorithm(OID_PBES2)?;
-			let mut anyv :Asn1Any = Asn1Any::init_asn1();
-			anyv.content = pbes2.encode_asn1()?;
-			ssllib_buffer_trace!(anyv.content.as_ptr(),anyv.content.len()," pbes2 encode");
-			self.digest.data = anyv.encode_asn1()?;
-			
+			self.digest.data = 	pbes2.encode_asn1()?;
 		} else {
 			ssllib_new_error!{SslX509Error, "not support type [{}]", cs}
 		}
