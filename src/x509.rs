@@ -407,7 +407,7 @@ impl Asn1Pbe2ParamElem {
 				let ivkey = randc.get_bytes(16 as usize)?;
 				let aeskey = rcfg.get_u8_array(KEY_JSON_KEY)?;
 				ssllib_log_trace!(" ");
-				let aes256ccb :Aes256Algo = Aes256Algo::new(&ivkey,&aeskey)?;
+				let aes256ccb :Aes256CbcAlgo = Aes256CbcAlgo::new(&ivkey,&aeskey)?;
 				let encdata = aes256ccb.encrypt(&decdata)?;
 				let mut anyv :Asn1Any = Asn1Any::init_asn1();
 				anyv.content = ivkey.clone();
@@ -452,8 +452,22 @@ impl Asn1Pbe2ParamElem {
 					ssllib_log_trace!(" ");
 					let aeskey = ncfg.get_u8_array(KEY_JSON_KEY)?;
 					ssllib_log_trace!(" ");
-					let aescbcenc = Aes256Algo::new(&ivkey,&aeskey)?;
+					let aescbcenc = Aes256CbcAlgo::new(&ivkey,&aeskey)?;
 					let decdata = aescbcenc.decrypt(&encdata)?;
+					let _ = config.set_u8_array(KEY_JSON_DECDATA,&decdata)?;
+				} else {
+					ssllib_new_error!{SslX509Error,"not set params value for encryption"}
+				}
+			} else if ktype == OID_AES_256_CFB {
+				let _ = config.set_str(KEY_JSON_ENCTYPE,KEY_JSON_AES256CFB)?;
+				let params = self.encryption.get_param()?;
+				if params.is_some() {
+					let anyv :&Asn1Any = params.as_ref().unwrap();
+					let encdata = env.get_u8_array(KEY_JSON_ENCDATA)?;
+					let ivkey = anyv.content.clone();
+					let aeskey = ncfg.get_u8_array(KEY_JSON_KEY)?;
+					let aescfbenc = Aes256CfbAlgo::new(&ivkey,&aeskey)?;
+					let decdata = aescfbenc.decrypt(&encdata)?;
 					let _ = config.set_u8_array(KEY_JSON_DECDATA,&decdata)?;
 				} else {
 					ssllib_new_error!{SslX509Error,"not set params value for encryption"}
