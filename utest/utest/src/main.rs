@@ -27,6 +27,7 @@ use regex::Regex;
 use std::any::Any;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
+use ssllib::consts::KEY_JSON_AES256CBC;
 
 #[cfg(windows)]
 mod wchar_windows;
@@ -42,15 +43,16 @@ mod privkey;
 #[extargs_map_function()]
 fn main() -> Result<(),Box<dyn Error>> {
 	let parser :ExtArgsParser = ExtArgsParser::new(None,None)?;
-	let commandline = r#"
-	{
+	let commandline = format!(r#"
+	{{
 		"output|o" : null,
 		"input|i" : null,
 		"passin" : null,
-		"passout" : null
-	}
-	"#;
-	extargs_load_commandline!(parser,commandline)?;
+		"passout" : null,
+		"ciphername" : "{}"
+	}}
+	"#,KEY_JSON_AES256CBC);
+	extargs_load_commandline!(parser,&commandline)?;
 	loglib::prepare_log(parser.clone())?;
 	privkey::load_privkey_handler(parser.clone())?;
 	let ores = parser.parse_commandline_ex(None,None,None,None);

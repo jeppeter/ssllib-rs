@@ -93,6 +93,7 @@ fn rsaprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 	let mut sout = std::io::stdout();
 	let mut randfile :Option<String> = None;
 	let bits :usize;
+	let ciphername :String;
 
 	init_log(ns.clone())?;
 	sarr = ns.get_array("subnargs");
@@ -126,7 +127,8 @@ fn rsaprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 	let mut ncfg :ConfigValue= ConfigValue::new("{}")?;
 	let _ = ncfg.set_str(KEY_JSON_TYPE,KEY_JSON_PBKDF2)?;
 	let _ = ncfg.set_u8_array(KEY_JSON_DECDATA,&sdata)?;
-	let _ = ncfg.set_str(KEY_JSON_ENCTYPE,KEY_JSON_AES256CBC)?;
+	ciphername = ns.get_string("ciphername");
+	let _ = ncfg.set_str(KEY_JSON_ENCTYPE,&ciphername)?;
 	let mut bcfg :ConfigValue = ConfigValue::new("{}")?;
 	let _ = bcfg.set_str(KEY_JSON_DIGESTTYPE,KEY_HMAC_WITH_SHA256);
 	let _ = bcfg.set_i64(KEY_JSON_TIMES,2048)?;

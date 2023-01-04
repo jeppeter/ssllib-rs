@@ -417,6 +417,29 @@ impl Asn1Pbe2ParamElem {
 				ssllib_buffer_trace!(decdata.as_ptr(),decdata.len(),"decdata");
 				ssllib_buffer_trace!(encdata.as_ptr(),encdata.len(),"encdata");
 				let _ = retv.set_u8_array(KEY_JSON_ENCDATA,&encdata)?;
+			} else if enctype == KEY_JSON_AES256CFB {
+				let _ = self.encryption.set_algorithm(OID_AES_256_CFB)?;
+				let decdata = env.get_u8_array(KEY_JSON_DECDATA)?;
+				let ores = env.get_str(KEY_JSON_RANDFILE);
+				let mut randfile :Option<String> = None;
+				if ores.is_ok() {
+					randfile = Some(format!("{}",ores.unwrap()));
+					ssllib_log_trace!("set randfile {:?}",randfile);
+				}
+				let mut randc :RandOps = RandOps::new(randfile)?;
+				let ivkey = randc.get_bytes(16 as usize)?;
+				let aeskey = rcfg.get_u8_array(KEY_JSON_KEY)?;
+				ssllib_log_trace!(" ");
+				let aes256cfb :Aes256CfbAlgo = Aes256CfbAlgo::new(&ivkey,&aeskey)?;
+				let encdata = aes256cfb.encrypt(&decdata)?;
+				let mut anyv :Asn1Any = Asn1Any::init_asn1();
+				anyv.content = ivkey.clone();
+				anyv.tag = ASN1_OCT_STRING_FLAG as u64;
+				ssllib_buffer_trace!(anyv.content.as_ptr(),anyv.content.len(),"ivkey set");
+				let _ = self.encryption.set_param(Some(anyv.clone()))?;
+				ssllib_buffer_trace!(decdata.as_ptr(),decdata.len(),"decdata");
+				ssllib_buffer_trace!(encdata.as_ptr(),encdata.len(),"encdata");
+				let _ = retv.set_u8_array(KEY_JSON_ENCDATA,&encdata)?;
 			} else {
 				ssllib_new_error!{SslX509Error,"not support [{}][{}]",KEY_JSON_ENCTYPE,enctype}
 			}
