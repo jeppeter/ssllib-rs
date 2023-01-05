@@ -371,6 +371,50 @@ pub struct Asn1Pbe2ParamElem {
 }
 
 impl Asn1Pbe2ParamElem {
+	fn set_encrypt(&mut self, env :&ConfigValue,rcfg :&ConfigValue) -> Result<Box<dyn Asn1EncryptOp>,Box<dyn Error>> {
+		let enctype :String = env.get_str(KEY_JSON_ENCTYPE)?;
+		if enctype == KEY_JSON_AES256CBC {
+			let _ = self.encryption.set_algorithm(OID_AES_256_CBC)?;
+			let ores = env.get_str(KEY_JSON_RANDFILE);
+			let mut randfile :Option<String> = None;
+			if ores.is_ok() {
+				randfile = Some(format!("{}",ores.unwrap()));
+				ssllib_log_trace!("set randfile {:?}",randfile);
+			}
+			let mut randc :RandOps = RandOps::new(randfile)?;
+			let ivkey = randc.get_bytes(16 as usize)?;
+			let aeskey = rcfg.get_u8_array(KEY_JSON_KEY)?;
+			let aes256ccb :Aes256CbcAlgo = Aes256CbcAlgo::new(&ivkey,&aeskey)?;
+			let mut anyv :Asn1Any = Asn1Any::init_asn1();
+			anyv.content = ivkey.clone();
+			anyv.tag = ASN1_OCT_STRING_FLAG as u64;
+			ssllib_buffer_trace!(anyv.content.as_ptr(),anyv.content.len(),"ivkey set");
+			let _ = self.encryption.set_param(Some(anyv.clone()))?;
+			return Ok(Box::new(aes256ccb));
+		} else if enctype == KEY_JSON_AES256CFB {
+			let _ = self.encryption.set_algorithm(OID_AES_256_CFB)?;
+			let ores = env.get_str(KEY_JSON_RANDFILE);
+			let mut randfile :Option<String> = None;
+			if ores.is_ok() {
+				randfile = Some(format!("{}",ores.unwrap()));
+				ssllib_log_trace!("set randfile {:?}",randfile);
+			}
+			let mut randc :RandOps = RandOps::new(randfile)?;
+			let ivkey = randc.get_bytes(16 as usize)?;
+			let aeskey = rcfg.get_u8_array(KEY_JSON_KEY)?;
+			ssllib_log_trace!(" ");
+			let aes256cfb :Aes256CfbAlgo = Aes256CfbAlgo::new(&ivkey,&aeskey)?;
+			let mut anyv :Asn1Any = Asn1Any::init_asn1();
+			anyv.content = ivkey.clone();
+			anyv.tag = ASN1_OCT_STRING_FLAG as u64;
+			ssllib_buffer_trace!(anyv.content.as_ptr(),anyv.content.len(),"ivkey set");
+			let _ = self.encryption.set_param(Some(anyv.clone()))?;
+			return Ok(Box::new(aes256cfb));
+		}
+		ssllib_new_error!{SslX509Error,"not support [{}][{}]",KEY_JSON_ENCTYPE,enctype}
+	}
+
+
 	pub fn set_cmd(&mut self, env :&ConfigValue) -> Result<ConfigValue,Box<dyn Error>> {
 		let mut retv :ConfigValue = ConfigValue::new("{}")?;
 		ssllib_log_trace!(" ");
@@ -393,61 +437,46 @@ impl Asn1Pbe2ParamElem {
 			if ores.is_ok() {
 				let _ = ncfg.set_str(KEY_JSON_RANDFILE,&format!("{}",ores.unwrap()))?;
 			}
-			let enctype = env.get_str(KEY_JSON_ENCTYPE)?;
-			if enctype == KEY_JSON_AES256CBC {
-				let _ = self.encryption.set_algorithm(OID_AES_256_CBC)?;
-				let decdata = env.get_u8_array(KEY_JSON_DECDATA)?;
-				let ores = env.get_str(KEY_JSON_RANDFILE);
-				let mut randfile :Option<String> = None;
-				if ores.is_ok() {
-					randfile = Some(format!("{}",ores.unwrap()));
-					ssllib_log_trace!("set randfile {:?}",randfile);
-				}
-				let mut randc :RandOps = RandOps::new(randfile)?;
-				let ivkey = randc.get_bytes(16 as usize)?;
-				let aeskey = rcfg.get_u8_array(KEY_JSON_KEY)?;
-				ssllib_log_trace!(" ");
-				let aes256ccb :Aes256CbcAlgo = Aes256CbcAlgo::new(&ivkey,&aeskey)?;
-				let encdata = aes256ccb.encrypt(&decdata)?;
-				let mut anyv :Asn1Any = Asn1Any::init_asn1();
-				anyv.content = ivkey.clone();
-				anyv.tag = ASN1_OCT_STRING_FLAG as u64;
-				ssllib_buffer_trace!(anyv.content.as_ptr(),anyv.content.len(),"ivkey set");
-				let _ = self.encryption.set_param(Some(anyv.clone()))?;
-				ssllib_buffer_trace!(decdata.as_ptr(),decdata.len(),"decdata");
-				ssllib_buffer_trace!(encdata.as_ptr(),encdata.len(),"encdata");
-				let _ = retv.set_u8_array(KEY_JSON_ENCDATA,&encdata)?;
-			} else if enctype == KEY_JSON_AES256CFB {
-				let _ = self.encryption.set_algorithm(OID_AES_256_CFB)?;
-				let decdata = env.get_u8_array(KEY_JSON_DECDATA)?;
-				let ores = env.get_str(KEY_JSON_RANDFILE);
-				let mut randfile :Option<String> = None;
-				if ores.is_ok() {
-					randfile = Some(format!("{}",ores.unwrap()));
-					ssllib_log_trace!("set randfile {:?}",randfile);
-				}
-				let mut randc :RandOps = RandOps::new(randfile)?;
-				let ivkey = randc.get_bytes(16 as usize)?;
-				let aeskey = rcfg.get_u8_array(KEY_JSON_KEY)?;
-				ssllib_log_trace!(" ");
-				let aes256cfb :Aes256CfbAlgo = Aes256CfbAlgo::new(&ivkey,&aeskey)?;
-				let encdata = aes256cfb.encrypt(&decdata)?;
-				let mut anyv :Asn1Any = Asn1Any::init_asn1();
-				anyv.content = ivkey.clone();
-				anyv.tag = ASN1_OCT_STRING_FLAG as u64;
-				ssllib_buffer_trace!(anyv.content.as_ptr(),anyv.content.len(),"ivkey set");
-				let _ = self.encryption.set_param(Some(anyv.clone()))?;
-				ssllib_buffer_trace!(decdata.as_ptr(),decdata.len(),"decdata");
-				ssllib_buffer_trace!(encdata.as_ptr(),encdata.len(),"encdata");
-				let _ = retv.set_u8_array(KEY_JSON_ENCDATA,&encdata)?;
-			} else {
-				ssllib_new_error!{SslX509Error,"not support [{}][{}]",KEY_JSON_ENCTYPE,enctype}
-			}
+			let enfn :Box<dyn Asn1EncryptOp> = self.set_encrypt(env,&rcfg)?;
+			let decdata = env.get_u8_array(KEY_JSON_DECDATA)?;
+			let encdata = enfn.encrypt(&decdata)?;
+			let _ = retv.set_u8_array(KEY_JSON_ENCDATA,&encdata)?;
 		} else {
 			ssllib_new_error!{SslX509Error,"not support type [{}]",cv}
 		}
 
 		Ok(retv)
+	}
+
+	fn get_decrypt(&self,_env :&ConfigValue, ncfg :&ConfigValue, config :&mut ConfigValue) -> Result<Box<dyn Asn1DecryptOp>,Box<dyn Error>> {
+		let ktype = self.encryption.get_algorithm()?;
+		if ktype == OID_AES_256_CBC {
+			/*now we should give the */
+			let _ = config.set_str(KEY_JSON_ENCTYPE,KEY_JSON_AES256CBC)?;
+			let params = self.encryption.get_param()?;
+			if params.is_some() {
+				let anyv :&Asn1Any = params.as_ref().unwrap();
+				let ivkey = anyv.content.clone();
+				let aeskey = ncfg.get_u8_array(KEY_JSON_KEY)?;
+				let aescbcenc = Aes256CbcAlgo::new(&ivkey,&aeskey)?;
+				return Ok(Box::new(aescbcenc));
+			} else {
+				ssllib_new_error!{SslX509Error,"not set params value for encryption"}
+			}
+		} else if ktype == OID_AES_256_CFB {
+			let _ = config.set_str(KEY_JSON_ENCTYPE,KEY_JSON_AES256CFB)?;
+			let params = self.encryption.get_param()?;
+			if params.is_some() {
+				let anyv :&Asn1Any = params.as_ref().unwrap();
+				let ivkey = anyv.content.clone();
+				let aeskey = ncfg.get_u8_array(KEY_JSON_KEY)?;
+				let aescfbenc = Aes256CfbAlgo::new(&ivkey,&aeskey)?;
+				return Ok(Box::new(aescfbenc));
+			} else {
+				ssllib_new_error!{SslX509Error,"not set params value for encryption"}
+			}
+		}
+		ssllib_new_error!{SslX509Error,"not valid encrypt [{}]", ktype}
 	}
 
 	pub fn get_cmd(&self,env :&ConfigValue) -> Result<ConfigValue,Box<dyn Error>> {
@@ -463,41 +492,10 @@ impl Asn1Pbe2ParamElem {
 			let mut pbkdf2 :Asn1Pbkdf2ParamElem = Asn1Pbkdf2ParamElem::init_asn1();
 			let _ = pbkdf2.decode_asn1(&decdata)?;
 			let ncfg = pbkdf2.get_cmd(env)?;
-			let ktype = self.encryption.get_algorithm()?;
-			if ktype == OID_AES_256_CBC {
-				/*now we should give the */
-				let _ = config.set_str(KEY_JSON_ENCTYPE,KEY_JSON_AES256CBC)?;
-				let params = self.encryption.get_param()?;
-				if params.is_some() {
-					let anyv :&Asn1Any = params.as_ref().unwrap();
-					let encdata = env.get_u8_array(KEY_JSON_ENCDATA)?;
-					let ivkey = anyv.content.clone();
-					ssllib_log_trace!(" ");
-					let aeskey = ncfg.get_u8_array(KEY_JSON_KEY)?;
-					ssllib_log_trace!(" ");
-					let aescbcenc = Aes256CbcAlgo::new(&ivkey,&aeskey)?;
-					let decdata = aescbcenc.decrypt(&encdata)?;
-					let _ = config.set_u8_array(KEY_JSON_DECDATA,&decdata)?;
-				} else {
-					ssllib_new_error!{SslX509Error,"not set params value for encryption"}
-				}
-			} else if ktype == OID_AES_256_CFB {
-				let _ = config.set_str(KEY_JSON_ENCTYPE,KEY_JSON_AES256CFB)?;
-				let params = self.encryption.get_param()?;
-				if params.is_some() {
-					let anyv :&Asn1Any = params.as_ref().unwrap();
-					let encdata = env.get_u8_array(KEY_JSON_ENCDATA)?;
-					let ivkey = anyv.content.clone();
-					let aeskey = ncfg.get_u8_array(KEY_JSON_KEY)?;
-					let aescfbenc = Aes256CfbAlgo::new(&ivkey,&aeskey)?;
-					let decdata = aescfbenc.decrypt(&encdata)?;
-					let _ = config.set_u8_array(KEY_JSON_DECDATA,&decdata)?;
-				} else {
-					ssllib_new_error!{SslX509Error,"not set params value for encryption"}
-				}
-			} else {
-				ssllib_new_error!{SslX509Error,"not valid encrypt [{}]", ktype}
-			}
+			let bdec :Box<dyn Asn1DecryptOp> = self.get_decrypt(env,&ncfg,&mut config)?;
+			let encdata = env.get_u8_array(KEY_JSON_ENCDATA)?;
+			let decdata = bdec.decrypt(&encdata)?;
+			let _ = config.set_u8_array(KEY_JSON_DECDATA,&decdata)?;
 			let _ = config.set_config(KEY_JSON_PBKDF2,&ncfg)?;
 		} else {
 			ssllib_new_error!{SslX509Error,"not support algr [{}]", algr}
@@ -681,8 +679,8 @@ impl Asn1X509SigElem {
 				ssllib_new_error!{SslX509Error,"no params set"}
 			}
 			let anyv :Asn1Any = ores.unwrap();
- 			let decdata = anyv.content.clone();
- 			ssllib_log_trace!(" ");
+			let decdata = anyv.content.clone();
+			ssllib_log_trace!(" ");
 			let _ = pbes2.decode_asn1(&decdata)?;
 			ssllib_log_trace!(" ");
 			let _ = nenv.set_u8_array(KEY_JSON_ENCDATA,&self.digest.data)?;
