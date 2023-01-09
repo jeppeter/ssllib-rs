@@ -495,6 +495,7 @@ impl Asn1Pbe2ParamElem {
 			let bdec :Box<dyn Asn1DecryptOp> = self.get_decrypt(env,&ncfg,&mut config)?;
 			let encdata = env.get_u8_array(KEY_JSON_ENCDATA)?;
 			let decdata = bdec.decrypt(&encdata)?;
+			ssllib_buffer_trace!(decdata.as_ptr(),decdata.len(),"decdata");
 			let _ = config.set_u8_array(KEY_JSON_DECDATA,&decdata)?;
 			let _ = config.set_config(KEY_JSON_PBKDF2,&ncfg)?;
 		} else {

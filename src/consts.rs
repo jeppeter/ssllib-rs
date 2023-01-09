@@ -13,11 +13,12 @@ pub const KEY_JSON_AES256CFB :&str = "aes256cfb";
 pub const KEY_JSON_RANDFILE :&str = "randfile";
 pub const KEY_JSON_KEY :&str = "key";
 pub const KEY_JSON_RSA :&str = "rsa";
+pub const KEY_JSON_EC :&str = "ec";
 pub const KEY_JSON_DATA :&str = "data";
 pub const KEY_JSON_PBES2 :&str = "pbes2";
 pub const KEY_JSON_PBKDF2 :&str = "pbkdf2";
 pub const KEY_JSON_DIGESTTYPE :&str = "digesttype";
-
+pub const KEY_JSON_SECP384R1 :&str = "secp384r1";
 
 
 pub const KEY_HMAC_WITH_SHA256 :&str = "hmacWithSha256";
@@ -36,3 +37,5 @@ pub const OID_PKCS7_DATA :&str = "1.2.840.113549.1.7.1";
 pub const OID_PKCS12_SAFE_BAG_X509_CERT :&str = "1.2.840.113549.1.9.22.1";
 pub const OID_SHA256_DIGEST :&str = "2.16.840.1.101.3.4.2.1";
 pub const OID_SHA256_DIGEST_SET :&str = "1.2.840.113549.1.9.4";
+pub const OID_EC_PUBLICK_KEY :&str = "1.2.840.10045.2.1";
+pub const OID_SECP384R1 :&str = "1.3.132.0.34";
