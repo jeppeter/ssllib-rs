@@ -37,6 +37,7 @@ mod loglib;
 mod strop;
 mod pemlib;
 mod fileop;
+mod ecparam;
 mod privkey;
 
 
@@ -55,6 +56,7 @@ fn main() -> Result<(),Box<dyn Error>> {
 	extargs_load_commandline!(parser,&commandline)?;
 	loglib::prepare_log(parser.clone())?;
 	privkey::load_privkey_handler(parser.clone())?;
+	ecparam::load_ecparam_handler(parser.clone())?;
 	let ores = parser.parse_commandline_ex(None,None,None,None);
 	if ores.is_err() {
 		let e = ores.err().unwrap();
