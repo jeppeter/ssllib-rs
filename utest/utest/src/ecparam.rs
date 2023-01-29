@@ -112,7 +112,83 @@ fn eck256vfy_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 }
 
 
-#[extargs_map_function(eck256sign_handler,eck256vfy_handler,eck256gen_handler)]
+fn ecp384gen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
+	init_log(ns.clone())?;
+
+	let signing_key = p384::ecdsa::SigningKey::random(&mut OsRng); 
+	let sk=signing_key.to_bytes();
+
+	let verify_key = p384::ecdsa::VerifyingKey::from(&signing_key); 
+	let ep = verify_key.to_encoded_point(false);
+	let vk= ep.to_bytes();
+
+	debug_buffer_trace!(sk.as_ptr(),sk.len(),"secret key");
+	debug_buffer_trace!(vk.as_ptr(),vk.len(),"public key");
+
+
+	Ok(())
+}
+
+
+fn ecp384sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
+	use p384::ecdsa::{signature::Signer};
+	let sarr :Vec<String>;
+
+	init_log(ns.clone())?;
+
+	sarr = ns.get_array("subnargs");
+	if sarr.len() < 2 {
+		extargs_new_error!{EcParamError,"sarr [{}] < 2", sarr.len()}
+	}
+
+	let kb = read_file_bytes(&sarr[0])?;
+	let conb = read_file_bytes(&sarr[1])?;
+	let signk = p384::ecdsa::SigningKey::from_bytes(&kb)?; 
+	let signb :p384::ecdsa::Signature = signk.sign(&conb);
+
+	let outf = ns.get_string("output");
+	let vb :&[u8] = signb.as_ref();
+
+
+	if outf.len() > 0 {
+		let _  = write_file_bytes(&outf,vb)?;
+	} else {
+		debug_buffer_trace!(vb.as_ptr(),vb.len(),"encode bytes");
+	}
+
+
+	Ok(())
+}
+
+fn ecp384vfy_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
+	use p384::ecdsa::{signature::Verifier};
+	let sarr :Vec<String>;
+
+	init_log(ns.clone())?;
+
+	sarr = ns.get_array("subnargs");
+	if sarr.len() < 3 {
+		extargs_new_error!{EcParamError,"sarr [{}] < 3", sarr.len()}
+	}
+
+	let pukb = read_file_bytes(&sarr[0])?;
+	let conb = read_file_bytes(&sarr[1])?;
+	let signb = read_file_bytes(&sarr[2])?;
+	let vfyk = p384::ecdsa::VerifyingKey::from_sec1_bytes(&pukb)?; 
+	let signk :p384::ecdsa::Signature = p384::ecdsa::Signature::try_from(signb.as_slice())?; 
+
+	let ores = vfyk.verify(&conb,&signk);
+
+	if ores.is_ok() {
+		println!("verify ok");
+	} else {
+		extargs_new_error!{EcParamError,"not ok"}
+	}
+
+	Ok(())
+}
+
+#[extargs_map_function(eck256sign_handler,eck256vfy_handler,eck256gen_handler,ecp384sign_handler,ecp384vfy_handler,ecp384gen_handler)]
 pub fn load_ecparam_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -123,6 +199,15 @@ pub fn load_ecparam_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> 
 			"$" : 2
 		},
 		"eck256vfy<eck256vfy_handler>##pubkey.bin content.bin sign.bin to verify##" : {
+			"$" : 3
+		},
+		"ecp384gen<ecp384gen_handler>##to generate ec keys##" : {
+			"$" : 0
+		},
+		"ecp384sign<ecp384sign_handler>##key.bin content.bin to sign##" : {
+			"$" : 2
+		},
+		"ecp384vfy<ecp384vfy_handler>##pubkey.bin content.bin sign.bin to verify##" : {
 			"$" : 3
 		}
 	}
