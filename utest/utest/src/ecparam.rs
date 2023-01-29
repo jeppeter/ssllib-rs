@@ -28,9 +28,27 @@ use super::loglib::*;
 use super::fileop::*;
 #[allow(unused_imports)]
 use std::io::Write;
+use rand_core::OsRng; 
+
 
 extargs_error_class!{EcParamError}
 
+
+fn eck256gen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
+	init_log(ns.clone())?;
+
+	let signing_key = k256::ecdsa::SigningKey::random(&mut OsRng); 
+	let sk=signing_key.to_bytes();
+
+	let verify_key = k256::ecdsa::VerifyingKey::from(&signing_key); 
+	let vk=verify_key.to_bytes();
+
+	debug_buffer_trace!(sk.as_ptr(),sk.len(),"secret key");
+	debug_buffer_trace!(vk.as_ptr(),vk.len(),"public key");
+
+
+	Ok(())
+}
 
 
 fn eck256sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
@@ -51,6 +69,7 @@ fn eck256sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 
 	let outf = ns.get_string("output");
 	let vb :&[u8] = signb.as_ref();
+
 
 	if outf.len() > 0 {
 		let _  = write_file_bytes(&outf,vb)?;
@@ -77,7 +96,7 @@ fn eck256vfy_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	let conb = read_file_bytes(&sarr[1])?;
 	let signb = read_file_bytes(&sarr[2])?;
 	let vfyk = k256::ecdsa::VerifyingKey::from_sec1_bytes(&pukb)?; 
-	let signk :k256::ecdsa::Signature = k256::ecdsa::Signature::try_from(&signb)?; 
+	let signk :k256::ecdsa::Signature = k256::ecdsa::Signature::try_from(signb.as_slice())?; 
 
 	let ores = vfyk.verify(&conb,&signk);
 
@@ -93,14 +112,17 @@ fn eck256vfy_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 }
 
 
-#[extargs_map_function(eck256sign_handler,eck256vfy_handler)]
+#[extargs_map_function(eck256sign_handler,eck256vfy_handler,eck256gen_handler)]
 pub fn load_ecparam_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
+		"eck256gen<eck256gen_handler>##to generate ec keys##" : {
+			"$" : 0
+		},
 		"eck256sign<eck256sign_handler>##key.bin content.bin to sign##" : {
 			"$" : 2
 		},
-		"eck256vfy<eck256vfy_handler>##pubkey.bin content.bin enc.bin to verify##" : {
+		"eck256vfy<eck256vfy_handler>##pubkey.bin content.bin sign.bin to verify##" : {
 			"$" : 3
 		}
 	}

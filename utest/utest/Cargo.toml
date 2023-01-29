@@ -18,6 +18,8 @@ base64 = "^0.13.0"
 asn1obj = { path = "../../../asn1obj/asn1obj"}
 k256="^0.11.6"
 hex="^0.4.3"
+rand_core="^0.6.3"
+
 
 [target.'cfg(windows)'.dependencies.winapi]
 version = "0.3"
