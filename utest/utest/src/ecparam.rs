@@ -8,6 +8,9 @@ use extargsparse_worker::namespace::{NameSpaceEx};
 use extargsparse_worker::argset::{ArgSetImpl};
 use extargsparse_worker::parser::{ExtArgsParser};
 use extargsparse_worker::funccall::{ExtArgsParseFunc};
+use asn1obj::asn1impl::Asn1Op;
+
+use ssllib::ec::*;
 
 
 use std::cell::RefCell;
@@ -188,7 +191,26 @@ fn ecp384vfy_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	Ok(())
 }
 
-#[extargs_map_function(eck256sign_handler,eck256vfy_handler,eck256gen_handler,ecp384sign_handler,ecp384vfy_handler,ecp384gen_handler)]
+fn ecx9pentdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
+	let sarr :Vec<String>;
+
+	init_log(ns.clone())?;
+	sarr = ns.get_array("subnargs");
+	for f in sarr.iter() {
+		let code = read_file_bytes(f)?;
+		let mut xname = X9_62_PENTANOMIAL::init_asn1();
+		let _ = xname.decode_asn1(&code)?;
+		let mut f = std::io::stderr();
+		xname.print_asn1("X9_62_PENTANOMIAL",0,&mut f)?;
+		let vcode = xname.encode_asn1()?;
+		debug_buffer_trace!(vcode.as_ptr(),vcode.len(),"encode X9_62_PENTANOMIAL");
+	}
+
+	Ok(())
+}
+
+
+#[extargs_map_function(eck256sign_handler,eck256vfy_handler,eck256gen_handler,ecp384sign_handler,ecp384vfy_handler,ecp384gen_handler,ecx9pentdec_handler)]
 pub fn load_ecparam_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -209,6 +231,9 @@ pub fn load_ecparam_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> 
 		},
 		"ecp384vfy<ecp384vfy_handler>##pubkey.bin content.bin sign.bin to verify##" : {
 			"$" : 3
+		},
+		"ecx9pentdec<ecx9pentdec_handler>##binfile .. to decode X9_62_PENTANOMIAL##" : {
+			"$" : "+"
 		}
 	}
 	"#;
