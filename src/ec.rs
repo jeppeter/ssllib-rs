@@ -79,3 +79,17 @@ pub struct  X9_62_FIELDID_ELEM {
 pub struct X9_62_FIELDID {
 	pub elem :Asn1Seq<X9_62_FIELDID_ELEM>,
 }
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct X9_62_CURVE_ELEM {
+	pub a :Asn1OctData,
+	pub b :Asn1OctData,
+	pub seed :Asn1BitData,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct X9_62_CURVE {
+	pub elem :Asn1Seq<X9_62_CURVE_ELEM>,
+}
