@@ -93,3 +93,20 @@ pub struct X9_62_CURVE_ELEM {
 pub struct X9_62_CURVE {
 	pub elem :Asn1Seq<X9_62_CURVE_ELEM>,
 }
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct ECPARAMETERS_ELEM {
+	pub version :Asn1Integer,
+	pub fieldid :X9_62_FIELDID,
+	pub curve :X9_62_CURVE,
+	pub base :Asn1OctData,
+	pub order :Asn1Integer,
+	pub cofactor :Asn1Integer,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct ECPARAMETERS {
+	pub elem :Asn1Seq<ECPARAMETERS_ELEM>,
+}
