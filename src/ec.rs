@@ -25,3 +25,34 @@ pub struct X9_62_PENTANOMIAL_ELEM {
 pub struct X9_62_PENTANOMIAL {
 	pub elem :Asn1Seq<X9_62_PENTANOMIAL_ELEM>,
 }
+
+
+#[asn1_obj_selector(other=default,onbasis="1.2.840.10045.1.2.3.1",tpbasis="1.2.840.10045.1.2.3.2",ppbasis="1.2.840.10045.1.2.3.3")]
+#[derive(Clone)]
+pub struct X9_62_CHARACTERISTIC_TWO_SELECTOR {
+	pub val :Asn1Object,
+}
+
+//#[asn1_choice(selector=selector,debug=enable)]
+#[asn1_choice(selector=selector)]
+#[derive(Clone)]
+pub struct X9_62_CHARACTERISTIC_TWO_ELEM_SEL {
+	pub selector :X9_62_CHARACTERISTIC_TWO_SELECTOR,
+	pub onbasis :Asn1Null,
+	pub tpbasis :Asn1Integer,
+	pub ppbasis :X9_62_PENTANOMIAL,
+	pub other :Asn1Any,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct X9_62_CHARACTERISTIC_TWO_ELEM {
+	pub m :Asn1Integer,
+	pub selelem : X9_62_CHARACTERISTIC_TWO_ELEM_SEL,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct X9_62_CHARACTERISTIC_TWO {
+	pub elem :Asn1Seq<X9_62_CHARACTERISTIC_TWO_ELEM>,
+}
