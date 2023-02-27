@@ -56,3 +56,26 @@ pub struct X9_62_CHARACTERISTIC_TWO_ELEM {
 pub struct X9_62_CHARACTERISTIC_TWO {
 	pub elem :Asn1Seq<X9_62_CHARACTERISTIC_TWO_ELEM>,
 }
+
+
+#[asn1_obj_selector(other=default,prime="1.2.840.10045.1.1",twofield="1.2.840.10045.1.2")]
+#[derive(Clone)]
+pub struct X9_62_FIELDID_SELECTOR {
+	pub val :Asn1Object,
+}
+
+//#[asn1_choice(selector=selector,debug=enable)]
+#[asn1_choice(selector=selector)]
+#[derive(Clone)]
+pub struct  X9_62_FIELDID_ELEM {
+	pub selector :X9_62_FIELDID_SELECTOR,
+	pub prime :Asn1Integer,
+	pub twofield :X9_62_CHARACTERISTIC_TWO,
+	pub other :Asn1Any,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct X9_62_FIELDID {
+	pub elem :Asn1Seq<X9_62_FIELDID_ELEM>,
+}
