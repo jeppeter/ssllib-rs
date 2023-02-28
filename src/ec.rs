@@ -110,3 +110,28 @@ pub struct ECPARAMETERS_ELEM {
 pub struct ECPARAMETERS {
 	pub elem :Asn1Seq<ECPARAMETERS_ELEM>,
 }
+
+#[asn1_int_choice(selector=stype,named_curve=0,parameters=1,implicitlyca=2)]
+#[derive(Clone)]
+pub struct ECPKPARAMETERS_ELEM {
+	pub stype :i32,
+	pub named_curve :Asn1Object,
+	pub parameters :ECPARAMETERS,
+	pub implicitlyca :Asn1Null,
+}
+
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct EC_PRIVATEKEY_ELEM {
+	pub version :Asn1Integer,
+	pub privatekey :Asn1OctData,
+	pub parameters :Asn1Opt<Asn1ImpSet<ECPKPARAMETERS_ELEM,0>>,
+	pub publickey :Asn1Opt<Asn1ImpSet<Asn1BitData,1>>,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct EC_PRIVATEKEY {
+	pub elem :Asn1Seq<EC_PRIVATEKEY_ELEM>,
+}
