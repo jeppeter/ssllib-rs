@@ -8,6 +8,7 @@ use extargsparse_worker::namespace::{NameSpaceEx};
 use extargsparse_worker::argset::{ArgSetImpl};
 use extargsparse_worker::parser::{ExtArgsParser};
 use extargsparse_worker::funccall::{ExtArgsParseFunc};
+use asn1obj::base::*;
 
 
 use std::cell::RefCell;
@@ -32,6 +33,7 @@ use ssllib::config::*;
 use ssllib::pkcs8::*;
 use ssllib::x509::*;
 use ssllib::rsa::*;
+use ssllib::ec::*;
 use asn1obj::asn1impl::*;
 #[allow(unused_imports)]
 use std::io::Write;
@@ -187,6 +189,60 @@ fn ecprivdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 				debug_buffer_trace!(decdata.as_ptr(),decdata.len(),"decdata");
 				let _ = p8priv.decode_asn1(&decdata)?;
 				let _ = p8priv.print_asn1("Asn1Pkcs8PrivKeyInfo",0,&mut sout)?;
+				let data :Vec<u8> = p8priv.get_pkey()?;
+				let algor :Asn1X509Algor = p8priv.get_algor()?;
+				let algstr :String = algor.get_algorithm()?;
+				if algstr == OID_EC_PUBLICK_KEY {
+					let mut ecprivkey :EC_PRIVATEKEY = EC_PRIVATEKEY::init_asn1();
+					let _ = ecprivkey.decode_asn1(&data)?;
+					let oany :Option<Asn1Any> = algor.get_param()?;
+					if oany.is_some() {
+						let cany :Asn1Any = oany.as_ref().unwrap().clone();
+						let mut ecobj :Asn1Object = Asn1Object::init_asn1();
+						let mut objdata :Vec<u8> = Vec::new();
+						let csize :usize;
+						objdata.push(cany.tag as u8);
+						objdata.push(0);
+						if cany.content.len() >= 128  {
+							objdata.push(0);
+							if cany.content.len() >= 256 {
+								objdata.push(0);
+								if cany.content.len() >= (256 * 256) {
+									objdata.push(0);
+								}
+							}
+						}
+
+						objdata.extend(cany.content.iter().copied());
+						if cany.content.len() < 128 {
+							objdata[1] = cany.content.len() as u8;
+						} else {
+							if cany.content.len() < 256 {
+								objdata[1] = 0x81;
+								objdata[2] = cany.content.len() as u8;
+							} else if cany.content.len() < (256 * 256) {
+								csize = cany.content.len();
+								objdata[1] = 0x82;
+								objdata[2] = ((csize >> 8) & 0xff) as u8;
+								objdata[3] = (csize & 0xff) as u8;
+							} else if cany.content.len() < (256 * 256 * 256) {
+								objdata[1] = 0x83;
+								csize = cany.content.len();
+								objdata[2] = ((csize >> 16) & 0xff) as u8;
+								objdata[3] = ((csize >> 8) & 0xff) as u8;
+								objdata[4] = ((csize >> 0) & 0xff) as u8;
+							}
+						}
+
+						let _ = ecobj.decode_asn1(&objdata)?;
+						let s :String = format!("object {}\n",ecobj.get_value());
+						let _ = sout.write(s.as_bytes())?;
+
+					}
+					ecprivkey.print_asn1("EC_PRIVATEKEY",0,&mut sout)?;
+				} else {
+					extargs_new_error!{PrivKeyError,"[{}] not valid key", algstr}
+				}
 			} else {
 				extargs_new_error!{PrivKeyError,"not support type[{}]",types2}	
 			}
