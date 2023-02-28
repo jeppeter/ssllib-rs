@@ -38,4 +38,17 @@ pub const OID_PKCS12_SAFE_BAG_X509_CERT :&str = "1.2.840.113549.1.9.22.1";
 pub const OID_SHA256_DIGEST :&str = "2.16.840.1.101.3.4.2.1";
 pub const OID_SHA256_DIGEST_SET :&str = "1.2.840.113549.1.9.4";
 pub const OID_EC_PUBLICK_KEY :&str = "1.2.840.10045.2.1";
+
+
+pub const OID_SECT163K1 :&str = "1.3.132.0.1";
+pub const OID_SECT163R1 :&str = "1.3.132.0.2";
+pub const OID_SECT239K1 :&str = "1.3.132.0.3";
+pub const OID_SECT113R1 :&str = "1.3.132.0.4";
+pub const OID_SECT113R2 :&str = "1.3.132.0.5";
+pub const OID_SECP112R1 :&str = "1.3.132.0.6";
+pub const OID_SECP112R2 :&str = "1.3.132.0.7";
+pub const OID_SECP160R1 :&str = "1.3.132.0.8";
+pub const OID_SECP160K1 :&str = "1.3.132.0.9";
+pub const OID_SECP256K1 :&str = "1.3.132.0.10";
+pub const OID_SECT163R2 :&str = "1.3.132.0.15";
 pub const OID_SECP384R1 :&str = "1.3.132.0.34";
