@@ -199,41 +199,7 @@ fn ecprivdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 					if oany.is_some() {
 						let cany :Asn1Any = oany.as_ref().unwrap().clone();
 						let mut ecobj :Asn1Object = Asn1Object::init_asn1();
-						let mut objdata :Vec<u8> = Vec::new();
-						let csize :usize;
-						objdata.push(cany.tag as u8);
-						objdata.push(0);
-						if cany.content.len() >= 128  {
-							objdata.push(0);
-							if cany.content.len() >= 256 {
-								objdata.push(0);
-								if cany.content.len() >= (256 * 256) {
-									objdata.push(0);
-								}
-							}
-						}
-
-						objdata.extend(cany.content.iter().copied());
-						if cany.content.len() < 128 {
-							objdata[1] = cany.content.len() as u8;
-						} else {
-							if cany.content.len() < 256 {
-								objdata[1] = 0x81;
-								objdata[2] = cany.content.len() as u8;
-							} else if cany.content.len() < (256 * 256) {
-								csize = cany.content.len();
-								objdata[1] = 0x82;
-								objdata[2] = ((csize >> 8) & 0xff) as u8;
-								objdata[3] = (csize & 0xff) as u8;
-							} else if cany.content.len() < (256 * 256 * 256) {
-								objdata[1] = 0x83;
-								csize = cany.content.len();
-								objdata[2] = ((csize >> 16) & 0xff) as u8;
-								objdata[3] = ((csize >> 8) & 0xff) as u8;
-								objdata[4] = ((csize >> 0) & 0xff) as u8;
-							}
-						}
-
+						let objdata :Vec<u8> = cany.encode_asn1()?;
 						let _ = ecobj.decode_asn1(&objdata)?;
 						let s :String = format!("object {}\n",ecobj.get_value());
 						let _ = sout.write(s.as_bytes())?;
