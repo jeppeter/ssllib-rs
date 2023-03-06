@@ -228,17 +228,21 @@ fn ecprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	let passin :String;
 	let sarr :Vec<String>;
 	let mut randfile :Option<String> = None;
+	let ecobjstr :String;
+	let passout :String;
 
 	init_log(ns.clone())?;
 	sarr = ns.get_array("subnargs");
 	if sarr.len() > 0 {
 		typestr = format!("{}",sarr[0]);
 	}
+	passout = ns.get_string("passout");
 
 	if sarr.len() > 1 {
 		randfile = Some(format!("{}",sarr[1]));
 	}
 	let mut randop :RandOps = RandOps::new(randfile)?;
+	let mut privkey :EC_PRIVATEKEY = EC_PRIVATEKEY::init_asn1();
 
 
 	if typestr == EC_K256_TYPE {
@@ -247,15 +251,85 @@ fn ecprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 
 		let verify_key = k256::ecdsa::VerifyingKey::from(&signing_key); 
 		let vk=verify_key.to_bytes();
-		let mut privkey :EC_PRIVATEKEY = EC_PRIVATEKEY::init_asn1();
 		let _ = privkey.set_private_key(&sk)?;
 		let _ = privkey.set_public_key(&vk)?;
-
+		ecobjstr = format!("{}",OID_SECP384R1);
 	} else {
 		extargs_new_error!{PrivKeyError,"not supported type [{}]",typestr}
 	}
 
+	let mut pk8priv :Asn1Pkcs8PrivKeyInfo = Asn1Pkcs8PrivKeyInfo::init_asn1();
+	let mut algor :Asn1X509Algor = Asn1X509Algor::init_asn1();
+	let _ = algor.set_algorithm(OID_EC_PUBLICK_KEY)?;
+	let _ = pk8priv.set_algorithm(&algor)?;
+	let ecdata = privkey.encode_asn1()?;
+	let _ = pk8priv.set_pkey(&ecdata)?;
+	let sdata = privkey.encode_asn1()?;
+	let mut ncfg :ConfigValue = ConfigValue::new("{}")?;
+	let _ = ncfg.set_str(KEY_JSON_TYPE,KEY_JSON_PBKDF2)?;
+	let _ = ncfg.set_u8_array(KEY_JSON_DECDATA,&sdata)?;
+	let ciphername = ns.get_string("ciphername");
+	let _= ncfg.set_str(KEY_JSON_ENCTYPE,&ciphername)?;
+	let mut bcfg :ConfigValue = ConfigValue::new("{}")?;
+	let _ = bcfg.set_str(KEY_JSON_DIGESTTYPE,KEY_HMAC_WITH_SHA256);
+	let _ = bcfg.set_i64(KEY_JSON_TIMES,2048)?;
+	let _ = bcfg.set_str(KEY_JSON_PASSIN,&passout);
+	if sarr.len() > 1 {
+		let _ = ncfg.set_str(KEY_JSON_RANDFILE,&sarr[1]);
+		let _ = bcfg.set_str(KEY_JSON_RANDFILE,&sarr[1]);
+	}
+
+	let _ = ncfg.set_config(KEY_JSON_PBKDF2,&bcfg)?;
+	let _ = ncfg.set_str(KEY_JSON_PASSIN,&passout)?;
+	let mut cfg :ConfigValue = ConfigValue::new("{}")?;
+	let _ = cfg.set_str(KEY_JSON_TYPE,KEY_JSON_PBES2)?;
+	let _ = cfg.set_config(KEY_JSON_PBES2,&ncfg)?;
+	let mut sigv :Asn1X509Sig = Asn1X509Sig::init_asn1();
+	let _ = sigv.set_cmd(&cfg)?;
+	let data = sigv.encode_asn1()?;
+	let outfile = ns.get_string("output");
+	if outfile.len() > 0 {
+		let _ = write_file_bytes(&outfile,&data)?;
+	} else {
+		debug_buffer_trace!(data.as_ptr(),data.len(),"outbuf");
+	}
+
 	return Ok(());
+	/*
+	
+	debug_buffer_trace!(sdata.as_ptr(),sdata.len(),"sdata");
+	let mut ncfg :ConfigValue= ConfigValue::new("{}")?;
+	let _ = ncfg.set_str(KEY_JSON_TYPE,KEY_JSON_PBKDF2)?;
+	let _ = ncfg.set_u8_array(KEY_JSON_DECDATA,&sdata)?;
+	ciphername = ns.get_string("ciphername");
+	let _ = ncfg.set_str(KEY_JSON_ENCTYPE,&ciphername)?;
+	let mut bcfg :ConfigValue = ConfigValue::new("{}")?;
+	let _ = bcfg.set_str(KEY_JSON_DIGESTTYPE,KEY_HMAC_WITH_SHA256);
+	let _ = bcfg.set_i64(KEY_JSON_TIMES,2048)?;
+	let _ = bcfg.set_str(KEY_JSON_PASSIN,&passout)?;
+
+	if sarr.len() > 1 {
+		let _ = ncfg.set_str(KEY_JSON_RANDFILE,&sarr[1])?;
+		let _ = bcfg.set_str(KEY_JSON_RANDFILE,&sarr[1])?;
+	}
+	let _ = ncfg.set_config(KEY_JSON_PBKDF2,&bcfg)?;
+	let _ = ncfg.set_str(KEY_JSON_PASSIN,&passout)?;
+	cfg = ConfigValue::new("{}")?;
+	let _ = cfg.set_str(KEY_JSON_TYPE,KEY_JSON_PBES2)?;
+	let _ = cfg.set_config(KEY_JSON_PBES2,&ncfg)?;
+	let mut sigv :Asn1X509Sig = Asn1X509Sig::init_asn1();
+	let _ = sigv.set_cmd(&cfg)?;
+	let data = sigv.encode_asn1()?;
+	let outfile = ns.get_string("output");
+	if outfile.len() > 0 {
+		let _ = write_file_bytes(&outfile,&data)?;
+	} else {
+		debug_buffer_trace!(data.as_ptr(),data.len(),"outbuf");
+	}
+
+
+	return Ok(());
+	*/
 }
 
 

@@ -54,5 +54,31 @@ impl Asn1Pkcs8PrivKeyInfo {
 		}
 		Ok(self.elem.val[0].pkeyalg.clone())
 	}
+
+	pub fn set_pkey(&mut self,key :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
+		if self.elem.val.len() != 0 && self.elem.val.len() != 1 {
+			ssllib_new_error!{SslPkcs8Error,"Asn1Pkcs8PrivKeyInfo elem [{}] not valid" ,self.elem.val.len()}
+		}
+		if self.elem.val.len() == 0 {
+			self.elem.val.push(Asn1Pkcs8PrivKeyInfoElem::init_asn1());
+		}
+
+		let retv :Vec<u8> = self.elem.val[0].pkey.data.clone();
+		self.elem.val[0].pkey.data = key.to_vec().clone();
+		Ok(retv)
+	}
+
+	pub fn set_algorithm(&mut self,algor :&Asn1X509Algor) -> Result<Asn1X509Algor,Box<dyn Error>> {
+		if self.elem.val.len() != 0 && self.elem.val.len() != 1 {
+			ssllib_new_error!{SslPkcs8Error,"Asn1Pkcs8PrivKeyInfo elem [{}] not valid" ,self.elem.val.len()}
+		}
+		if self.elem.val.len() == 0 {
+			self.elem.val.push(Asn1Pkcs8PrivKeyInfoElem::init_asn1());
+		}
+
+		let retv :Asn1X509Algor = self.elem.val[0].pkeyalg.clone();
+		self.elem.val[0].pkeyalg = algor.clone();
+		Ok(retv)
+	}
 }
 
