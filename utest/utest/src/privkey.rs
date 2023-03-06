@@ -225,11 +225,10 @@ fn ecprivdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 
 fn ecprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
 	let mut typestr :String = format!("k256");
-	let passin :String;
 	let sarr :Vec<String>;
 	let mut randfile :Option<String> = None;
-	let ecobjstr :String;
 	let passout :String;
+	let mut ecobj :Asn1Object = Asn1Object::init_asn1();
 
 	init_log(ns.clone())?;
 	sarr = ns.get_array("subnargs");
@@ -253,7 +252,18 @@ fn ecprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 		let vk=verify_key.to_bytes();
 		let _ = privkey.set_private_key(&sk)?;
 		let _ = privkey.set_public_key(&vk)?;
-		ecobjstr = format!("{}",OID_SECP384R1);
+		let _ = ecobj.set_value(OID_SECP256K1)?;
+	} else if typestr == EC_P384_TYPE {
+		let signing_key = p384::ecdsa::SigningKey::random(&mut randop); 
+		let sk=signing_key.to_bytes();
+
+		let verify_key = p384::ecdsa::VerifyingKey::from(&signing_key); 
+		let ep = verify_key.to_encoded_point(false);
+		let vk= ep.to_bytes();
+
+		let _ = privkey.set_private_key(&sk)?;
+		let _ = privkey.set_public_key(&vk)?;
+		let _ = ecobj.set_value(OID_SECP384R1)?;
 	} else {
 		extargs_new_error!{PrivKeyError,"not supported type [{}]",typestr}
 	}
@@ -261,10 +271,14 @@ fn ecprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	let mut pk8priv :Asn1Pkcs8PrivKeyInfo = Asn1Pkcs8PrivKeyInfo::init_asn1();
 	let mut algor :Asn1X509Algor = Asn1X509Algor::init_asn1();
 	let _ = algor.set_algorithm(OID_EC_PUBLICK_KEY)?;
+	let mut oany :Asn1Any = Asn1Any::init_asn1();
+	let cdata = ecobj.encode_asn1()?;
+	let _ = oany.decode_asn1(&cdata)?;
+	let _ = algor.set_param(Some(oany.clone()))?;
 	let _ = pk8priv.set_algorithm(&algor)?;
 	let ecdata = privkey.encode_asn1()?;
 	let _ = pk8priv.set_pkey(&ecdata)?;
-	let sdata = privkey.encode_asn1()?;
+	let sdata = pk8priv.encode_asn1()?;
 	let mut ncfg :ConfigValue = ConfigValue::new("{}")?;
 	let _ = ncfg.set_str(KEY_JSON_TYPE,KEY_JSON_PBKDF2)?;
 	let _ = ncfg.set_u8_array(KEY_JSON_DECDATA,&sdata)?;

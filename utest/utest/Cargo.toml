@@ -21,7 +21,6 @@ p384="^0.11.2"
 hex="^0.4.3"
 rand_core="^0.6.3"
 
-
 [target.'cfg(windows)'.dependencies.winapi]
 version = "0.3"
 features = ["winbase", "debugapi", "stringapiset", "winnls", "datetimeapi",
