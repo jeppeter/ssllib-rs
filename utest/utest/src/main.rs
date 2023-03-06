@@ -29,6 +29,7 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 use ssllib::consts::KEY_JSON_AES256CBC;
 
+mod consts;
 #[cfg(windows)]
 mod wchar_windows;
 #[cfg(windows)]

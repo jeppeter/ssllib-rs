@@ -28,6 +28,7 @@ use super::loglib::*;
 #[allow(unused_imports)]
 use super::fileop::*;
 use super::pemlib::*;
+use super::consts::*;
 use ssllib::consts::*;
 use ssllib::config::*;
 use ssllib::pkcs8::*;
@@ -37,6 +38,7 @@ use ssllib::ec::*;
 use asn1obj::asn1impl::*;
 #[allow(unused_imports)]
 use std::io::Write;
+use rand_core::OsRng; 
 
 extargs_error_class!{PrivKeyError}
 
@@ -220,9 +222,37 @@ fn ecprivdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	Ok(())
 }
 
+fn ecprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
+	let mut typestr :String = format!("k256");
+	let passin :String;
+	let sarr :Vec<String>;
+
+	init_log(ns.clone())?;
+	sarr = ns.get_array("subnargs");
+	if sarr.len() > 0 {
+		typestr = format!("{}",sarr[0]);
+	}
+
+	if typestr == EC_K256_TYPE {
+		let signing_key = k256::ecdsa::SigningKey::random(&mut OsRng); 
+		let sk=signing_key.to_bytes();
+
+		let verify_key = k256::ecdsa::VerifyingKey::from(&signing_key); 
+		let vk=verify_key.to_bytes();
+		let mut privkey :EC_PRIVATEKEY = EC_PRIVATEKEY::init_asn1();
+		let _ = privkey.set_private_key(&sk)?;
+		let _ = privkey.set_public_key(&vk)?;
+
+	} else {
+		extargs_new_error!{PrivKeyError,"not supported type [{}]",typestr}
+	}
 
 
-#[extargs_map_function(rsaprivdec_handler,rsaprivgen_handler,ecprivdec_handler)]
+	Ok(())
+}
+
+
+#[extargs_map_function(rsaprivdec_handler,rsaprivgen_handler,ecprivdec_handler,ecprivgen_handler)]
 pub fn load_privkey_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -234,6 +264,9 @@ pub fn load_privkey_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> 
 		},
 		"ecprivdec<ecprivdec_handler>##fname ... to decode ec private key##" : {
 			"$" : "+"
+		},
+		"ecprivgen<ecprivgen_handler>##[typename] to generate ec param k256 p384 p521##" : {
+			"$" : "?"
 		}
 	}
 	"#;

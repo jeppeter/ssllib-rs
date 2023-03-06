@@ -8,8 +8,11 @@ use asn1obj::complex::*;
 #[allow(unused_imports)]
 use asn1obj::*;
 
+use crate::{ssllib_new_error,ssllib_error_class};
 use std::error::Error;
 use std::io::{Write};
+
+ssllib_error_class!{SslEcError}
 
 
 #[derive(Clone)]
@@ -130,8 +133,93 @@ pub struct EC_PRIVATEKEY_ELEM {
 	pub publickey :Asn1Opt<Asn1ImpSet<Asn1BitData,1>>,
 }
 
+impl EC_PRIVATEKEY_ELEM {
+	pub fn set_private_key(&mut self,key :&[u8]) -> Vec<u8> {
+		let retk = self.privatekey.data.clone();
+		self.privatekey.data = key.to_vec().clone();
+		retk
+	}
+
+	pub fn get_private_key(&self) -> Vec<u8> {
+		return self.privatekey.data.clone();
+	}
+
+	pub fn set_public_key(&mut self,key :&[u8]) -> Option<Vec<u8>> {
+		let mut setkey :Asn1ImpSet<Asn1BitData,1> = Asn1ImpSet::init_asn1();
+		let mut retv :Option<Vec<u8>> = None;
+		setkey.val = Vec::new();
+		let mut v :Asn1BitData = Asn1BitData::init_asn1();
+		v.data = key.to_vec().clone();
+		setkey.val.push(v);
+		if self.publickey.val.is_some() {
+			let retimp = self.publickey.val.as_ref().unwrap().clone();
+			retv = Some(retimp.val[0].data.clone());
+		}
+		self.publickey.val = Some(setkey);
+		return retv;
+	}
+
+	pub fn get_public_key(&self) -> Option<Vec<u8>> {
+		if self.publickey.val.is_none() {
+			return None;
+		}
+		let retimp = self.publickey.val.as_ref().unwrap().clone();
+		let retk = retimp.val[0].data.clone();
+		Some(retk)
+	}
+}
+
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct EC_PRIVATEKEY {
 	pub elem :Asn1Seq<EC_PRIVATEKEY_ELEM>,
+}
+
+impl EC_PRIVATEKEY {
+	pub fn set_private_key(&mut self,key :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
+		if self.elem.val.len() != 0 && self.elem.val.len()!=1 {
+			ssllib_new_error!{SslEcError,"val [{}] != 0 or 1",self.elem.val.len()}
+		}
+		if self.elem.val.len() == 0 {
+			self.elem = Asn1Seq::init_asn1();
+			self.elem.val.push(EC_PRIVATEKEY_ELEM::init_asn1());
+		}
+		let retk = self.elem.val[0].set_private_key(key);
+		Ok(retk)
+	}
+
+	pub fn get_private_key(&self) -> Result<Vec<u8>,Box<dyn Error>> {
+		if self.elem.val.len() != 0 && self.elem.val.len()!=1 {
+			ssllib_new_error!{SslEcError,"val [{}] != 0 or 1",self.elem.val.len()}
+		}
+		if self.elem.val.len() == 0 {
+			let retk :Vec<u8>= Vec::new();
+			return Ok(retk);
+		}
+		let retk = self.elem.val[0].get_private_key();
+		Ok(retk)
+	}
+
+	pub fn set_public_key(&mut self,key :&[u8]) -> Result<Option<Vec<u8>>,Box<dyn Error>> {
+		if self.elem.val.len() != 0 && self.elem.val.len()!=1 {
+			ssllib_new_error!{SslEcError,"val [{}] != 0 or 1",self.elem.val.len()}
+		}
+		if self.elem.val.len() == 0 {
+			self.elem = Asn1Seq::init_asn1();
+			self.elem.val.push(EC_PRIVATEKEY_ELEM::init_asn1());
+		}
+		let retk = self.elem.val[0].set_public_key(key);
+		Ok(retk)
+	}
+
+	pub fn get_public_key(&self) -> Result<Option<Vec<u8>>,Box<dyn Error>> {
+		if self.elem.val.len() != 0 && self.elem.val.len()!=1 {
+			ssllib_new_error!{SslEcError,"val [{}] != 0 or 1",self.elem.val.len()}
+		}
+		if self.elem.val.len() == 0 {
+			return Ok(None);
+		}
+		let retk = self.elem.val[0].get_public_key();
+		Ok(retk)
+	}
 }
