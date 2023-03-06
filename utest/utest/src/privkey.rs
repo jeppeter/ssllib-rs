@@ -36,9 +36,10 @@ use ssllib::x509::*;
 use ssllib::rsa::*;
 use ssllib::ec::*;
 use asn1obj::asn1impl::*;
+use ssllib::randop::*;
 #[allow(unused_imports)]
 use std::io::Write;
-use rand_core::OsRng; 
+//use rand_core::OsRng; 
 
 extargs_error_class!{PrivKeyError}
 
@@ -226,6 +227,7 @@ fn ecprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	let mut typestr :String = format!("k256");
 	let passin :String;
 	let sarr :Vec<String>;
+	let mut randfile :Option<String> = None;
 
 	init_log(ns.clone())?;
 	sarr = ns.get_array("subnargs");
@@ -233,8 +235,14 @@ fn ecprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 		typestr = format!("{}",sarr[0]);
 	}
 
+	if sarr.len() > 1 {
+		randfile = Some(format!("{}",sarr[1]));
+	}
+	let mut randop :RandOps = RandOps::new(randfile)?;
+
+
 	if typestr == EC_K256_TYPE {
-		let signing_key = k256::ecdsa::SigningKey::random(&mut OsRng); 
+		let signing_key = k256::ecdsa::SigningKey::random(&mut randop); 
 		let sk=signing_key.to_bytes();
 
 		let verify_key = k256::ecdsa::VerifyingKey::from(&signing_key); 
@@ -247,8 +255,7 @@ fn ecprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 		extargs_new_error!{PrivKeyError,"not supported type [{}]",typestr}
 	}
 
-
-	Ok(())
+	return Ok(());
 }
 
 
@@ -266,7 +273,7 @@ pub fn load_privkey_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> 
 			"$" : "+"
 		},
 		"ecprivgen<ecprivgen_handler>##[typename] to generate ec param k256 p384 p521##" : {
-			"$" : "?"
+			"$" : "*"
 		}
 	}
 	"#;

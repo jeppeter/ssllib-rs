@@ -40,3 +40,38 @@ impl RandOps {
 		Ok(buf)
 	}
 }
+
+impl rand_core::CryptoRng  for RandOps {
+}
+
+
+impl rand_core::RngCore for RandOps {
+	fn next_u32(&mut self) -> u32 {
+		if self.begen {
+			return self.gencore.as_mut().unwrap().next_u32();
+		} else {
+			return self.filerand.as_mut().unwrap().next_u32();
+		}
+	}
+
+	fn next_u64(&mut self) -> u64 {
+		if self.begen {
+			return self.gencore.as_mut().unwrap().next_u64();
+		}
+		return self.filerand.as_mut().unwrap().next_u64();	
+	}
+
+	fn fill_bytes(&mut self, dest: &mut [u8]) {
+		if self.begen {
+			return self.gencore.as_mut().unwrap().fill_bytes(dest);
+		}
+		return self.filerand.as_mut().unwrap().fill_bytes(dest);	
+	}
+
+	fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(),rand_core::Error> {
+		if self.begen {
+			return self.gencore.as_mut().unwrap().try_fill_bytes(dest);
+		}
+		return self.filerand.as_mut().unwrap().try_fill_bytes(dest);	
+	}
+}
