@@ -429,3 +429,79 @@ macro_rules! write_tab_line {
 		let _ = $cf.write(_ss.as_bytes());
 	}
 }
+
+#[macro_export]
+macro_rules! write_tab_buffer {
+	($cf : expr,$tabs :expr, $buf :expr, $len :expr,$($arg:tt)+) => {
+		let mut _ss :String = format!("");
+		let mut _ii :i32 = 0;
+		let mut _lasti :usize = 0;
+		let _ptr :*const u8 = $buf as *const u8;
+		let  mut _ci :usize;
+		let _totallen: usize = $len as usize;
+		let mut _nb :u8;
+		while _ii < $tabs {
+			_ss.push_str("    ");
+			_ii += 1;
+		}
+		_ss.push_str(&(format!($($arg)+)[..]));
+		_ss.push_str("\n");
+		let _ = $cf.write(_ss.as_bytes());
+
+		_ci = 0;
+		_ci = 0;
+		_ss = format!("");		
+		while _ci < _totallen {
+			if (_ci % 16) == 0 {
+				if _ci > 0 {
+					_ss.push_str("    ");
+					while _lasti < _ci {
+						unsafe{
+							_nb = *_ptr.offset(_lasti as isize);	
+						}
+						
+						if _nb >= 0x20 && _nb <= 0x7e {
+							_ss.push(_nb as char);
+						} else {
+							_ss.push_str(".");
+						}
+						_lasti += 1;
+					}
+					_ss.push_str("\n");
+				}
+				_ii = 0;
+				/*to make one shrink*/
+				while _ii <= $tabs {
+					_ss.push_str("    ");
+					_ii += 1;
+				}
+				_ss.push_str(&format!("0x{:08x}:", _ci));
+			}
+			unsafe {_nb = *_ptr.offset(_ci as isize);}			
+			_ss.push_str(&format!(" 0x{:02x}",_nb));
+			_ci += 1;
+		}
+
+		if _lasti < _ci {
+			while (_ci % 16) != 0 {
+				_ss.push_str("     ");
+				_ci += 1;
+			}
+
+			_ss.push_str("    ");
+
+			while _lasti < _totallen {
+				unsafe {_nb = *_ptr.offset(_lasti as isize);}				
+				if _nb >= 0x20 && _nb <= 0x7e {
+					_ss.push(_nb as char);
+				} else {
+					_ss.push_str(".");
+				}
+				_lasti += 1;
+			}
+			_ss.push_str("\n");
+		}
+
+		let _ = $cf.write(_ss.as_bytes());
+	}
+}
