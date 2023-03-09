@@ -38,6 +38,7 @@ mod loglib;
 mod strop;
 mod pemlib;
 mod fileop;
+mod iniexec;
 mod x509exec;
 mod ecparam;
 mod privkey;
@@ -60,6 +61,7 @@ fn main() -> Result<(),Box<dyn Error>> {
 	privkey::load_privkey_handler(parser.clone())?;
 	ecparam::load_ecparam_handler(parser.clone())?;
 	x509exec::load_x509exec_handler(parser.clone())?;
+	iniexec::load_iniexec_handler(parser.clone())?;
 	let ores = parser.parse_commandline_ex(None,None,None,None);
 	if ores.is_err() {
 		let e = ores.err().unwrap();
