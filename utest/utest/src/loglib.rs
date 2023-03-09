@@ -414,3 +414,18 @@ macro_rules! debug_buffer_trace {
 		format_buffer_log!($buf,$len,"<TRACE>",4,$($arg)+);
 	}
 }
+
+#[macro_export]
+macro_rules! write_tab_line {
+	($cf : expr,$tabs :expr,$($arg:tt)+) => {
+		let mut _ss :String = format!("");
+		let mut _ii :i32 = 0;
+		while _ii < $tabs {
+			_ss.push_str("    ");
+			_ii += 1;
+		}
+		_ss.push_str(&(format!($($arg)+)[..]));
+		_ss.push_str("\n");
+		let _ = $cf.write(_ss.as_bytes());
+	}
+}
