@@ -35,22 +35,43 @@ use asn1obj::base::*;
 
 extargs_error_class!{Asn1ParseError}
 
-fn asn1_parse_out(code :&[u8],fname :&str,mut outf :&dyn Write) -> Result<(),Box<dyn Error>> {
+fn write_tab_s<T : std::io::Write>(outf :&mut T,s :&str,tabs :i32) {
+	let mut ws :String = "".to_string();
+	let mut i :i32 = 0;
+	while i < tabs {
+		ws.push_str("    ");
+		i += 1;
+	}
+	ws.push_str(s);
+	ws.push_str("\n");
+	let _ = outf.write(ws.as_bytes());
+}
+
+fn asn1_parse_out<T : std::io::Write>(code :&[u8],fname :&str, outf :&mut T,tabs :i32,offseti :usize) -> Result<(),Box<dyn Error>> {
 	let mut curv :usize = 0;
 	let mut capv :usize = code.len();
 	let mut stepi :i32 = 0;
+	let mut s :String;
 
 	while curv < code.len() {
 		let mut oany :Asn1Any = Asn1Any::init_asn1();
 		let ores = oany.decode_asn1(&(code[curv..(curv+capv)]));
 
 		if ores.is_err() {
-			extargs_new_error!{Asn1ParseError,"parse at [0x{:x}] offset error", curv}
+			extargs_new_error!{Asn1ParseError,"parse at [0x{:x}] offset error", curv + offseti}
 		}
 		let stepv = ores.unwrap();
 		let btag = oany.tag as u8;
+		let incode = oany.encode_asn1()?;
 		if btag == ASN1_BOOLEAN_FLAG {
-
+			let mut basn1 :Asn1Boolean = Asn1Boolean::init_asn1();
+			let _ = basn1.decode_asn1(&incode)?;
+			if basn1.val {
+				s = format!("[0x{:x}]: Asn1Boolean True", curv + offseti);
+			} else {
+				s = format!("[0x{:x}]: Asn1Boolean False", curv + offseti);
+			}
+			write_tab_s(outf,&s,tabs);
 		} else if btag == ASN1_INTEGER_FLAG {
 
 		} else if btag == ASN1_BIT_STRING_FLAG {
@@ -84,7 +105,7 @@ fn asn1_parse_out(code :&[u8],fname :&str,mut outf :&dyn Write) -> Result<(),Box
 		} else if (btag & ASN1_IMP_SET_MASK) == ASN1_IMP_SET_MASK {
 
 		} else {
-			extargs_new_error!{Asn1ParseError,"parse at [0x{:x}] offset", curv}
+			extargs_new_error!{Asn1ParseError,"parse at [0x{:x}] offset", curv + offseti}
 		}
 	}
 	Ok(())
@@ -98,7 +119,7 @@ fn asn1parse_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	sarr = ns.get_array("subnargs");
 	for f in sarr.iter() {
 		let code = read_file_into_der(f)?;
-		let _ = asn1_parse_out(&code,f, &mut sout)?;
+		let _ = asn1_parse_out(&code,f, &mut sout,0,0)?;
 	}
 
 	Ok(())
