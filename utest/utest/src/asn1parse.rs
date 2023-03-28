@@ -116,17 +116,17 @@ fn asn1_parse_out<T : std::io::Write>(code :&[u8],outf :&mut T,tabs :i32,offseti
 			boffset += incode.len() - oany.content.len();
 			write_tab_line!(outf,tabs,"[0x{:x}] Set size [{}:0x{:x}]", curv + offseti,incode.len(),incode.len());
 			let _ = asn1_parse_out(&(oany.content),outf,tabs + 1, boffset)?;
-		} else if (btag & ASN1_IMP_FLAG_MASK) == ASN1_IMP_FLAG_MASK {
-			let ctag = (oany.tag as u8 ) & ASN1_PRIMITIVE_TAG ;
-			let mut boffset : usize = curv + offseti;
-			boffset += incode.len() - oany.content.len();
-			write_tab_line!(outf,tabs,"[0x{:x}] Imp tag [{}:0x{:x}] size [{}:0x{:x}]", curv + offseti, ctag,ctag,incode.len(),incode.len());
-			let _ = asn1_parse_out(&(oany.content),outf,tabs + 1, boffset)?;
 		} else if (btag & ASN1_IMP_SET_MASK) == ASN1_IMP_SET_MASK {
 			let ctag = (oany.tag as u8 ) & ASN1_PRIMITIVE_TAG ;
 			let mut boffset : usize = curv + offseti;
 			boffset += incode.len() - oany.content.len();
 			write_tab_line!(outf,tabs,"[0x{:x}] ImpSet tag [{}:0x{:x}] size [{}:0x{:x}]", curv + offseti, ctag,ctag,incode.len(),incode.len());
+			let _ = asn1_parse_out(&(oany.content),outf,tabs + 1, boffset)?;
+		} else if (btag & ASN1_IMP_FLAG_MASK) == ASN1_IMP_FLAG_MASK {
+			let ctag = (oany.tag as u8 ) & ASN1_PRIMITIVE_TAG ;
+			let mut boffset : usize = curv + offseti;
+			boffset += incode.len() - oany.content.len();
+			write_tab_line!(outf,tabs,"[0x{:x}] Imp tag [{}:0x{:x}] size [{}:0x{:x}]", curv + offseti, ctag,ctag,incode.len(),incode.len());
 			let _ = asn1_parse_out(&(oany.content),outf,tabs + 1, boffset)?;
 		} else {
 			extargs_new_error!{Asn1ParseError,"parse at [0x{:x}] offset", curv + offseti}
