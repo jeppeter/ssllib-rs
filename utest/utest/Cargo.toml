@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 ssllib = {path = "../../"}
-extargsparse_worker = "^0.1.8"
+extargsparse_worker = "^0.2.0"
 extargsparse_codegen = "^0.1.4"
 lazy_static = "^1.4.0"
 regex = "1"
