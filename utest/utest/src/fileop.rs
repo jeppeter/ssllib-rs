@@ -39,6 +39,29 @@ pub fn write_file_bytes(fname :&str, byts :&[u8]) -> Result<(),Box<dyn Error>> {
 	Ok(())
 }
 
+pub fn write_file(fname :&str, outs :&str) -> Result<(),Box<dyn Error>> {
+	if fname.len() == 0 {
+		let res = io::stdout().write_all(outs.as_bytes());
+		if res.is_err() {
+			let err = res.err().unwrap();
+			extargs_new_error!{FileOpError,"write [stdout] len[{}] error[{:?}]", outs.len(),err}	
+		}
+	} else {
+		let fo  = fs::File::create(fname);
+		if fo.is_err() {
+			let err = fo.err().unwrap();
+			extargs_new_error!{FileOpError,"create [{}] error[{:?}]", fname,err}
+		}
+		let mut fp :fs::File = fo.unwrap();
+		let res = fp.write_all(outs.as_bytes());
+		if res.is_err() {
+			let err = res.err().unwrap();
+			extargs_new_error!{FileOpError,"write [{}] len[{}] error[{:?}]", fname, outs.len(),err}	
+		}
+	}
+	Ok(())
+}
+
 
 
 pub fn read_file_bytes(fname :&str) -> Result<Vec<u8>,Box<dyn Error>> {

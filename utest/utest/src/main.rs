@@ -36,8 +36,9 @@ mod wchar_windows;
 mod loglib_windows;
 mod loglib;
 mod strop;
-mod pemlib;
 mod fileop;
+mod pemlib;
+mod pemhdl;
 mod iniexec;
 mod asn1parse;
 mod x509exec;
@@ -64,6 +65,7 @@ fn main() -> Result<(),Box<dyn Error>> {
 	x509exec::load_x509exec_handler(parser.clone())?;
 	iniexec::load_iniexec_handler(parser.clone())?;
 	asn1parse::load_asn1parse_handler(parser.clone())?;
+	pemhdl::load_pemhdl_handler(parser.clone())?;
 	let ores = parser.parse_commandline_ex(None,None,None,None);
 	if ores.is_err() {
 		let e = ores.err().unwrap();
