@@ -66,8 +66,14 @@ fn asn1_parse_out<T : std::io::Write>(code :&[u8],outf :&mut T,tabs :i32,offseti
 			write_tab_buffer!(outf,tabs,bn.as_ptr(),bn.len(),"[0x{:x}] Asn1BigNum value", curv + offseti);
 		} else if btag == ASN1_BIT_STRING_FLAG {
 			let mut bitasn1 :Asn1BitData = Asn1BitData::init_asn1();
-			let _ = bitasn1.decode_asn1(&incode)?;
-			write_tab_buffer!(outf,tabs,bitasn1.data.as_ptr(),bitasn1.data.len(),"[0x{:x}] Asn1BitData value",curv + offseti);
+			let ores = bitasn1.decode_asn1(&incode);
+			if ores.is_err() {
+				let mut bitflag :Asn1BitDataFlag = Asn1BitDataFlag::init_asn1();
+				let _ = bitflag.decode_asn1(&incode)?;
+				write_tab_buffer!(outf,tabs,bitflag.data.as_ptr(),bitflag.data.len(),"[0x{:x}] Asn1BitDataFlag value flag 0x{:02x}",curv + offseti,(bitflag.flag & 0xff) as u8);
+			} else {
+				write_tab_buffer!(outf,tabs,bitasn1.data.as_ptr(),bitasn1.data.len(),"[0x{:x}] Asn1BitData value",curv + offseti);	
+			}			
 		} else if btag == ASN1_OCT_STRING_FLAG {
 			let mut octasn1 :Asn1OctData = Asn1OctData::init_asn1();
 			let _ = octasn1.decode_asn1(&incode)?;
