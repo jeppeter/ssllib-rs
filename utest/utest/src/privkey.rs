@@ -162,6 +162,7 @@ fn rsaprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 	Ok(())
 }
 
+#[cfg(feature="oldmode")]
 fn ecprivdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
 	let sarr :Vec<String>;
 	let passin :String = ns.get_string("passin");
@@ -223,6 +224,7 @@ fn ecprivdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	Ok(())
 }
 
+#[cfg(feature="oldmode")]
 fn ecprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
 	let mut typestr :String = format!("k256");
 	let sarr :Vec<String>;
@@ -250,6 +252,8 @@ fn ecprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 
 		let verify_key = k256::ecdsa::VerifyingKey::from(&signing_key); 
 		let vk=verify_key.to_bytes();
+		debug_buffer_trace!(sk.as_ptr(),sk.len(),"private key");
+		debug_buffer_trace!(vk.as_ptr(),vk.len(),"public key");
 		let _ = privkey.set_private_key(&sk)?;
 		let _ = privkey.set_public_key(&vk)?;
 		let _ = ecobj.set_value(OID_SECP256K1)?;
@@ -261,6 +265,8 @@ fn ecprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 		let ep = verify_key.to_encoded_point(false);
 		let vk= ep.to_bytes();
 
+		debug_buffer_trace!(sk.as_ptr(),sk.len(),"private key");
+		debug_buffer_trace!(vk.as_ptr(),vk.len(),"public key");
 		let _ = privkey.set_private_key(&sk)?;
 		let _ = privkey.set_public_key(&vk)?;
 		let _ = ecobj.set_value(OID_SECP384R1)?;
@@ -344,6 +350,30 @@ fn ecprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 
 	return Ok(());
 	*/
+}
+
+
+#[cfg(not(feature="oldmode"))]
+fn ecprivdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
+	let _passin :String = ns.get_string("passin");
+	let mut _sout = std::io::stdout();
+
+	init_log(ns.clone())?;
+
+
+	Ok(())
+}
+
+#[cfg(not(feature="oldmode"))]
+fn ecprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
+	let mut typestr :String = format!("k256");
+	let sarr :Vec<String>;
+	let mut randfile :Option<String> = None;
+	let passout :String;
+	let mut ecobj :Asn1Object = Asn1Object::init_asn1();
+
+	init_log(ns.clone())?;
+	Ok(())
 }
 
 
