@@ -8,7 +8,7 @@ use extargsparse_worker::namespace::{NameSpaceEx};
 use extargsparse_worker::argset::{ArgSetImpl};
 use extargsparse_worker::parser::{ExtArgsParser};
 use extargsparse_worker::funccall::{ExtArgsParseFunc};
-use asn1obj::base::*;
+//use asn1obj::base::*;
 
 
 use std::cell::RefCell;
@@ -28,15 +28,14 @@ use super::loglib::*;
 #[allow(unused_imports)]
 use super::fileop::*;
 use super::pemlib::*;
-use super::consts::*;
 use ssllib::consts::*;
 use ssllib::config::*;
-use ssllib::pkcs8::*;
+//use ssllib::pkcs8::*;
 use ssllib::x509::*;
 use ssllib::rsa::*;
-use ssllib::ec::*;
+//use ssllib::ec::*;
 use asn1obj::asn1impl::*;
-use ssllib::randop::*;
+//use ssllib::randop::*;
 #[allow(unused_imports)]
 use std::io::Write;
 //use rand_core::OsRng; 
@@ -366,11 +365,11 @@ fn ecprivdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 
 #[cfg(not(feature="oldmode"))]
 fn ecprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
-	let mut typestr :String = format!("k256");
-	let sarr :Vec<String>;
-	let mut randfile :Option<String> = None;
-	let passout :String;
-	let mut ecobj :Asn1Object = Asn1Object::init_asn1();
+	//let mut typestr :String = format!("k256");
+	//let sarr :Vec<String>;
+	//let mut randfile :Option<String> = None;
+	//let passout :String;
+	//let mut ecobj :Asn1Object = Asn1Object::init_asn1();
 
 	init_log(ns.clone())?;
 	Ok(())

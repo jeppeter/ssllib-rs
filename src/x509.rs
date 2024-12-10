@@ -340,7 +340,7 @@ pub struct Asn1X509Crl {
 pub struct Asn1X509Elem {
 	pub certinfo : Asn1X509Cinf,
 	pub sig_alg : Asn1X509Algor,
-	pub signature : Asn1BitData,
+	pub signature : Asn1BitDataFlag,
 }
 
 //#[asn1_sequence(debug=enable)]

@@ -44,6 +44,7 @@ mod asn1parse;
 mod x509exec;
 mod ecparam;
 mod privkey;
+mod pkcs7hdl;
 
 
 #[extargs_map_function()]
@@ -66,6 +67,7 @@ fn main() -> Result<(),Box<dyn Error>> {
 	iniexec::load_iniexec_handler(parser.clone())?;
 	asn1parse::load_asn1parse_handler(parser.clone())?;
 	pemhdl::load_pemhdl_handler(parser.clone())?;
+	pkcs7hdl::load_pkcs7_handler(parser.clone())?;
 	let ores = parser.parse_commandline_ex(None,None,None,None);
 	if ores.is_err() {
 		let e = ores.err().unwrap();
