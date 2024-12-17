@@ -51,7 +51,7 @@ impl HmacSha256Digest {
 
 impl Asn1DigestOp for HmacSha256Digest {
 	fn digest_update(&mut self, data :&[u8]) -> Result<(),Box<dyn Error>> {
-		self.origdata.extend(data.clone());
+		self.origdata.extend(data.iter().collect::<Vec<_>>().clone());
 		return Ok(());
 	}
 

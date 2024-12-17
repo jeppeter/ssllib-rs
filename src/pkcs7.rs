@@ -9,6 +9,8 @@ use asn1obj::asn1impl::*;
 use asn1obj::*;
 
 use std::error::Error;
+use std::sync::Arc;
+use std::cell::RefCell;
 use std::io::{Write};
 
 #[allow(unused_imports)]
@@ -132,14 +134,14 @@ impl Asn1Pkcs7SignerInfo {
 		Ok(data)
 	}
 
-	fn get_digest_op(&self) -> Result<Box<dyn Asn1DigestOp>,Box<dyn Error>> {
-		let mut retv :Box<dyn Asn1DigestOp> = Box::new(Sha256Digest::new());
+	fn get_digest_op(&self) -> Result<Arc<RefCell<dyn Asn1DigestOp>>,Box<dyn Error>> {
+		let mut retv :Arc<RefCell<dyn Asn1DigestOp>> = Arc::new(RefCell::new(Sha256Digest::new()));
 
 		if self.elem.val[0].digest_algo.elem.val.len() > 0 {
 			let c = &(self.elem.val[0].digest_algo.elem.val[0]);
 			let digval :String = c.algorithm.get_value();
 			if digval.eq(OID_SHA256_DIGEST) {
-				retv = Box::new(Sha256Digest::new());
+				retv = Arc::new(RefCell::new(Sha256Digest::new()));
 			}
 		}
 
@@ -154,9 +156,9 @@ impl Asn1Pkcs7SignerInfo {
 		if self.elem.val.len() != 0 {
 			let encdata = self.format_auth_attr_data()?;
 			ssllib_buffer_trace!(encdata.as_ptr(),encdata.len(),"sign data");
-			let mut digop = self.get_digest_op()?;
-			let _ = signer.sign_update(&encdata,digop)?;
-			self.elem.val[0].enc_digest.data = signer.sign_final(digop)?;
+			let digop = self.get_digest_op()?;
+			let _ = signer.sign_update(&encdata,digop.clone())?;
+			self.elem.val[0].enc_digest.data = signer.sign_final(digop.clone())?;
 		}
 		Ok(())
 	}
