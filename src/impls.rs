@@ -14,9 +14,11 @@ pub trait Asn1VerifyOp {
 }
 
 pub trait Asn1EncryptOp {
-	fn encrypt(&self, data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>>;
+	fn encrypt_update(&mut self, data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>>;
+	fn encrypt_final(&mut self) -> Result<Vec<u8>,Box<dyn Error>>;
 }
 
 pub trait Asn1DecryptOp {
-	fn decrypt(&self, data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>>;
+	fn decrypt_update(&mut self, data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>>;
+	fn decrypt_final(&mut self) -> Result<Vec<u8>,Box<dyn Error>>;
 }

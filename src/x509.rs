@@ -437,9 +437,10 @@ impl Asn1Pbe2ParamElem {
 			if ores.is_ok() {
 				let _ = ncfg.set_str(KEY_JSON_RANDFILE,&format!("{}",ores.unwrap()))?;
 			}
-			let enfn :Box<dyn Asn1EncryptOp> = self.set_encrypt(env,&rcfg)?;
+			let mut enfn :Box<dyn Asn1EncryptOp> = self.set_encrypt(env,&rcfg)?;
 			let decdata = env.get_u8_array(KEY_JSON_DECDATA)?;
-			let encdata = enfn.encrypt(&decdata)?;
+			let mut encdata = enfn.encrypt_update(&decdata)?;
+			encdata.extend(enfn.encrypt_final()?);
 			let _ = retv.set_u8_array(KEY_JSON_ENCDATA,&encdata)?;
 		} else {
 			ssllib_new_error!{SslX509Error,"not support type [{}]",cv}
@@ -492,9 +493,10 @@ impl Asn1Pbe2ParamElem {
 			let mut pbkdf2 :Asn1Pbkdf2ParamElem = Asn1Pbkdf2ParamElem::init_asn1();
 			let _ = pbkdf2.decode_asn1(&decdata)?;
 			let ncfg = pbkdf2.get_cmd(env)?;
-			let bdec :Box<dyn Asn1DecryptOp> = self.get_decrypt(env,&ncfg,&mut config)?;
+			let mut bdec :Box<dyn Asn1DecryptOp> = self.get_decrypt(env,&ncfg,&mut config)?;
 			let encdata = env.get_u8_array(KEY_JSON_ENCDATA)?;
-			let decdata = bdec.decrypt(&encdata)?;
+			let mut decdata = bdec.decrypt_update(&encdata)?;
+			decdata.extend(bdec.decrypt_final()?);
 			ssllib_buffer_trace!(decdata.as_ptr(),decdata.len(),"decdata");
 			let _ = config.set_u8_array(KEY_JSON_DECDATA,&decdata)?;
 			let _ = config.set_config(KEY_JSON_PBKDF2,&ncfg)?;

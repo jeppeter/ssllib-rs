@@ -28,6 +28,7 @@ pub struct Aes256CbcAlgo {
 //type Aes256CbcDec = cbc::Decryptor<aes::Aes256>;
 
 
+
 impl Aes256CbcAlgo {
 	pub fn new(iv :&[u8],key :&[u8]) -> Result<Self,Box<dyn Error>> {
 		let retv = Aes256CbcAlgo {
@@ -38,8 +39,10 @@ impl Aes256CbcAlgo {
 	}
 }
 
+
+
 impl Asn1EncryptOp for Aes256CbcAlgo {
-	fn encrypt(&self, data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
+	fn encrypt_update(&mut self, data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
 		let mut encryptor=crypto::aes::cbc_encryptor(
 			crypto::aes::KeySize::KeySize256,
 			&self.key,
@@ -66,10 +69,14 @@ impl Asn1EncryptOp for Aes256CbcAlgo {
 		}
 		Ok(final_result)
 	}
+
+	fn encrypt_final(&mut self) -> Result<Vec<u8>,Box<dyn Error>> {
+		Ok(vec![])
+	}
 }
 
 impl Asn1DecryptOp for Aes256CbcAlgo {
-	fn decrypt(&self, encdata :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
+	fn decrypt_update(&mut self, encdata :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
 		let mut decryptor = crypto::aes::cbc_decryptor(
 			crypto::aes::KeySize::KeySize256,
 			&self.key,
@@ -96,7 +103,10 @@ impl Asn1DecryptOp for Aes256CbcAlgo {
 		}
 
 		Ok(final_result)
+	}
 
+	fn decrypt_final(&mut self) -> Result<Vec<u8>,Box<dyn Error>> {
+		Ok(vec![])
 	}
 }
 
@@ -120,21 +130,27 @@ pub type Aes256CfbDec = cfb_mode::Decryptor<aes::Aes256>;
 
 
 impl Asn1EncryptOp for Aes256CfbAlgo {
-	fn encrypt(&self, data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
+	fn encrypt_update(&mut self, data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
 		let mut retdata :Vec<u8> = data.to_vec();
 		let ckey :&[u8] = &self.key;
 		let civ :&[u8] = &self.iv;
 		Aes256CfbEnc::new(ckey.into(),civ.into()).encrypt(&mut retdata);
 		Ok(retdata)
 	}
+	fn encrypt_final(&mut self) -> Result<Vec<u8>,Box<dyn Error>> {
+		Ok(vec![])
+	}
 }
 
 impl Asn1DecryptOp for Aes256CfbAlgo {
-	fn decrypt(&self, encdata :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
+	fn decrypt_update(&mut self, encdata :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
 		let mut retdata :Vec<u8> = encdata.to_vec();
 		let ckey :&[u8] = &self.key;
 		let civ :&[u8] = &self.iv;
 		Aes256CfbDec::new(ckey.into(),civ.into()).decrypt(&mut retdata);
 		Ok(retdata)
+	}
+	fn decrypt_final(&mut self) -> Result<Vec<u8>,Box<dyn Error>> {
+		Ok(vec![])
 	}
 }
