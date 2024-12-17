@@ -132,7 +132,7 @@ impl Asn1Pkcs7SignerInfo {
 		Ok(data)
 	}
 
-	fn get_digest_op(&self) -> Box<dyn Asn1DigestOp> {
+	fn get_digest_op(&self) -> Result<Box<dyn Asn1DigestOp>,Box<dyn Error>> {
 		let mut retv :Box<dyn Asn1DigestOp> = Box::new(Sha256Digest::new());
 
 		if self.elem.val[0].digest_algo.elem.val.len() > 0 {
@@ -144,18 +144,19 @@ impl Asn1Pkcs7SignerInfo {
 		}
 
 
-		retv
+		Ok(retv)
 	}
 
-	pub fn sign_auth_attr_enc<T : Asn1SignOp>(&mut self, signer :&T) -> Result<(),Box<dyn Error>> {
+	pub fn sign_auth_attr_enc<T : Asn1SignOp>(&mut self, signer :&mut T) -> Result<(),Box<dyn Error>> {
 		if self.elem.val.len() != 1 && self.elem.val.len() != 0 {
 			ssllib_new_error!{SslPkcs7Error,"val [{}] != 0 or 1",self.elem.val.len()}	
 		}
 		if self.elem.val.len() != 0 {
 			let encdata = self.format_auth_attr_data()?;
 			ssllib_buffer_trace!(encdata.as_ptr(),encdata.len(),"sign data");
-			let digop = self.get_digest_op();
-			self.elem.val[0].enc_digest.data = signer.sign(&encdata,digop)?;
+			let mut digop = self.get_digest_op()?;
+			let _ = signer.sign_update(&encdata,digop)?;
+			self.elem.val[0].enc_digest.data = signer.sign_final(digop)?;
 		}
 		Ok(())
 	}

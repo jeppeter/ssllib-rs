@@ -46,20 +46,26 @@ pub struct Asn1RsaPubkey {
 }
 
 impl Asn1VerifyOp for Asn1RsaPubkey {
-	fn verify(&self, origdata :&[u8],signdata :&[u8], digop :Box<dyn Asn1DigestOp>) -> Result<bool,Box<dyn Error>> {
-		let mut retv :bool = false;
+	fn verify_update(&mut self, origdata :&[u8], digop :Box<dyn Asn1DigestOp>) -> Result<(),Box<dyn Error>> {
 		if self.elem.val.len() != 1 {
 			ssllib_new_error!{SslAsn1RsaError,"{} != 1 len",self.elem.val.len()}
 		}
+		let _ = digop.digest_update(origdata)?;
+		Ok(())
+	}
+
+	fn verify_final(&mut self,signdata :&[u8], digop :Box<dyn Asn1DigestOp>) -> Result<bool,Box<dyn Error>> {
 		let n = rsaBigUint::from_bytes_be(&self.elem.val[0].n.val.to_bytes_be());
 		let e = rsaBigUint::from_bytes_be(&self.elem.val[0].e.val.to_bytes_be());
 		let pubk = RsaPublicKey::new(n,e)?;
-		let digest = digop.digest(origdata)?;
+		let digest = digop.digest_final()?;
+		let mut retv :bool = false;
 		let ores = pubk.verify(PaddingScheme::new_pkcs1v15_sign(Some(Hash::SHA2_256)),&digest,signdata);
 		if ores.is_ok() {
 			retv = true;
 		} 
 		Ok(retv)
+
 	}
 }
 
@@ -108,12 +114,19 @@ pub struct Asn1RsaPrivateKey {
 }
 
 impl Asn1SignOp for Asn1RsaPrivateKey {
-	fn sign(&self,data :&[u8],digop :Box<dyn Asn1DigestOp>) -> Result<Vec<u8>,Box<dyn Error>> {
+	fn sign_update(&mut self,data :&[u8],digop :Box<dyn Asn1DigestOp>) -> Result<(),Box<dyn Error>> {
+		if self.elem.val.len() != 1 {
+			ssllib_new_error!{SslAsn1RsaError,"{} not valid len",self.elem.val.len()}
+		}
+		let _ =digop.digest_update(data)?;
+		Ok(())
+	}
+
+	fn sign_final(&mut self,digop :Box<dyn Asn1DigestOp>) -> Result<Vec<u8>,Box<dyn Error>> {
 		let retv :Vec<u8>;
 		if self.elem.val.len() != 1 {
 			ssllib_new_error!{SslAsn1RsaError,"{} not valid len",self.elem.val.len()}
 		}
-
 		let n = rsaBigUint::from_bytes_be(&self.elem.val[0].modulus.val.to_bytes_be());
 		let d = rsaBigUint::from_bytes_be(&self.elem.val[0].pubexp.val.to_bytes_be());
 		let e = rsaBigUint::from_bytes_be(&self.elem.val[0].privexp.val.to_bytes_be());
@@ -121,15 +134,16 @@ impl Asn1SignOp for Asn1RsaPrivateKey {
 		primes.push(rsaBigUint::from_bytes_be(&self.elem.val[0].prime1.val.to_bytes_be()));
 		primes.push(rsaBigUint::from_bytes_be(&self.elem.val[0].prime2.val.to_bytes_be()));
 		let po = RsaPrivateKey::from_components(n,d,e,primes);
-		let digest = digop.digest(data)?;
+		let digest = digop.digest_final()?;
 		retv = po.sign(PaddingScheme::new_pkcs1v15_sign(Some(Hash::SHA2_256)),&digest)?;
 		ssllib_buffer_trace!(retv.as_ptr(),retv.len(),"sign value");
 		Ok(retv)
+
 	}
 }
 
 impl Asn1VerifyOp for Asn1RsaPrivateKey {
-	fn verify(&self, origdata :&[u8],signdata :&[u8], digop :Box<dyn Asn1DigestOp>) -> Result<bool,Box<dyn Error>> {
+	fn verify_final(&mut self, signdata :&[u8], digop :Box<dyn Asn1DigestOp>) -> Result<bool,Box<dyn Error>> {
 		let mut retv :bool = false;
 		if self.elem.val.len() != 1 {
 			ssllib_new_error!{SslAsn1RsaError,"{} != 1 len",self.elem.val.len()}
@@ -142,13 +156,21 @@ impl Asn1VerifyOp for Asn1RsaPrivateKey {
 		primes.push(rsaBigUint::from_bytes_be(&self.elem.val[0].prime2.val.to_bytes_be()));
 		let po = RsaPrivateKey::from_components(n,d,e,primes);
 		let pubk = po.to_public_key();
-		let digest = digop.digest(origdata)?;
+		let digest = digop.digest_final()?;
 		let ores = pubk.verify(PaddingScheme::new_pkcs1v15_sign(Some(Hash::SHA2_256)),&digest,signdata);
 		if ores.is_ok() {
 			retv = true;
 		} 
 		Ok(retv)
-	}	
+	}
+	fn verify_update(&mut self,origdata :&[u8],digop :Box<dyn Asn1DigestOp>) -> Result<(),Box<dyn Error>> {
+		if self.elem.val.len() != 1 {
+			ssllib_new_error!{SslAsn1RsaError,"{} != 1 len",self.elem.val.len()}
+		}
+		let digest = digop.digest_update(origdata)?;
+		Ok(())
+
+	}
 }
 
 impl Asn1RsaPrivateKey {

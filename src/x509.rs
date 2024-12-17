@@ -532,7 +532,7 @@ impl Asn1Pbkdf2ParamElem {
 			let iter :i64 = env.get_i64(KEY_JSON_TIMES)?;
 			let passin :String = env.get_str(KEY_JSON_PASSIN)?;
 			let _ = self.iter.set_value(iter);
-			let hsha256 :HmacSha256Digest = HmacSha256Digest::new(self.iter.val as u32, passin.as_bytes())?;
+			let mut hsha256 :HmacSha256Digest = HmacSha256Digest::new(self.iter.val as u32, passin.as_bytes())?;
 			let mut randops :RandOps ;
 			let ores = env.get_str(KEY_JSON_RANDFILE);
 			if ores.is_ok() {
@@ -542,7 +542,8 @@ impl Asn1Pbkdf2ParamElem {
 			}
 			let salt :Vec<u8> = randops.get_bytes(8 as usize)?;
 			self.salt.content = salt.clone();
-			let retv = hsha256.digest(&salt)?;
+			let _ = hsha256.digest_update(&salt)?;
+			let retv = hsha256.digest_final()?;
 			let _ = ncfg.set_u8_array(KEY_JSON_KEY,&retv)?;
 		} else {
 			ssllib_new_error!{SslX509Error,"not support type [{}]",dtype}
@@ -559,8 +560,9 @@ impl Asn1Pbkdf2ParamElem {
 		let ktype :String = algr.get_algorithm()?;
 		if ktype == OID_HMAC_WITH_SHA256 {
 			let passin :String = env.get_str(KEY_JSON_PASSIN)?;
-			let hsha256 :HmacSha256Digest = HmacSha256Digest::new(self.iter.val as u32,passin.as_bytes())?;
-			let retv = hsha256.digest(&(self.salt.content))?;
+			let mut hsha256 :HmacSha256Digest = HmacSha256Digest::new(self.iter.val as u32,passin.as_bytes())?;
+			let _ = hsha256.digest_update(&(self.salt.content))?;
+			let retv = hsha256.digest_final()?;
 			let _ = config.set_u8_array(KEY_JSON_KEY,&retv)?;
 		} else {
 			ssllib_new_error!{SslX509Error,"not support algorithm [{}]", ktype}

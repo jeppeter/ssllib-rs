@@ -4,7 +4,8 @@ use std::error::Error;
 use sha2::{Sha256,Digest};
 use hmac::{Hmac,Mac};
 
-pub struct Sha256Digest {	
+pub struct Sha256Digest {
+	innerdata :Vec<u8>,
 }
 
 impl Sha256Digest {
@@ -16,14 +17,17 @@ impl Sha256Digest {
 	}	
 
 	pub fn new() -> Self {
-		Sha256Digest{}
+		Sha256Digest{ innerdata :vec![]}
 	}
 }
 
 impl Asn1DigestOp for Sha256Digest {
-	fn digest(&self, data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
-		let retv = Sha256Digest::calc(data);
-		Ok(retv)
+	fn digest_update(&mut self, data :&[u8]) -> Result<(),Box<dyn Error>> {
+		self.innerdata = Sha256Digest::calc(data);
+		Ok(())
+	}
+	fn digest_final(&mut self) -> Result<Vec<u8>,Box<dyn Error>> {
+		return Ok(self.innerdata.clone());
 	}
 }
 
@@ -32,6 +36,7 @@ pub type HmacSha256 = Hmac<Sha256>;
 pub struct HmacSha256Digest {
 	times :u32,
 	initv8 :Vec<u8>,
+	origdata :Vec<u8>,
 }
 
 impl HmacSha256Digest {
@@ -39,12 +44,18 @@ impl HmacSha256Digest {
 		Ok(HmacSha256Digest {
 			times :times,
 			initv8 : initv.to_vec().clone(),
+			origdata :vec![],
 		})
 	}
 }
 
 impl Asn1DigestOp for HmacSha256Digest {
-	fn digest(&self, data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
+	fn digest_update(&mut self, data :&[u8]) -> Result<(),Box<dyn Error>> {
+		self.origdata.extend(data.clone());
+		return Ok(());
+	}
+
+	fn digest_final(&mut self) -> Result<Vec<u8>,Box<dyn Error>> {
 		let omac = HmacSha256::new_from_slice(&self.initv8)?;
 		let mut nmac ;
 		let mut tkeylen : usize = 32;
@@ -52,8 +63,6 @@ impl Asn1DigestOp for HmacSha256Digest {
 		let mut i :usize = 1;
 		let mut p :Vec<u8> = Vec::new();
 		let mut plen :usize = 0;
-
-
 
 		while tkeylen > 0 {
 			let mut itmp :Vec<u8> = Vec::new();
@@ -67,7 +76,7 @@ impl Asn1DigestOp for HmacSha256Digest {
 			itmp.push(curv);
 			curv = ((i >> 0) & 0xff) as u8;
 			itmp.push(curv);
-			nmac.update(data);
+			nmac.update(&self.origdata);
 			nmac.update(&itmp);
 			let mut resdigtmp = nmac.finalize();
 			let mut digtmp = resdigtmp.into_bytes();
