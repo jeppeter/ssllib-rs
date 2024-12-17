@@ -331,7 +331,7 @@ pub struct Asn1X509CrlInfo {
 pub struct Asn1X509Crl {
 	pub crl : Asn1X509CrlInfo,
 	pub sig_alg :Asn1X509Algor,
-	pub signature : Asn1BitString,
+	pub signature : Asn1BitDataFlag,
 }
 
 //#[asn1_sequence(debug=enable)]
@@ -734,7 +734,7 @@ pub struct Asn1X509ReqInfo {
 pub struct Asn1X509ReqElem {
 	pub req_info : Asn1X509ReqInfo,
 	pub sig_alg : Asn1X509Algor,
-	pub signature : Asn1BitData,
+	pub signature : Asn1BitDataFlag,
 }
 
 #[asn1_sequence()]
