@@ -29,3 +29,6 @@ pub trait Asn1DecryptOp {
 	fn decrypt_update(&mut self, data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>>;
 	fn decrypt_final(&mut self) -> Result<Vec<u8>,Box<dyn Error>>;
 }
+
+// pub trait Asn1EncryptOpClone : Asn1EncryptOp + Clone + Sized {	
+// }

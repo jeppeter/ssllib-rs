@@ -72,3 +72,4 @@ pub const OID_SECT409R1 :&str = "1.3.132.0.37";
 pub const OID_SECT571K1 :&str = "1.3.132.0.38";
 pub const OID_SECT571R1 :&str = "1.3.132.0.39";
 
+pub const ENC_AES_128_CBC :&str = "aes-128-cbc";
