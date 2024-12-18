@@ -384,7 +384,8 @@ impl Asn1Pbe2ParamElem {
 			let mut randc :RandOps = RandOps::new(randfile)?;
 			let ivkey = randc.get_bytes(16 as usize)?;
 			let aeskey = rcfg.get_u8_array(KEY_JSON_KEY)?;
-			let aes256ccb :Aes256CbcAlgo = Aes256CbcAlgo::new(&ivkey,&aeskey)?;
+			let mut aes256ccb :Aes256CbcAlgo = Aes256CbcAlgo::new(&ivkey,&aeskey)?;
+			let _ = aes256ccb.init_encrypt(&aeskey,&ivkey)?;
 			let mut anyv :Asn1Any = Asn1Any::init_asn1();
 			anyv.content = ivkey.clone();
 			anyv.tag = ASN1_OCT_STRING_FLAG as u64;
@@ -403,7 +404,8 @@ impl Asn1Pbe2ParamElem {
 			let ivkey = randc.get_bytes(16 as usize)?;
 			let aeskey = rcfg.get_u8_array(KEY_JSON_KEY)?;
 			ssllib_log_trace!(" ");
-			let aes256cfb :Aes256CfbAlgo = Aes256CfbAlgo::new(&ivkey,&aeskey)?;
+			let mut aes256cfb :Aes256CfbAlgo = Aes256CfbAlgo::new(&ivkey,&aeskey)?;
+			let _ = aes256cfb.init_encrypt(&aeskey,&ivkey)?;
 			let mut anyv :Asn1Any = Asn1Any::init_asn1();
 			anyv.content = ivkey.clone();
 			anyv.tag = ASN1_OCT_STRING_FLAG as u64;
@@ -459,7 +461,8 @@ impl Asn1Pbe2ParamElem {
 				let anyv :&Asn1Any = params.as_ref().unwrap();
 				let ivkey = anyv.content.clone();
 				let aeskey = ncfg.get_u8_array(KEY_JSON_KEY)?;
-				let aescbcenc = Aes256CbcAlgo::new(&ivkey,&aeskey)?;
+				let mut aescbcenc = Aes256CbcAlgo::new(&ivkey,&aeskey)?;
+				let _ = aescbcenc.init_decrypt(&aeskey,&ivkey)?;
 				return Ok(Box::new(aescbcenc));
 			} else {
 				ssllib_new_error!{SslX509Error,"not set params value for encryption"}
@@ -471,7 +474,8 @@ impl Asn1Pbe2ParamElem {
 				let anyv :&Asn1Any = params.as_ref().unwrap();
 				let ivkey = anyv.content.clone();
 				let aeskey = ncfg.get_u8_array(KEY_JSON_KEY)?;
-				let aescfbenc = Aes256CfbAlgo::new(&ivkey,&aeskey)?;
+				let mut aescfbenc = Aes256CfbAlgo::new(&ivkey,&aeskey)?;
+				let _ = aescfbenc.init_decrypt(&aeskey,&ivkey)?;
 				return Ok(Box::new(aescfbenc));
 			} else {
 				ssllib_new_error!{SslX509Error,"not set params value for encryption"}

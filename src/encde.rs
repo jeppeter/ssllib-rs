@@ -42,6 +42,12 @@ impl Aes256CbcAlgo {
 
 
 impl Asn1EncryptOp for Aes256CbcAlgo {
+	fn init_encrypt(&mut self,key :&[u8],iv :&[u8]) -> Result<(),Box<dyn Error>> {
+		self.iv = iv.to_vec();
+		self.key = key.to_vec();
+		Ok(())
+	}
+
 	fn encrypt_update(&mut self, data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
 		let mut encryptor=crypto::aes::cbc_encryptor(
 			crypto::aes::KeySize::KeySize256,
@@ -76,6 +82,11 @@ impl Asn1EncryptOp for Aes256CbcAlgo {
 }
 
 impl Asn1DecryptOp for Aes256CbcAlgo {
+	fn init_decrypt(&mut self,key :&[u8],iv :&[u8]) -> Result<(),Box<dyn Error>> {
+		self.iv = iv.to_vec();
+		self.key = key.to_vec();
+		Ok(())
+	}
 	fn decrypt_update(&mut self, encdata :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
 		let mut decryptor = crypto::aes::cbc_decryptor(
 			crypto::aes::KeySize::KeySize256,
@@ -130,6 +141,11 @@ pub type Aes256CfbDec = cfb_mode::Decryptor<aes::Aes256>;
 
 
 impl Asn1EncryptOp for Aes256CfbAlgo {
+	fn init_encrypt(&mut self,key :&[u8],iv :&[u8]) -> Result<(),Box<dyn Error>> {
+		self.iv = iv.to_vec();
+		self.key = key.to_vec();
+		Ok(())
+	}
 	fn encrypt_update(&mut self, data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
 		let mut retdata :Vec<u8> = data.to_vec();
 		let ckey :&[u8] = &self.key;
@@ -143,6 +159,11 @@ impl Asn1EncryptOp for Aes256CfbAlgo {
 }
 
 impl Asn1DecryptOp for Aes256CfbAlgo {
+	fn init_decrypt(&mut self,key :&[u8],iv :&[u8]) -> Result<(),Box<dyn Error>> {
+		self.key = key.to_vec();
+		self.iv = iv.to_vec();
+		Ok(())
+	}
 	fn decrypt_update(&mut self, encdata :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
 		let mut retdata :Vec<u8> = encdata.to_vec();
 		let ckey :&[u8] = &self.key;
