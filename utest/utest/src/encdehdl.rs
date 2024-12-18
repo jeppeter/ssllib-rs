@@ -82,11 +82,60 @@ fn cipherenc_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	Ok(())
 }
 
-#[extargs_map_function(cipherenc_handler)]
+fn cipherdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
+	let sarr :Vec<String>;
+	sarr = ns.get_array("subnargs");
+
+	init_log(ns.clone())?;
+	if sarr.len() < 4 {
+		extargs_new_error!{EncDeError,"need ciphername keyfile ivfile infile [outfile]"}
+	}
+
+	let ciphername = format!("{}",sarr[0]);
+	let keyfile = format!("{}",sarr[1]);
+	let ivfile = format!("{}",sarr[2]);
+	let infile = format!("{}",sarr[3]);
+	let mut outfile = format!("");
+	if sarr.len() > 4 {
+		outfile = format!("{}",sarr[4]);
+	}
+
+	let key = read_file_bytes(&keyfile)?;
+	let iv = read_file_bytes(&ivfile)?;
+	let indata = read_file_bytes(&infile)?;
+	let cipher :Arc<RefCell<dyn Asn1DecryptOp>>;
+	let ores = get_decryptor(&ciphername);
+	if ores.is_none() {
+		extargs_new_error!{EncDeError,"can not find {} cipher", ciphername}
+	}
+	cipher = ores.unwrap();
+	let _ = cipher.borrow_mut().init_decrypt(&key,&iv)?;
+	let mut outdata :Vec<u8>;
+
+	outdata = cipher.borrow_mut().decrypt_update(&indata)?;
+	outdata.extend(cipher.borrow_mut().decrypt_final()?);
+
+	if outfile.len() > 0 {
+		let _ = write_file_bytes(&outfile,&outdata)?;
+	} else {
+		debug_buffer_trace!(indata.as_ptr(),indata.len(),"indata");
+		debug_buffer_trace!(outdata.as_ptr(),outdata.len(), "outdata");
+	}
+
+
+
+	Ok(())
+}
+
+
+#[extargs_map_function(cipherenc_handler,cipherdec_handler)]
 pub fn load_encde_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
 		"cipherenc<cipherenc_handler>##encname keyfile ivfile infile [outfile]##" : {
+			"$" : "+"
+		},
+		"cipherdec<cipherdec_handler>##encname keyfile ivfile infile [outfile]##" : {
 			"$" : "+"
 		}
 	}
