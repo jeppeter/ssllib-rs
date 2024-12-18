@@ -384,7 +384,7 @@ impl Asn1Pbe2ParamElem {
 			let mut randc :RandOps = RandOps::new(randfile)?;
 			let ivkey = randc.get_bytes(16 as usize)?;
 			let aeskey = rcfg.get_u8_array(KEY_JSON_KEY)?;
-			let mut aes256ccb :Aes256CbcAlgo = Aes256CbcAlgo::new(&ivkey,&aeskey)?;
+			let mut aes256ccb :Aes256CbcAlgo = Aes256CbcAlgo::new()?;
 			let _ = aes256ccb.init_encrypt(&aeskey,&ivkey)?;
 			let mut anyv :Asn1Any = Asn1Any::init_asn1();
 			anyv.content = ivkey.clone();
@@ -461,7 +461,7 @@ impl Asn1Pbe2ParamElem {
 				let anyv :&Asn1Any = params.as_ref().unwrap();
 				let ivkey = anyv.content.clone();
 				let aeskey = ncfg.get_u8_array(KEY_JSON_KEY)?;
-				let mut aescbcenc = Aes256CbcAlgo::new(&ivkey,&aeskey)?;
+				let mut aescbcenc = Aes256CbcAlgo::new()?;
 				let _ = aescbcenc.init_decrypt(&aeskey,&ivkey)?;
 				return Ok(Box::new(aescbcenc));
 			} else {
