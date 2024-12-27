@@ -836,6 +836,10 @@ pub fn get_encryptor(name :&str) -> Option<Arc<RefCell<dyn Asn1EncryptOp>>> {
     return None;
 }
 
+pub fn get_enc_names() -> Vec<String> {
+    return vec![ENC_AES_128_CBC.to_string(),ENC_AES_192_CBC.to_string(),ENC_AES_256_CBC.to_string(),ENC_AES_256_CFB.to_string(),ENC_AES_256_CFB1.to_string(),ENC_AES_256_CFB8.to_string()];
+}
+
 
 pub fn get_decryptor(name :&str) -> Option<Arc<RefCell<dyn Asn1DecryptOp>>> {
     // let key :Vec<u8> = vec![];

@@ -128,7 +128,38 @@ fn cipherdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 }
 
 
-#[extargs_map_function(cipherenc_handler,cipherdec_handler)]
+fn listenc_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
+
+	init_log(ns.clone())?;
+	let names :Vec<String> = get_enc_names();
+	let mut maxlen :usize = 1;
+	let mut outs :String = "".to_string();
+	let mut padlen :usize;
+	for f in names.iter() {
+		if maxlen < f.len() {
+			maxlen = f.len();
+		}
+	}
+
+	outs.push_str(&format!("encryption method:"));
+	for i in 0..names.len() {
+		if (i % 5) == 0 {
+			outs.push_str("\n");
+			outs.push_str("    ");
+		}
+		padlen = maxlen -  names[i].len();
+		outs.push_str(&format!("{}",names[i]));
+		for _ in 0..padlen {
+			outs.push_str(" ");
+		}
+		outs.push_str("  ");
+	}
+
+	println!("{}",outs);
+	Ok(())
+}
+
+#[extargs_map_function(cipherenc_handler,cipherdec_handler,listenc_handler)]
 pub fn load_encde_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -137,6 +168,9 @@ pub fn load_encde_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 		},
 		"cipherdec<cipherdec_handler>##encname keyfile ivfile infile [outfile]##" : {
 			"$" : "+"
+		},
+		"listenc<listenc_handler>##to list encrypt method names##" : {
+			"$" : 0
 		}
 	}
 	"#;
