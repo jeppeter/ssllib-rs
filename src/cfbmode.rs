@@ -2,6 +2,10 @@ use crate::*;
 use crate::logger::*;
 use cipher::{BlockEncryptMut,BlockCipher,Block,InnerIvInit,Iv,AlgorithmName,crypto_common::{InnerUser,IvSizeUser}};
 use std::fmt;
+use std::error::Error;
+
+
+ssllib_error_class!{CfbModeError}
 
 
 fn get_mask_bits(inbytes :&[u8],bits :usize, offsetbits :usize) -> Vec<u8> {
@@ -142,21 +146,21 @@ where
 
     /// Encrypt a buffer in multiple parts.
     #[allow(unreachable_code)]
-    pub fn encrypt(&mut self, mut data: &mut [u8]) {
+    pub fn encrypt(&mut self, mut data: &mut [u8]) -> Result<(),Box<dyn Error>> {
 
         if BITSIZE < 1 || BITSIZE > 128 {
-            panic!("BITSIZE {} < 1 || > 128",BITSIZE );
+            ssllib_new_error!{CfbModeError,"BITSIZE {} < 1 || > 128",BITSIZE };
         }
 
         if ((data.len() * 8) % BITSIZE as usize) != 0 {
-            panic!("{} % {} != 0",data.len() * 8,BITSIZE);
+            ssllib_new_error!{CfbModeError,"{} % {} != 0",data.len() * 8,BITSIZE};
         }
         let mut iv = self.iv.clone();
 
         ssllib_buffer_trace!(iv.as_ptr(),iv.len(),"iv");
         self._encrypt_bits_shift(&mut data,&mut iv,BITSIZE as usize);
         self.iv = iv.clone();
-        return;
+        return Ok(());
     }
 
     /// Returns the current state (block and position) of the decryptor.
@@ -325,21 +329,21 @@ where
     }
 
     /// Decrypt a buffer in multiple parts.
-    pub fn decrypt(&mut self, mut data: &mut [u8]) {
+    pub fn decrypt(&mut self, mut data: &mut [u8]) -> Result<(),Box<dyn Error>> {
 
         if BITSIZE < 1 || BITSIZE > 128 {
-            panic!("BITSIZE {} < 1 || > 128",BITSIZE );
+            ssllib_new_error!(CfbModeError,"BITSIZE {} < 1 || > 128",BITSIZE );
         }
 
         if ((data.len() * 8) % BITSIZE as usize) != 0 {
-            panic!("{} % {} != 0",data.len() * 8,BITSIZE);
+            ssllib_new_error!(CfbModeError,"{} % {} != 0",data.len() * 8,BITSIZE);
         }
         let mut iv = self.iv.clone();
 
         ssllib_buffer_trace!(iv.as_ptr(),iv.len(),"iv");
         self._decrypt_bits_shift(&mut data,&mut iv,BITSIZE as usize);
         self.iv = iv.clone();
-        return;
+        return Ok(());
     }
 
     /// Returns the current state (block and position) of the decryptor.

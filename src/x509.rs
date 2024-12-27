@@ -404,7 +404,7 @@ impl Asn1Pbe2ParamElem {
 			let ivkey = randc.get_bytes(16 as usize)?;
 			let aeskey = rcfg.get_u8_array(KEY_JSON_KEY)?;
 			ssllib_log_trace!(" ");
-			let mut aes256cfb :Aes256CfbAlgo = Aes256CfbAlgo::new(&ivkey,&aeskey)?;
+			let mut aes256cfb :Aes256CfbAlgo = Aes256CfbAlgo::new()?;
 			let _ = aes256cfb.init_encrypt(&aeskey,&ivkey)?;
 			let mut anyv :Asn1Any = Asn1Any::init_asn1();
 			anyv.content = ivkey.clone();
@@ -474,7 +474,7 @@ impl Asn1Pbe2ParamElem {
 				let anyv :&Asn1Any = params.as_ref().unwrap();
 				let ivkey = anyv.content.clone();
 				let aeskey = ncfg.get_u8_array(KEY_JSON_KEY)?;
-				let mut aescfbenc = Aes256CfbAlgo::new(&ivkey,&aeskey)?;
+				let mut aescfbenc = Aes256CfbAlgo::new()?;
 				let _ = aescfbenc.init_decrypt(&aeskey,&ivkey)?;
 				return Ok(Box::new(aescfbenc));
 			} else {
