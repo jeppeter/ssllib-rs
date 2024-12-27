@@ -75,6 +75,13 @@ pub const OID_SECT571R1 :&str = "1.3.132.0.39";
 pub const ENC_AES_128_CBC :&str = "aes-128-cbc";
 pub const ENC_AES_192_CBC :&str = "aes-192-cbc";
 pub const ENC_AES_256_CBC :&str = "aes-256-cbc";
+
+pub const ENC_AES_128_CFB :&str = "aes-128-cfb";
+pub const ENC_AES_128_CFB1 :&str = "aes-128-cfb1";
+pub const ENC_AES_128_CFB8 :&str = "aes-128-cfb8";
+pub const ENC_AES_192_CFB :&str = "aes-192-cfb";
+pub const ENC_AES_192_CFB1 :&str = "aes-192-cfb1";
+pub const ENC_AES_192_CFB8 :&str = "aes-192-cfb8";
 pub const ENC_AES_256_CFB :&str = "aes-256-cfb";
 pub const ENC_AES_256_CFB1 :&str = "aes-256-cfb1";
 pub const ENC_AES_256_CFB8 :&str = "aes-256-cfb8";
