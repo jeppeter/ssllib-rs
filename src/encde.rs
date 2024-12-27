@@ -2,6 +2,7 @@
 use crate::impls::*;
 use crate::*;
 use crate::consts::*;
+use crate::cfbmode::*;
 
 
 extern crate crypto;
@@ -10,11 +11,11 @@ use crypto::buffer::{ReadBuffer,WriteBuffer};
 //use crypto;
 use aes;
 use aes::cipher::KeyIvInit;
-use aes::cipher::AsyncStreamCipher;
+//use aes::cipher::AsyncStreamCipher;
 //use aes::cipher::BlockEncryptMut;
 //use aes::cipher::BlockDecryptMut;
 //use cbc;
-use cfb_mode;
+//use cfb_mode;
 
 use std::error::Error;
 // use lazy_static::lazy_static;
@@ -470,8 +471,8 @@ impl Aes256CfbAlgo {
     }
 }
 
-pub type Aes256CfbEnc = cfb_mode::Encryptor<aes::Aes256>;
-pub type Aes256CfbDec = cfb_mode::Decryptor<aes::Aes256>;
+pub type Aes256CfbEnc = CfbBitsBufEncryptor<aes::Aes256,128>;
+pub type Aes256CfbDec = CfbBitsBufDecryptor<aes::Aes256,128>;
 
 
 impl Asn1EncryptOp for Aes256CfbAlgo {

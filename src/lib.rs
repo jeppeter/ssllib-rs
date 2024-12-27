@@ -4,6 +4,7 @@ mod errors;
 mod logger;
 pub mod impls;
 mod fileop;
+mod cfbmode;
 pub mod randop;
 pub mod config;
 #[cfg(test)]
