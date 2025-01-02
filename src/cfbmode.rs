@@ -148,8 +148,8 @@ where
     #[allow(unreachable_code)]
     pub fn encrypt(&mut self, mut data: &mut [u8]) -> Result<(),Box<dyn Error>> {
 
-        if BITSIZE < 1 || BITSIZE > 128 {
-            ssllib_new_error!{CfbModeError,"BITSIZE {} < 1 || > 128",BITSIZE };
+        if BITSIZE < 1 || BITSIZE as usize > (C::block_size() * 8) {
+            ssllib_new_error!{CfbModeError,"BITSIZE {} < 1 || > {}",BITSIZE ,C::block_size()*8};
         }
 
         if ((data.len() * 8) % BITSIZE as usize) != 0 {
@@ -331,8 +331,8 @@ where
     /// Decrypt a buffer in multiple parts.
     pub fn decrypt(&mut self, mut data: &mut [u8]) -> Result<(),Box<dyn Error>> {
 
-        if BITSIZE < 1 || BITSIZE > 128 {
-            ssllib_new_error!(CfbModeError,"BITSIZE {} < 1 || > 128",BITSIZE );
+        if BITSIZE < 1 || BITSIZE as usize > (C::block_size() * 8) {
+            ssllib_new_error!(CfbModeError,"BITSIZE {} < 1 || > {}",BITSIZE, C::block_size() * 8);
         }
 
         if ((data.len() * 8) % BITSIZE as usize) != 0 {
