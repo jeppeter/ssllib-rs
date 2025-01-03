@@ -43,9 +43,9 @@ fn pkcs7dec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImp
 	for f in sarr.iter() {
 		let code = read_file_into_der(f)?;
 		let mut pkcs7 :Asn1Pkcs7 = Asn1Pkcs7::init_asn1();
-		let _ = pkcs7.decode_asn1(&code)?;
+		let size = pkcs7.decode_asn1(&code)?;
 		let mut outf = std::io::stdout();
-		let cstr = format!("Asn1Pkcs7 in {}",f);
+		let cstr = format!("Asn1Pkcs7 in {} size {}[0x{:x}]\n",f,size,size);
 		pkcs7.print_asn1(&cstr,0,&mut outf)?;
 	}
 

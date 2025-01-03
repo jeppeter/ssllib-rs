@@ -36,7 +36,7 @@ use asn1obj::base::*;
 extargs_error_class!{Asn1ParseError}
 
 
-fn asn1_parse_out<T : std::io::Write>(code :&[u8],outf :&mut T,tabs :i32,offseti :usize) -> Result<(),Box<dyn Error>> {
+fn asn1_parse_out<T : std::io::Write>(code :&[u8],outf :&mut T,tabs :i32,offseti :usize,flushed :bool) -> Result<(),Box<dyn Error>> {
 	let mut curv :usize = 0;
 	let capv :usize = code.len();
 
@@ -45,7 +45,8 @@ fn asn1_parse_out<T : std::io::Write>(code :&[u8],outf :&mut T,tabs :i32,offseti
 		let ores = oany.decode_asn1(&(code[curv..capv]));
 
 		if ores.is_err() {
-			extargs_new_error!{Asn1ParseError,"parse at [0x{:x}] offset error", curv + offseti}
+			debug_buffer_trace!(code[curv..capv].as_ptr(),capv - curv, "error buffer");
+			extargs_new_error!{Asn1ParseError,"parse at [0x{:x}] offset size [0x{:x}] error ", curv + offseti,capv - curv}
 		}
 		let stepv = ores.unwrap();
 		let btag = oany.tag as u8;
@@ -54,86 +55,122 @@ fn asn1_parse_out<T : std::io::Write>(code :&[u8],outf :&mut T,tabs :i32,offseti
 			let mut basn1 :Asn1Boolean = Asn1Boolean::init_asn1();
 			let _ = basn1.decode_asn1(&incode)?;
 			if basn1.val {
-				write_tab_line!(outf,tabs,"[0x{:x}]: Asn1Boolean True", curv + offseti);
+				write_tab_line!(flushed,outf,tabs,"[0x{:x}]: Asn1Boolean True", curv + offseti);
 			} else {
-				write_tab_line!(outf,tabs,"[0x{:x}]: Asn1Boolean False", curv + offseti);
+				write_tab_line!(flushed,outf,tabs,"[0x{:x}]: Asn1Boolean False", curv + offseti);
 			}
 
 		} else if btag == ASN1_INTEGER_FLAG {
 			let mut iasn1 :Asn1BigNum = Asn1BigNum::init_asn1();
 			let _ = iasn1.decode_asn1(&incode)?;
 			let bn :Vec<u8> = iasn1.val.to_bytes_be();
-			write_tab_buffer!(outf,tabs,bn.as_ptr(),bn.len(),"[0x{:x}] Asn1BigNum value", curv + offseti);
+			write_tab_buffer!(flushed,outf,tabs,bn.as_ptr(),bn.len(),"[0x{:x}] Asn1BigNum value", curv + offseti);
 		} else if btag == ASN1_BIT_STRING_FLAG {
 			let mut bitasn1 :Asn1BitData = Asn1BitData::init_asn1();
 			let ores = bitasn1.decode_asn1(&incode);
 			if ores.is_err() {
 				let mut bitflag :Asn1BitDataFlag = Asn1BitDataFlag::init_asn1();
 				let _ = bitflag.decode_asn1(&incode)?;
-				write_tab_buffer!(outf,tabs,bitflag.data.as_ptr(),bitflag.data.len(),"[0x{:x}] Asn1BitDataFlag value flag 0x{:02x}",curv + offseti,(bitflag.flag & 0xff) as u8);
+				write_tab_buffer!(flushed,outf,tabs,bitflag.data.as_ptr(),bitflag.data.len(),"[0x{:x}] Asn1BitDataFlag value flag 0x{:02x}",curv + offseti,(bitflag.flag & 0xff) as u8);
 			} else {
-				write_tab_buffer!(outf,tabs,bitasn1.data.as_ptr(),bitasn1.data.len(),"[0x{:x}] Asn1BitData value",curv + offseti);	
+				write_tab_buffer!(flushed,outf,tabs,bitasn1.data.as_ptr(),bitasn1.data.len(),"[0x{:x}] Asn1BitData value",curv + offseti);	
 			}			
 		} else if btag == ASN1_OCT_STRING_FLAG {
 			let mut octasn1 :Asn1OctData = Asn1OctData::init_asn1();
 			let _ = octasn1.decode_asn1(&incode)?;
-			write_tab_buffer!(outf,tabs,octasn1.data.as_ptr(),octasn1.data.len(),"[0x{:x}] Asn1OctData value",curv + offseti);
+			write_tab_buffer!(flushed,outf,tabs,octasn1.data.as_ptr(),octasn1.data.len(),"[0x{:x}] Asn1OctData value",curv + offseti);
 		} else if btag == ASN1_NULL_FLAG {
-			write_tab_line!(outf,tabs,"[0x{:x}] Asn1Null",curv + offseti);
+			write_tab_line!(flushed,outf,tabs,"[0x{:x}] Asn1Null",curv + offseti);
 		} else if btag == ASN1_OBJECT_FLAG {
 			let mut objasn1 :Asn1Object = Asn1Object::init_asn1();
 			let _ = objasn1.decode_asn1(&incode)?;
-			write_tab_line!(outf,tabs,"[0x{:x}] Asn1Object [{}]", curv+ offseti,objasn1.get_value());
+			write_tab_line!(flushed,outf,tabs,"[0x{:x}] Asn1Object [{}]", curv+ offseti,objasn1.get_value());
 		} else if btag == ASN1_ENUMERATED_FLAG {
 			let mut enumasn1 :Asn1Enumerated = Asn1Enumerated::init_asn1();
 			let _ = enumasn1.decode_asn1(&incode)?;
-			write_tab_line!(outf,tabs ,"[0x{:x}] Asn1Enumerated [{}:0x{:x}]", curv + offseti,enumasn1.val,enumasn1.val);
+			write_tab_line!(flushed,outf,tabs ,"[0x{:x}] Asn1Enumerated [{}:0x{:x}]", curv + offseti,enumasn1.val,enumasn1.val);
 		} else if btag == ASN1_UTF8STRING_FLAG {
 			let mut prntasn1 :Asn1PrintableString = Asn1PrintableString::init_asn1();
 			let _ = prntasn1.decode_asn1(&incode)?;
-			write_tab_line!(outf,tabs,"[0x{:x}] Utf8String [{}]", curv + offseti, prntasn1.val);
+			write_tab_line!(flushed,outf,tabs,"[0x{:x}] Utf8String [{}]", curv + offseti, prntasn1.val);
 		} else if btag == ASN1_PRINTABLE_FLAG {
 			let mut prntasn1 :Asn1PrintableString = Asn1PrintableString::init_asn1();
 			let _ = prntasn1.decode_asn1(&incode)?;
-			write_tab_line!(outf,tabs,"[0x{:x}] PrintableString [{}]", curv + offseti, prntasn1.val);
+			write_tab_line!(flushed,outf,tabs,"[0x{:x}] PrintableString [{}]", curv + offseti, prntasn1.val);
 		} else if btag == ASN1_T61STRING_FLAG {
 			let mut prntasn1 :Asn1PrintableString = Asn1PrintableString::init_asn1();
 			let _ = prntasn1.decode_asn1(&incode)?;
-			write_tab_line!(outf,tabs,"[0x{:x}] T61String [{}]", curv + offseti, prntasn1.val);
+			write_tab_line!(flushed,outf,tabs,"[0x{:x}] T61String [{}]", curv + offseti, prntasn1.val);
 		} else if btag == ASN1_PRINTABLE2_FLAG {
 			let mut prntasn1 :Asn1IA5String = Asn1IA5String::init_asn1();
 			let _ = prntasn1.decode_asn1(&incode)?;
-			write_tab_line!(outf,tabs,"[0x{:x}] Printable2String [{}]", curv + offseti, prntasn1.val);
+			write_tab_line!(flushed,outf,tabs,"[0x{:x}] Printable2String [{}]", curv + offseti, prntasn1.val);
 		} else if btag == ASN1_UTCTIME_FLAG {
 			let mut utcasn1 :Asn1Time = Asn1Time::init_asn1();
 			let _ = utcasn1.decode_asn1(&incode)?;
-			write_tab_line!(outf,tabs,"[0x{:x}] UtcTime [{}]", curv + offseti, utcasn1.get_value_str());
+			write_tab_line!(flushed,outf,tabs,"[0x{:x}] UtcTime [{}]", curv + offseti, utcasn1.get_value_str());
 		} else if btag == ASN1_GENERALTIME_FLAG {
 			let mut utcasn1 :Asn1Time = Asn1Time::init_asn1();
 			let _ = utcasn1.decode_asn1(&incode)?;
-			write_tab_line!(outf,tabs,"[0x{:x}] GeneralTime [{}]", curv + offseti, utcasn1.get_value_str());
+			write_tab_line!(flushed,outf,tabs,"[0x{:x}] GeneralTime [{}]", curv + offseti, utcasn1.get_value_str());
 		} else if btag == ASN1_SEQ_MASK {
 			let mut boffset : usize = curv + offseti;
 			boffset += incode.len() - oany.content.len();
-			write_tab_line!(outf,tabs,"[0x{:x}] Sequence size [{}:0x{:x}]", curv + offseti,incode.len(),incode.len());
-			let _ = asn1_parse_out(&(oany.content),outf,tabs + 1, boffset)?;
+			
+			let ores = asn1_parse_out(&(oany.content),outf,tabs + 1, boffset,false);
+			if ores.is_ok() {
+				write_tab_line!(flushed,outf,tabs,"[0x{:x}] Sequence size [{}:0x{:x}]", curv + offseti,incode.len(),incode.len());
+				let _ = asn1_parse_out(&(oany.content),outf,tabs + 1, boffset,flushed);
+			} else {
+				if flushed {
+					let cstr = format!("[0x{:x}] Sequence size [{}:0x{:x}]", curv + offseti,incode.len(),incode.len());
+					let _ = oany.print_asn1(&cstr,tabs,outf)?;
+				}	
+			}
 		} else if btag == ASN1_SET_MASK {
 			let mut boffset : usize = curv + offseti;
 			boffset += incode.len() - oany.content.len();
-			write_tab_line!(outf,tabs,"[0x{:x}] Set size [{}:0x{:x}]", curv + offseti,incode.len(),incode.len());
-			let _ = asn1_parse_out(&(oany.content),outf,tabs + 1, boffset)?;
+			
+			let ores = asn1_parse_out(&(oany.content),outf,tabs + 1, boffset,false);
+			if ores.is_ok() {
+				write_tab_line!(flushed,outf,tabs,"[0x{:x}] Set size [{}:0x{:x}]", curv + offseti,incode.len(),incode.len());
+				let _ = asn1_parse_out(&(oany.content),outf,tabs + 1, boffset,flushed)?;
+			} else {
+				if flushed {
+					let cstr = format!("[0x{:x}] Set size [{}:0x{:x}]", curv + offseti,incode.len(),incode.len());
+					oany.print_asn1(&cstr,tabs,outf)?;	
+				}				
+			}
 		} else if (btag & ASN1_IMP_SET_MASK) == ASN1_IMP_SET_MASK {
 			let ctag = (oany.tag as u8 ) & ASN1_PRIMITIVE_TAG ;
 			let mut boffset : usize = curv + offseti;
 			boffset += incode.len() - oany.content.len();
-			write_tab_line!(outf,tabs,"[0x{:x}] ImpSet tag [{}:0x{:x}] size [{}:0x{:x}]", curv + offseti, ctag,ctag,incode.len(),incode.len());
-			let _ = asn1_parse_out(&(oany.content),outf,tabs + 1, boffset)?;
+			
+			let ores = asn1_parse_out(&(oany.content),outf,tabs + 1, boffset,false);
+			if ores.is_ok() {
+				write_tab_line!(flushed,outf,tabs,"[0x{:x}] ImpSet tag [{}:0x{:x}] size [{}:0x{:x}]", curv + offseti, ctag,ctag,incode.len(),incode.len());
+				let _ = asn1_parse_out(&(oany.content),outf,tabs + 1, boffset,flushed)?;
+			} else {
+				if flushed {
+					let cstr = format!("[0x{:x}] ImpSet tag [{}:0x{:x}] size [{}:0x{:x}]", curv + offseti, ctag,ctag,incode.len(),incode.len());
+					oany.print_asn1(&cstr,tabs,outf)?;	
+				}
+			}
 		} else if (btag & ASN1_IMP_FLAG_MASK) == ASN1_IMP_FLAG_MASK {
 			let ctag = (oany.tag as u8 ) & ASN1_PRIMITIVE_TAG ;
 			let mut boffset : usize = curv + offseti;
 			boffset += incode.len() - oany.content.len();
-			write_tab_line!(outf,tabs,"[0x{:x}] Imp tag [{}:0x{:x}] size [{}:0x{:x}]", curv + offseti, ctag,ctag,incode.len(),incode.len());
-			let _ = asn1_parse_out(&(oany.content),outf,tabs + 1, boffset)?;
+			
+			let ores = asn1_parse_out(&(oany.content),outf,tabs + 1, boffset,false);
+			if ores.is_ok() {
+				write_tab_line!(flushed,outf,tabs,"[0x{:x}] Imp tag [{}:0x{:x}] size [{}:0x{:x}]", curv + offseti, ctag,ctag,incode.len(),incode.len());
+				let _ = asn1_parse_out(&(oany.content),outf,tabs + 1, boffset,flushed)?;
+			} else {
+				if flushed {
+					let cstr = format!("[0x{:x}] Imp tag [{}:0x{:x}] size [{}:0x{:x}]", curv + offseti, ctag,ctag,incode.len(),incode.len());
+					oany.print_asn1(&cstr,tabs,outf)?;
+				}
+			}
 		} else {
 			extargs_new_error!{Asn1ParseError,"parse at [0x{:x}] offset", curv + offseti}
 		}
@@ -150,7 +187,7 @@ fn asn1parse_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	sarr = ns.get_array("subnargs");
 	for f in sarr.iter() {
 		let code = read_file_into_der(f)?;
-		let _ = asn1_parse_out(&code, &mut sout,0,0)?;
+		let _ = asn1_parse_out(&code, &mut sout,0,0,true)?;
 	}
 
 	Ok(())
