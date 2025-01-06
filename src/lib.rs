@@ -16,3 +16,4 @@ pub mod x509;
 pub mod ec;
 pub mod pkcs7;
 pub mod pkcs8;
+pub mod pkcs12;
