@@ -446,17 +446,43 @@ pub fn get_decryptor(name :&str) -> Option<Arc<RefCell<dyn Asn1DecryptOp>>> {
 }
 
 lazy_static!{
-    static ref OID_MAP_NAMES : HashMap<String,String> = {
+    static ref ENCDE_OID_MAP_NAMES : HashMap<String,String> = {
         let mut retv :HashMap<String,String> = HashMap::new();
+        retv.insert(OID_AES_128_CBC.to_string(),ENC_AES_128_CBC.to_string());
+        retv.insert(OID_AES_192_CBC.to_string(),ENC_AES_192_CBC.to_string());
         retv.insert(OID_AES_256_CBC.to_string(),ENC_AES_256_CBC.to_string());
+
+        retv.insert(OID_AES_128_CFB.to_string(),ENC_AES_128_CFB.to_string());
+        retv.insert(OID_AES_192_CFB.to_string(),ENC_AES_192_CFB.to_string());
+        retv.insert(OID_AES_256_CFB.to_string(),ENC_AES_256_CFB.to_string());
+
+        retv
+    };
+
+    static ref ENCDE_NAMES_MAP_OID : HashMap<String,String> = {
+        let mut retv :HashMap<String,String> = HashMap::new();
+        for (k,v) in ENCDE_OID_MAP_NAMES.iter() {
+            retv.insert(v.to_string(),k.to_string());
+        }
         retv
     };
 }
 
 pub fn get_decryptor_by_oid(oid :&str) -> Option<Arc<RefCell<dyn Asn1DecryptOp>>> {
-    match OID_MAP_NAMES.get(oid) {
+    match ENCDE_OID_MAP_NAMES.get(oid) {
         Some(v) => {
             return get_decryptor(&v);
+        },
+        _ => {
+            return None;
+        }
+    }
+}
+
+pub fn get_encryptor_by_oid(oid :&str) -> Option<Arc<RefCell<dyn Asn1EncryptOp>>> {
+    match ENCDE_OID_MAP_NAMES.get(oid) {
+        Some(v) => {
+            return get_encryptor(&v);
         },
         _ => {
             return None;

@@ -112,11 +112,6 @@ pub fn get_algor_pbkdf2_private_data(x509algorbytes :&[u8],encdata :&[u8],passin
             let mut decdata :Vec<u8> = decrypt.borrow_mut().decrypt_update(encdata)?;
             decdata.extend(decrypt.borrow_mut().decrypt_final()?);
             return Ok(decdata);
-            // if types  == OID_AES_256_CBC {
-            // 	let decdata :Vec<u8> = aes256_cbc_decrypt(encdata,&aeskey,&ivkey)?;
-            // 	return Ok(decdata);
-            // }
-            // extargs_new_error!{UtestPkcs12Error,"not support OID_PBKDF2 types [{}]", types}
         }
         extargs_new_error!{UtestPkcs12Error,"not support OID_PBES2 types [{}]",pbe2types}
     }
