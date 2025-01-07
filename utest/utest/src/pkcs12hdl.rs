@@ -123,9 +123,12 @@ pub fn get_hmac_sha256_key(passv8 :&[u8], saltv8 :&[u8], itertimes : usize) -> V
 
 pub fn aes256_cbc_decrypt(encrypted_data: &[u8], key: &[u8], iv: &[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
 	let mut decryptor = Aes256CbcAlgo::new()?;
+	let mut retdata :Vec<u8> = vec![];
 	decryptor.init_decrypt(key,iv)?;
-	decryptor.decrypt_update(encrypted_data)?;
-	return decryptor.decrypt_final();
+	retdata.extend(decryptor.decrypt_update(encrypted_data)?);
+	let ndata = decryptor.decrypt_final()?;
+	retdata.extend(ndata);
+	return Ok(retdata);
     // let mut decryptor = crypto::aes::cbc_decryptor(
     //     crypto::aes::KeySize::KeySize256,
     //     key,
@@ -166,7 +169,7 @@ pub fn get_algor_pbkdf2_private_data(x509algorbytes :&[u8],encdata :&[u8],passin
 		let _ = pbe2.decode_asn1(&decdata)?;
 		let pbe2types = pbe2.keyfunc.elem.val[0].algorithm.get_value();
 		if pbe2types == OID_PBKDF2 {
-            //debug_trace!("debug {}", OID_PBKDF2);
+            debug_trace!("debug {}", OID_PBKDF2);
             let params :&Asn1Any = pbe2.keyfunc.elem.val[0].parameters.val.as_ref().unwrap();
             let decdata :Vec<u8> = params.content.clone();
             let mut pbkdf2 :Asn1Pbkdf2ParamElem = Asn1Pbkdf2ParamElem::init_asn1();
@@ -258,6 +261,7 @@ pub fn get_ec_private_key(x509sigbytes :&[u8],passin :&[u8]) -> Result<ECPrivate
 
 
 fn decode_pkcs12_code(code :&[u8],passin :&[u8]) -> Result<(),Box<dyn Error>> {
+	debug_buffer_trace!(code.as_ptr(),code.len(),"code value");
     let mut safes :Asn1AuthSafes = Asn1AuthSafes::init_asn1();
     let rlen = safes.decode_asn1(code)?;
     let mut f = std::io::stderr();
@@ -273,9 +277,13 @@ fn decode_pkcs12_code(code :&[u8],passin :&[u8]) -> Result<(),Box<dyn Error>> {
             let pk7encdata :&Asn1Pkcs7Encrypt = safes.safes.val[idx].elem.val[0].encryptdata.val.as_ref().unwrap();
             let encdata = pk7encdata.elem.val[0].enc_data.elem.val[0].enc_data.val.data.clone();
             let algordata = pk7encdata.elem.val[0].enc_data.elem.val[0].algorithm.encode_asn1()?;
+            debug_trace!(" ");
             let decdata = get_algor_pbkdf2_private_data(&algordata,&encdata,passin)?;
+            debug_buffer_trace!(decdata.as_ptr(),decdata.len(),"decdata");
             let mut octdata :Asn1Seq<Asn1Pkcs12SafeBag> = Asn1Seq::init_asn1();
+            debug_trace!(" ");
             let _ = octdata.decode_asn1(&decdata)?;
+            debug_trace!(" ");
             let _ = octdata.print_asn1("safebag encdata", 0, &mut f)?;
             let mut certidx :usize = 0;
             debug_trace!(" ");
