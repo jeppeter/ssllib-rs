@@ -16,6 +16,12 @@ use crate::{ssllib_new_error,ssllib_error_class};
 
 use crate::x509::*;
 use crate::pkcs7::*;
+use crate::kdfutils::{get_pkcs12kdf_sha256};
+use crate::digest::{calc_hmac_sha256};
+use crate::utils::{check_equal_u8,expand_uni};
+use crate::consts::{OID_SHA256_DIGEST,PKCS12_MAC_ID,SHA256_DIGEST_SIZE};
+
+ssllib_error_class!{SslPkcs12Error}
 
 #[asn1_sequence()]
 #[derive(Clone)]
@@ -43,6 +49,58 @@ pub struct Asn1Pkcs12Elem {
 #[derive(Clone)]
 pub struct Asn1Pkcs12 {
 	pub elem : Asn1Seq<Asn1Pkcs12Elem>,
+}
+
+impl Asn1Pkcs12 {
+	#[allow(unused_comparisons)]
+	pub fn verify_digest(&self,passwd:&str) -> Result<bool,Box<dyn Error>> {
+		let mut retval :bool = false;
+		if self.elem.val.len() < 1 {
+			ssllib_new_error!{SslPkcs12Error,"elem {} < 1",self.elem.val.len()}
+		}
+		if self.elem.val[0].mac.val.is_none() {
+			ssllib_new_error!{SslPkcs12Error,"mac none"}
+		}
+		let macdata :&Asn1Pkcs12MacData = self.elem.val[0].mac.val.as_ref().unwrap();
+		if macdata.elem.val.len() < 1 {
+			ssllib_new_error!{SslPkcs12Error,"macdata elem {} <１",macdata.elem.val.len()}
+		}
+		let dinfo :Asn1X509Sig = macdata.elem.val[0].dinfo.clone();
+		if dinfo.elem.val.len() < 1 {
+			ssllib_new_error!{SslPkcs12Error,"dinfo elem {} < 1", dinfo.elem.val.len()}
+		}
+		if dinfo.elem.val[0].algor.elem.val.len() < 0 {
+			ssllib_new_error!{SslPkcs12Error,"dinfo.algor elem {} < 1", dinfo.elem.val[0].algor.elem.val.len()}	
+		}
+		if dinfo.elem.val[0].algor.elem.val[0].algorithm.get_value() == OID_SHA256_DIGEST {
+			let digest :Vec<u8> = dinfo.elem.val[0].digest.data.clone();
+			let salt :Vec<u8> = macdata.elem.val[0].salt.data.clone();
+			let iternum = macdata.elem.val[0].iternum.val;
+			let hmac = get_pkcs12kdf_sha256(passwd.as_bytes(),&salt,PKCS12_MAC_ID,iternum as usize,SHA256_DIGEST_SIZE);
+			if self.elem.val[0].authsafes.elem.val.len() < 0 {
+				ssllib_new_error!{SslPkcs12Error,"authsafes {} < 0",self.elem.val[0].authsafes.elem.val.len()}
+			}
+			if self.elem.val[0].authsafes.elem.val[0].data.val.is_none() {
+				ssllib_new_error!{SslPkcs12Error,"authsafes.data none"}	
+			}
+			let chkd :&Asn1OctData = self.elem.val[0].authsafes.elem.val[0].data.val.as_ref().unwrap();
+			let chkdata = chkd.data.clone();
+			let calcdigest = calc_hmac_sha256(&hmac,&chkdata);
+			if !check_equal_u8(&calcdigest,&digest) {
+				let unipass = expand_uni(passwd.as_bytes());
+				let hmac = get_pkcs12kdf_sha256(&unipass,&salt,PKCS12_MAC_ID,iternum as usize,SHA256_DIGEST_SIZE);
+				let calcdigest = calc_hmac_sha256(&hmac,&chkdata);
+				if check_equal_u8(&calcdigest,&digest) {
+					retval = true;
+				}
+			} else {
+				retval = true;
+			}
+		} else {
+			ssllib_new_error!{SslPkcs12Error,"algorithm {} not supported", dinfo.elem.val[0].algor.elem.val[0].algorithm.get_value()}
+		}
+		Ok(retval)
+	}
 }
 
 #[asn1_obj_selector(selector=val,any=default,x509cert="1.2.840.113549.1.9.22.1")]

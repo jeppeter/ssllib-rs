@@ -106,3 +106,11 @@ impl Asn1DigestOp for HmacSha256Digest {
 		return Ok(p);
 	}
 }
+
+pub fn calc_hmac_sha256(initkey :&[u8],data :&[u8]) -> Vec<u8> {
+	let mut hmac = HmacSha256::new_from_slice(initkey).unwrap();
+	hmac.update(data);
+	let res = hmac.finalize();
+	return res.into_bytes().to_vec();
+}
+

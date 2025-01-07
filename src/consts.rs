@@ -85,3 +85,7 @@ pub const ENC_AES_192_CFB8 :&str = "aes-192-cfb8";
 pub const ENC_AES_256_CFB :&str = "aes-256-cfb";
 pub const ENC_AES_256_CFB1 :&str = "aes-256-cfb1";
 pub const ENC_AES_256_CFB8 :&str = "aes-256-cfb8";
+
+pub const PKCS12_MAC_ID :u8 = 3;
+pub const SHA256_BLOCK_SIZE :usize = 64;
+pub const SHA256_DIGEST_SIZE :usize = 32;

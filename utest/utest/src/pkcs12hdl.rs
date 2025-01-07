@@ -52,12 +52,37 @@ fn pkcs12dec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	Ok(())
 }
 
+fn pkcs12vfy_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
+	let sarr :Vec<String>;
+	let passin :String = ns.get_string("passin");
 
-#[extargs_map_function(pkcs12dec_handler)]
+	init_log(ns.clone())?;
+
+	sarr = ns.get_array("subnargs");
+	for f in sarr.iter() {
+		let code = read_file_into_der(f)?;
+		let mut pkcs12 :Asn1Pkcs12 = Asn1Pkcs12::init_asn1();
+		let _ = pkcs12.decode_asn1(&code)?;
+		let retval = pkcs12.verify_digest(&passin)?;
+		if retval {
+			println!("{} verify Ok", f);
+		} else {
+			println!("{} verify not Ok", f);
+		}
+	}
+
+	Ok(())
+}
+
+
+#[extargs_map_function(pkcs12dec_handler,pkcs12vfy_handler)]
 pub fn load_pkcs12_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
-		"pkcs12dec<pkcs12dec_handler>##file ... ##" : {
+		"pkcs12dec<pkcs12dec_handler>##file ... to diplay value of pkcs12##" : {
+			"$" : "+"
+		},
+		"pkcs12vfy<pkcs12vfy_handler>##file ... to verify pkcs12##" : {
 			"$" : "+"
 		}
 	}

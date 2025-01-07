@@ -3,8 +3,10 @@ pub mod consts;
 mod errors;
 mod logger;
 pub mod impls;
+pub (crate) mod utils;
 mod fileop;
 mod cfbmode;
+mod kdfutils;
 pub mod randop;
 pub mod config;
 #[cfg(test)]
