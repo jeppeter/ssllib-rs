@@ -69,55 +69,6 @@ pub fn get_hmac_sha256_key(passv8 :&[u8], saltv8 :&[u8], itertimes : usize) -> V
 	let mut omac = HmacSha256Digest::new(itertimes as u32,passv8).unwrap();
 	omac.digest_update(saltv8).unwrap();
 	return omac.digest_final().unwrap();
-	
-	// let omac = HmacSha256::new_from_slice(&passv8).unwrap();
-	// let mut nmac ;
-	// let mut tkeylen : usize = 32;
-	// let cplen :usize = 32;
-	// let mut i :usize = 1;
-	// let mut p :Vec<u8> = Vec::new();
-	// let mut plen :usize = 0;
-
-	// while tkeylen > 0 {
-	// 	let mut itmp :Vec<u8> = Vec::new();
-	// 	let mut curv :u8;
-	// 	nmac = omac.clone();
-	// 	curv = ((i >> 24) & 0xff) as u8;
-	// 	itmp.push(curv);
-	// 	curv = ((i >> 16) & 0xff) as u8;
-	// 	itmp.push(curv);
-	// 	curv = ((i >> 8) & 0xff) as u8;
-	// 	itmp.push(curv);
-	// 	curv = ((i >> 0) & 0xff) as u8;
-	// 	itmp.push(curv);
-	// 	nmac.update(&saltv8);
-	// 	nmac.update(&itmp);
-	// 	let mut resdigtmp = nmac.finalize();
-	// 	let mut digtmp = resdigtmp.into_bytes();
-	// 	for i in 0..digtmp.len() {
-	// 		if (p.len()-plen) <= i {
-	// 			p.push(digtmp[i]);
-	// 		} else {
-	// 			p[i+plen] = digtmp[i];
-	// 		}
-	// 	}
-
-
-	// 	for _ in 1..itertimes {
-	// 		nmac = omac.clone();
-	// 		nmac.update(&digtmp);
-	// 		resdigtmp = nmac.finalize();
-	// 		digtmp = resdigtmp.into_bytes();
-	// 		for k in 0..cplen {
-	// 			p[k+plen] ^= digtmp[k];
-	// 		}
-	// 	}
-
-	// 	tkeylen -= cplen;
-	// 	i += 1;
-	// 	plen += cplen;
-	// }
-	// return p;   
 }
 
 
@@ -129,32 +80,6 @@ pub fn aes256_cbc_decrypt(encrypted_data: &[u8], key: &[u8], iv: &[u8]) -> Resul
 	let ndata = decryptor.decrypt_final()?;
 	retdata.extend(ndata);
 	return Ok(retdata);
-    // let mut decryptor = crypto::aes::cbc_decryptor(
-    //     crypto::aes::KeySize::KeySize256,
-    //     key,
-    //     iv,
-    //     crypto::blockmodes::PkcsPadding);
-
-    // let mut final_result = Vec::<u8>::new();
-    // let mut read_buffer = crypto::buffer::RefReadBuffer::new(encrypted_data);
-    // let mut buffer = [0; 4096];
-    // let mut write_buffer = crypto::buffer::RefWriteBuffer::new(&mut buffer);
-
-    // loop {
-    //     let ro = decryptor.decrypt(&mut read_buffer, &mut write_buffer, true);
-    //     if ro.is_err() {
-    //         let e = ro.err().unwrap();
-    //         extargs_new_error!{AesLibError,"decrypt error [{:?}]",e}
-    //     }
-    //     let result = ro.unwrap();
-    //     final_result.extend(write_buffer.take_read_buffer().take_remaining().iter().map(|&i| i));
-    //     match result {
-    //         crypto::buffer::BufferResult::BufferUnderflow => break,
-    //         crypto::buffer::BufferResult::BufferOverflow => { }
-    //     }
-    // }
-
-    // Ok(final_result)
 }
 
 
