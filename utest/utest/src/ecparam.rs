@@ -288,12 +288,12 @@ fn ecpkparamsdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgS
 	sarr = ns.get_array("subnargs");
 	for f in sarr.iter() {
 		let code = read_file_bytes(f)?;
-		let mut xname = ECPKPARAMETERS_ELEM::init_asn1();
+		let mut xname = ECPARAMETERSElem::init_asn1();
 		let _ = xname.decode_asn1(&code)?;
 		let mut f = std::io::stderr();
-		xname.print_asn1("ECPKPARAMETERS_ELEM",0,&mut f)?;
+		xname.print_asn1("ECPARAMETERSElem",0,&mut f)?;
 		let vcode = xname.encode_asn1()?;
-		debug_buffer_trace!(vcode.as_ptr(),vcode.len(),"encode ECPKPARAMETERS_ELEM");
+		debug_buffer_trace!(vcode.as_ptr(),vcode.len(),"encode ECPARAMETERSElem");
 	}
 
 	Ok(())
@@ -306,12 +306,12 @@ fn ecprivatekeydec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn Ar
 	sarr = ns.get_array("subnargs");
 	for f in sarr.iter() {
 		let code = read_file_bytes(f)?;
-		let mut xname = EC_PRIVATEKEY::init_asn1();
+		let mut xname = ECPrivateKeyAsn1::init_asn1();
 		let _ = xname.decode_asn1(&code)?;
 		let mut f = std::io::stderr();
-		xname.print_asn1("EC_PRIVATEKEY",0,&mut f)?;
+		xname.print_asn1("ECPrivateKeyAsn1",0,&mut f)?;
 		let vcode = xname.encode_asn1()?;
-		debug_buffer_trace!(vcode.as_ptr(),vcode.len(),"encode EC_PRIVATEKEY");
+		debug_buffer_trace!(vcode.as_ptr(),vcode.len(),"encode ECPrivateKeyAsn1");
 	}
 
 	Ok(())

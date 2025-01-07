@@ -29,6 +29,7 @@ pub const OID_HMAC_WITH_SHA256 :&str = "1.2.840.113549.2.9";
 pub const OID_AES_256_CBC :&str = "2.16.840.1.101.3.4.1.42";
 pub const OID_AES_256_CFB :&str = "2.16.840.1.101.3.4.1.44";
 pub const OID_RSA_ENCRYPTION :&str = "1.2.840.113549.1.1.1";
+pub const OID_EC_PUBLICKEY_ENCRYPTION :&str = "1.2.840.10045.2.1";
 pub const OID_SHA256_WITH_RSA_ENCRYPTION :&str = "1.2.840.113549.1.1.11";
 pub const OID_PKCS8_SHROUDED_KEY_BAG :&str = "1.2.840.113549.1.12.10.1.2";
 pub const OID_PKCS12_CERT_BAG : &str = "1.2.840.113549.1.12.10.1.3";

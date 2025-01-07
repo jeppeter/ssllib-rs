@@ -31,8 +31,21 @@ use std::collections::HashMap;
 
 use super::loglib::*;
 use super::pemlib::*;
-use ssllib::pkcs12::*;
+use super::*;
 use asn1obj::asn1impl::*;
+use asn1obj::complex::*;
+use asn1obj::base::*;
+use ssllib::pkcs12::*;
+use ssllib::pkcs7::*;
+use ssllib::x509::*;
+use ssllib::consts::*;
+use ssllib::digest::*;
+use ssllib::encde::*;
+use ssllib::rsa::*;
+use ssllib::ec::ECPrivateKeyAsn1;
+use ssllib::impls::{Asn1DigestOp,Asn1DecryptOp};
+
+extargs_error_class!{UtestPkcs12Error}
 
 fn pkcs12dec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
 	let sarr :Vec<String>;
@@ -52,6 +65,289 @@ fn pkcs12dec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	Ok(())
 }
 
+pub fn get_hmac_sha256_key(passv8 :&[u8], saltv8 :&[u8], itertimes : usize) -> Vec<u8> {
+	let mut omac = HmacSha256Digest::new(itertimes as u32,passv8).unwrap();
+	omac.digest_update(saltv8).unwrap();
+	return omac.digest_final().unwrap();
+	
+	// let omac = HmacSha256::new_from_slice(&passv8).unwrap();
+	// let mut nmac ;
+	// let mut tkeylen : usize = 32;
+	// let cplen :usize = 32;
+	// let mut i :usize = 1;
+	// let mut p :Vec<u8> = Vec::new();
+	// let mut plen :usize = 0;
+
+	// while tkeylen > 0 {
+	// 	let mut itmp :Vec<u8> = Vec::new();
+	// 	let mut curv :u8;
+	// 	nmac = omac.clone();
+	// 	curv = ((i >> 24) & 0xff) as u8;
+	// 	itmp.push(curv);
+	// 	curv = ((i >> 16) & 0xff) as u8;
+	// 	itmp.push(curv);
+	// 	curv = ((i >> 8) & 0xff) as u8;
+	// 	itmp.push(curv);
+	// 	curv = ((i >> 0) & 0xff) as u8;
+	// 	itmp.push(curv);
+	// 	nmac.update(&saltv8);
+	// 	nmac.update(&itmp);
+	// 	let mut resdigtmp = nmac.finalize();
+	// 	let mut digtmp = resdigtmp.into_bytes();
+	// 	for i in 0..digtmp.len() {
+	// 		if (p.len()-plen) <= i {
+	// 			p.push(digtmp[i]);
+	// 		} else {
+	// 			p[i+plen] = digtmp[i];
+	// 		}
+	// 	}
+
+
+	// 	for _ in 1..itertimes {
+	// 		nmac = omac.clone();
+	// 		nmac.update(&digtmp);
+	// 		resdigtmp = nmac.finalize();
+	// 		digtmp = resdigtmp.into_bytes();
+	// 		for k in 0..cplen {
+	// 			p[k+plen] ^= digtmp[k];
+	// 		}
+	// 	}
+
+	// 	tkeylen -= cplen;
+	// 	i += 1;
+	// 	plen += cplen;
+	// }
+	// return p;   
+}
+
+
+pub fn aes256_cbc_decrypt(encrypted_data: &[u8], key: &[u8], iv: &[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
+	let mut decryptor = Aes256CbcAlgo::new()?;
+	decryptor.init_decrypt(key,iv)?;
+	decryptor.decrypt_update(encrypted_data)?;
+	return decryptor.decrypt_final();
+    // let mut decryptor = crypto::aes::cbc_decryptor(
+    //     crypto::aes::KeySize::KeySize256,
+    //     key,
+    //     iv,
+    //     crypto::blockmodes::PkcsPadding);
+
+    // let mut final_result = Vec::<u8>::new();
+    // let mut read_buffer = crypto::buffer::RefReadBuffer::new(encrypted_data);
+    // let mut buffer = [0; 4096];
+    // let mut write_buffer = crypto::buffer::RefWriteBuffer::new(&mut buffer);
+
+    // loop {
+    //     let ro = decryptor.decrypt(&mut read_buffer, &mut write_buffer, true);
+    //     if ro.is_err() {
+    //         let e = ro.err().unwrap();
+    //         extargs_new_error!{AesLibError,"decrypt error [{:?}]",e}
+    //     }
+    //     let result = ro.unwrap();
+    //     final_result.extend(write_buffer.take_read_buffer().take_remaining().iter().map(|&i| i));
+    //     match result {
+    //         crypto::buffer::BufferResult::BufferUnderflow => break,
+    //         crypto::buffer::BufferResult::BufferOverflow => { }
+    //     }
+    // }
+
+    // Ok(final_result)
+}
+
+
+pub fn get_algor_pbkdf2_private_data(x509algorbytes :&[u8],encdata :&[u8],passin :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
+	let mut algor :Asn1X509Algor = Asn1X509Algor::init_asn1();
+	let _ = algor.decode_asn1(x509algorbytes)?;
+	let types = algor.elem.val[0].algorithm.get_value();
+	if types == OID_PBES2 {
+		let params :&Asn1Any = algor.elem.val[0].parameters.val.as_ref().unwrap();
+		let decdata :Vec<u8> = params.content.clone();
+		let mut pbe2 : Asn1Pbe2ParamElem = Asn1Pbe2ParamElem::init_asn1();
+		let _ = pbe2.decode_asn1(&decdata)?;
+		let pbe2types = pbe2.keyfunc.elem.val[0].algorithm.get_value();
+		if pbe2types == OID_PBKDF2 {
+            //debug_trace!("debug {}", OID_PBKDF2);
+            let params :&Asn1Any = pbe2.keyfunc.elem.val[0].parameters.val.as_ref().unwrap();
+            let decdata :Vec<u8> = params.content.clone();
+            let mut pbkdf2 :Asn1Pbkdf2ParamElem = Asn1Pbkdf2ParamElem::init_asn1();
+            let _ = pbkdf2.decode_asn1(&decdata)?;
+            let aeskey :Vec<u8> = get_hmac_sha256_key(passin,&pbkdf2.salt.content,pbkdf2.iter.val as usize);
+            let types = pbe2.encryption.elem.val[0].algorithm.get_value();
+            if types  == OID_AES_256_CBC {
+            	let params :Asn1Any = pbe2.encryption.elem.val[0].parameters.val.as_ref().unwrap().clone();
+            	let ivkey :Vec<u8> = params.content.clone();
+            	let decdata :Vec<u8> = aes256_cbc_decrypt(encdata,&aeskey,&ivkey)?;
+            	return Ok(decdata);
+            }
+            extargs_new_error!{UtestPkcs12Error,"not support OID_PBKDF2 types [{}]", types}
+        }
+        extargs_new_error!{UtestPkcs12Error,"not support OID_PBES2 types [{}]",pbe2types}
+    }
+    extargs_new_error!{UtestPkcs12Error,"can not support types [{}]", types}
+}
+
+
+pub fn get_rsa_private_key(x509sigbytes :&[u8],passin :&[u8]) -> Result<Asn1RsaPrivateKey,Box<dyn Error>> {
+	let mut x509sig = Asn1X509Sig::init_asn1();
+	let mut ores = x509sig.decode_asn1(x509sigbytes);
+	let mut serr = std::io::stderr();
+	if ores.is_err() {
+		let s :&str = std::str::from_utf8(x509sigbytes)?;
+		let (code,_) = pem_to_der(s)?;
+		ores = x509sig.decode_asn1(&code);
+	}
+	if ores.is_err() {
+		let e = Err(ores.err().unwrap());
+		return e;
+	}
+	x509sig.print_asn1("Asn1X509Sig",0, &mut serr)?;
+	let algordata = x509sig.elem.val[0].algor.encode_asn1()?;
+	let encdata = x509sig.elem.val[0].digest.data.clone();
+	let decdata = get_algor_pbkdf2_private_data(&algordata,&encdata,passin)?;
+	let mut netpkey :Asn1NetscapePkey = Asn1NetscapePkey::init_asn1();
+	let _ = netpkey.decode_asn1(&decdata)?;
+	netpkey.print_asn1("Asn1NetscapePkey",0,&mut serr)?;
+	let types = netpkey.elem.val[0].algor.elem.val[0].algorithm.get_value();
+	if types == OID_RSA_ENCRYPTION {
+		let decdata :Vec<u8> = netpkey.elem.val[0].privdata.data.clone();
+		let mut privkey :Asn1RsaPrivateKey = Asn1RsaPrivateKey::init_asn1();
+		let _ = privkey.decode_asn1(&decdata)?;
+		return Ok(privkey);
+	}
+	extargs_new_error!{UtestPkcs12Error,"not support [{}]",types}
+}
+
+pub fn get_ec_private_key(x509sigbytes :&[u8],passin :&[u8]) -> Result<ECPrivateKeyAsn1,Box<dyn Error>> {
+	let mut x509sig = Asn1X509Sig::init_asn1();
+	let mut ores = x509sig.decode_asn1(x509sigbytes);
+	let mut serr = std::io::stderr();
+	if ores.is_err() {
+		let s :&str = std::str::from_utf8(x509sigbytes)?;
+		let (code,_) = pem_to_der(s)?;
+		ores = x509sig.decode_asn1(&code);
+	}
+	if ores.is_err() {
+		let e = Err(ores.err().unwrap());
+		return e;
+	}
+	x509sig.print_asn1("Asn1X509Sig",0, &mut serr)?;
+	let algordata = x509sig.elem.val[0].algor.encode_asn1()?;
+	let encdata = x509sig.elem.val[0].digest.data.clone();
+	let decdata = get_algor_pbkdf2_private_data(&algordata,&encdata,passin)?;
+	let mut netpkey :Asn1NetscapePkey = Asn1NetscapePkey::init_asn1();
+	let _ = netpkey.decode_asn1(&decdata)?;
+	netpkey.print_asn1("Asn1NetscapePkey",0,&mut serr)?;
+	let types = netpkey.elem.val[0].algor.elem.val[0].algorithm.get_value();
+	if types == OID_EC_PUBLICKEY_ENCRYPTION {
+		let decdata :Vec<u8> = netpkey.elem.val[0].privdata.data.clone();
+		let mut privkey :ECPrivateKeyAsn1 = ECPrivateKeyAsn1::init_asn1();
+		let _ = privkey.decode_asn1(&decdata)?;
+		/*now to give the */
+		if netpkey.elem.val[0].algor.elem.val[0].parameters.val.is_some() && privkey.elem.val.len() > 0  {
+			let data = netpkey.elem.val[0].algor.elem.val[0].parameters.encode_asn1()?;
+			let mut objdata :Asn1Object = Asn1Object::init_asn1();
+			let _ = objdata.decode_asn1(&data)?;
+			let ectype = objdata.get_value();
+			privkey.set_ec_type_oid(&ectype)?;
+		}
+
+		return Ok(privkey);
+	}
+	extargs_new_error!{UtestPkcs12Error,"not support [{}]",types}
+}
+
+
+fn decode_pkcs12_code(code :&[u8],passin :&[u8]) -> Result<(),Box<dyn Error>> {
+    let mut safes :Asn1AuthSafes = Asn1AuthSafes::init_asn1();
+    let rlen = safes.decode_asn1(code)?;
+    let mut f = std::io::stderr();
+    debug_trace!("rlen [{}:0x{:x}]", rlen,rlen);
+    let _ = safes.print_asn1("safes", 0, &mut f)?;
+    let mut safeidx :usize= 0;
+
+    /**/
+    for idx in 0..safes.safes.val.len() {            
+        let types = safes.safes.val[idx].elem.val[0].selector.val.get_value();
+        debug_trace!("types [{}]",types);
+        if types == OID_PKCS7_ENCRYPTED_DATA {
+            let pk7encdata :&Asn1Pkcs7Encrypt = safes.safes.val[idx].elem.val[0].encryptdata.val.as_ref().unwrap();
+            let encdata = pk7encdata.elem.val[0].enc_data.elem.val[0].enc_data.val.data.clone();
+            let algordata = pk7encdata.elem.val[0].enc_data.elem.val[0].algorithm.encode_asn1()?;
+            let decdata = get_algor_pbkdf2_private_data(&algordata,&encdata,passin)?;
+            let mut octdata :Asn1Seq<Asn1Pkcs12SafeBag> = Asn1Seq::init_asn1();
+            let _ = octdata.decode_asn1(&decdata)?;
+            let _ = octdata.print_asn1("safebag encdata", 0, &mut f)?;
+            let mut certidx :usize = 0;
+            debug_trace!(" ");
+            for certd in octdata.val.iter() {
+                let objs = certd.elem.val[0].selectelem.valid.val.get_value();
+                debug_trace!(" ");
+                if objs == OID_PKCS12_CERT_BAG {
+                    debug_trace!(" ");
+                    let certtype = certd.elem.val[0].selectelem.bag.val[0].elem.val[0].valid.val.get_value();
+                    if certtype == OID_PKCS12_SAFE_BAG_X509_CERT {
+                        let certdata = certd.elem.val[0].selectelem.bag.val[0].elem.val[0].x509cert.val[0].data.clone();
+                        let mut certp :Asn1X509 = Asn1X509::init_asn1();
+                        let _ = certp.decode_asn1(&certdata)?;
+                        let tagn = format!("safebag[{}]x509cert[{}]",safeidx,certidx);
+                        let _ = certp.print_asn1(&tagn,0,&mut f)?;
+                    } 
+                } else if objs == OID_PKCS8_SHROUDED_KEY_BAG {
+                    debug_trace!(" ");
+                    let x509sig :Asn1X509Sig = certd.elem.val[0].selectelem.shkeybag.val[0].clone();
+                    let v8 = x509sig.encode_asn1()?;
+                    let pkey = get_rsa_private_key(&v8,passin)?;
+                    let kname = format!("safebag[{}]shroudbag cert[{}]", safeidx,certidx);
+                    let _ = pkey.print_asn1(&kname, 0, &mut f)?;                        
+                }
+                certidx += 1;
+            }
+
+        } else if types ==  OID_PKCS7_DATA {
+            debug_trace!(" ");
+            let pk7data :&Asn1OctData = safes.safes.val[idx].elem.val[0].data.val.as_ref().unwrap();
+            let decdata = pk7data.data.clone();
+            let mut octdata :Asn1Seq<Asn1Pkcs12SafeBag> = Asn1Seq::init_asn1();
+            let _ = octdata.decode_asn1(&decdata)?;
+            let _ = octdata.print_asn1("safebag data", 0, &mut f)?;
+            let mut bagidx :usize = 0;
+            for bag in octdata.val.iter() {
+                debug_trace!(" ");
+                let objs = bag.elem.val[0].selectelem.valid.val.get_value();
+                if objs == OID_PKCS8_SHROUDED_KEY_BAG {
+                    debug_trace!(" ");
+                    let x509sig :Asn1X509Sig = bag.elem.val[0].selectelem.shkeybag.val[0].clone();
+                    let v8 = x509sig.encode_asn1()?;
+                    let ores = get_rsa_private_key(&v8,passin);
+                    if ores.is_ok() {
+                        let pkey = ores.unwrap();
+                        let kname = format!("safebag[{}]shroudbag[{}] rsa key", safeidx,bagidx);
+                        let _ = pkey.print_asn1(&kname, 0, &mut f)?;
+                    } else {
+                        let pkey = get_ec_private_key(&v8,passin)?;
+                        let kname = format!("safebag[{}]shroudbag[{}] ec key", safeidx,bagidx);
+                        let _ = pkey.print_asn1(&kname, 0, &mut f)?;
+                    }
+                } else if objs == OID_PKCS12_CERT_BAG {
+                    debug_trace!(" ");
+                    let certtype = bag.elem.val[0].selectelem.bag.val[0].elem.val[0].valid.val.get_value();
+                    if certtype == OID_PKCS12_SAFE_BAG_X509_CERT {
+                        let certdata = bag.elem.val[0].selectelem.bag.val[0].elem.val[0].x509cert.val[0].data.clone();
+                        let mut certp :Asn1X509 = Asn1X509::init_asn1();
+                        let _ = certp.decode_asn1(&certdata)?;
+                        let tagn = format!("safebag[{}]x509cert bag[{}]",safeidx,bagidx);
+                        let _ = certp.print_asn1(&tagn,0,&mut f)?;
+                    }                        
+                }
+                bagidx += 1;
+            }
+        }
+        safeidx += 1;
+    }
+    Ok(())
+}
+
+
 fn pkcs12vfy_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
 	let sarr :Vec<String>;
 	let passin :String = ns.get_string("passin");
@@ -66,6 +362,12 @@ fn pkcs12vfy_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 		let retval = pkcs12.verify_digest(&passin)?;
 		if retval {
 			println!("{} verify Ok", f);
+	        let types = pkcs12.elem.val[0].authsafes.elem.val[0].selector.val.get_value();
+	        if types == OID_PKCS7_DATA {
+	            let p7data :&Asn1OctData = pkcs12.elem.val[0].authsafes.elem.val[0].data.val.as_ref().unwrap();
+	            let code = p7data.data.clone();
+	            let _ = decode_pkcs12_code(&code,passin.as_bytes())?;
+	        }
 		} else {
 			println!("{} verify not Ok", f);
 		}

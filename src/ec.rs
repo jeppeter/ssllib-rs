@@ -14,126 +14,149 @@ use std::io::{Write};
 
 ssllib_error_class!{SslEcError}
 
-
 #[derive(Clone)]
 #[asn1_sequence()]
-pub struct X9_62_PENTANOMIAL_ELEM {
-	pub k1 : Asn1Integer,
-	pub k2 : Asn1Integer,
-	pub k3 : Asn1Integer,
+pub struct X9_62_PENTANOMIALELem {
+	pub k1 :Asn1Integer,
+	pub k2 :Asn1Integer,
+	pub k3 :Asn1Integer,
 }
 
 #[derive(Clone)]
 #[asn1_sequence()]
 pub struct X9_62_PENTANOMIAL {
-	pub elem :Asn1Seq<X9_62_PENTANOMIAL_ELEM>,
+	pub elem :Asn1Seq<X9_62_PENTANOMIALELem>,
 }
 
-
-#[asn1_obj_selector(other=default,onbasis="1.2.840.10045.1.2.3.1",tpbasis="1.2.840.10045.1.2.3.2",ppbasis="1.2.840.10045.1.2.3.3")]
 #[derive(Clone)]
-pub struct X9_62_CHARACTERISTIC_TWO_SELECTOR {
+#[asn1_obj_selector(other=default,onBasis="1.2.840.10045.1.2.3.1",tpBasis="1.2.840.10045.1.2.3.2",ppBasis="1.2.840.10045.1.2.3.3")]
+pub struct X962Selector  {
 	pub val :Asn1Object,
 }
 
-//#[asn1_choice(selector=selector,debug=enable)]
-#[asn1_choice(selector=selector)]
 #[derive(Clone)]
-pub struct X9_62_CHARACTERISTIC_TWO_ELEM_SEL {
-	pub selector :X9_62_CHARACTERISTIC_TWO_SELECTOR,
-	pub onbasis :Asn1Null,
-	pub tpbasis :Asn1Integer,
-	pub ppbasis :X9_62_PENTANOMIAL,
+#[asn1_choice(selector=otype)]
+pub struct X9_62_CHARACTERISTIC_TWO_ELEM_CHOICE {
+	pub otype : X962Selector,
+	pub onBasis : Asn1Null,
+	pub tpBasis : Asn1BigNum,
+	pub ppBasis : X9_62_PENTANOMIAL,
 	pub other :Asn1Any,
 }
 
-#[asn1_sequence()]
 #[derive(Clone)]
+#[asn1_sequence()]
 pub struct X9_62_CHARACTERISTIC_TWO_ELEM {
 	pub m :Asn1Integer,
-	pub selelem : X9_62_CHARACTERISTIC_TWO_ELEM_SEL,
+	pub elemchoice : X9_62_CHARACTERISTIC_TWO_ELEM_CHOICE,
 }
 
-#[asn1_sequence()]
 #[derive(Clone)]
+#[asn1_sequence()]
 pub struct X9_62_CHARACTERISTIC_TWO {
 	pub elem :Asn1Seq<X9_62_CHARACTERISTIC_TWO_ELEM>,
 }
 
 
-#[asn1_obj_selector(other=default,prime="1.2.840.10045.1.1",twofield="1.2.840.10045.1.2")]
 #[derive(Clone)]
-pub struct X9_62_FIELDID_SELECTOR {
+#[asn1_obj_selector(prime="1.2.840.10045.1.1",char_two="1.2.840.10045.1.2")]
+pub struct X964FieldSelector {
 	pub val :Asn1Object,
 }
 
-//#[asn1_choice(selector=selector,debug=enable)]
-#[asn1_choice(selector=selector)]
 #[derive(Clone)]
-pub struct  X9_62_FIELDID_ELEM {
-	pub selector :X9_62_FIELDID_SELECTOR,
-	pub prime :Asn1Integer,
-	pub twofield :X9_62_CHARACTERISTIC_TWO,
-	pub other :Asn1Any,
+#[asn1_choice(selector=fieldType)]
+pub struct X9_62_FIELDIDElem {
+	pub fieldType :X964FieldSelector,
+	pub prime : Asn1BigNum,
+	pub char_two :X9_62_CHARACTERISTIC_TWO,
 }
 
-#[asn1_sequence()]
 #[derive(Clone)]
+#[asn1_sequence()]
 pub struct X9_62_FIELDID {
-	pub elem :Asn1Seq<X9_62_FIELDID_ELEM>,
+	pub elem :Asn1Seq<X9_62_FIELDIDElem>,
 }
 
-#[asn1_sequence()]
 #[derive(Clone)]
-pub struct X9_62_CURVE_ELEM {
+#[asn1_sequence()]
+pub struct X9_62_CURVEElem {
 	pub a :Asn1OctData,
 	pub b :Asn1OctData,
-	pub seed :Asn1BitData,
+	pub seed :Asn1Opt<Asn1BitDataFlag>,
 }
 
-#[asn1_sequence()]
+
 #[derive(Clone)]
+#[asn1_sequence()]
 pub struct X9_62_CURVE {
-	pub elem :Asn1Seq<X9_62_CURVE_ELEM>,
+	pub elem :Asn1Seq<X9_62_CURVEElem>,
 }
 
-#[asn1_sequence()]
 #[derive(Clone)]
-pub struct ECPARAMETERS_ELEM {
-	pub version :Asn1Integer,
-	pub fieldid :X9_62_FIELDID,
+#[asn1_sequence()]
+pub struct ECPARAMETERSElem {
+	pub version : Asn1Integer,
+	pub fieldID : X9_62_FIELDID,
 	pub curve :X9_62_CURVE,
 	pub base :Asn1OctData,
-	pub order :Asn1Integer,
-	pub cofactor :Asn1Integer,
+	pub order :Asn1BigNum,
+	pub cofactor : Asn1Opt<Asn1BigNum>,
+
 }
 
-#[asn1_sequence()]
 #[derive(Clone)]
+#[asn1_sequence()]
 pub struct ECPARAMETERS {
-	pub elem :Asn1Seq<ECPARAMETERS_ELEM>,
+	pub elem :Asn1Seq<ECPARAMETERSElem>,
 }
 
-#[asn1_int_choice(selector=stype,named_curve=0,parameters=1,implicitlyca=2)]
+#[asn1_int_choice(debug=0,selector=itype,named_curve=0,parameters=1,implicitCA=2)]
 #[derive(Clone)]
-pub struct ECPKPARAMETERS_ELEM {
-	pub stype :i32,
+pub struct ECPKPARAMETERS {
+	pub itype :i32,
 	pub named_curve :Asn1Object,
-	pub parameters :ECPARAMETERS,
-	pub implicitlyca :Asn1Null,
+	pub parameters : ECPARAMETERS,
+	pub implicitCA : Asn1Null,
+}
+
+#[derive(Clone)]
+#[asn1_sequence()]
+pub struct ECPublicKeyPackElem {
+	pub typef :Asn1Object,
+	pub parameters :ECPKPARAMETERS,
+}
+
+#[derive(Clone)]
+#[asn1_sequence()]
+pub struct ECPublicKeyPack {
+	pub elem :Asn1Seq<ECPublicKeyPackElem>,
+}
+
+#[derive(Clone)]
+#[asn1_sequence()]
+pub struct ECPublicKeyAsn1Elem {
+	pub packed :ECPublicKeyPack,
+	pub pubdata :Asn1BitDataFlag,
+}
+
+#[derive(Clone)]
+#[asn1_sequence()]
+pub struct ECPublicKeyAsn1 {
+	pub elem :Asn1Seq<ECPublicKeyAsn1Elem>,
 }
 
 
-#[asn1_sequence()]
 #[derive(Clone)]
-pub struct EC_PRIVATEKEY_ELEM {
+#[asn1_sequence()]
+pub struct ECPrivateKeyAsn1Elem {
 	pub version :Asn1Integer,
 	pub privatekey :Asn1OctData,
-	pub parameters :Asn1Opt<Asn1ImpSet<ECPKPARAMETERS_ELEM,0>>,
-	pub publickey :Asn1Opt<Asn1ImpSet<Asn1BitData,1>>,
+	pub parameters :Asn1Opt<Asn1ImpSet<ECPKPARAMETERS,0>>,
+	pub publickey : Asn1Opt<Asn1ImpSet<Asn1BitDataFlag,1>>,
 }
 
-impl EC_PRIVATEKEY_ELEM {
+impl ECPrivateKeyAsn1Elem {
 	pub fn set_private_key(&mut self,key :&[u8]) -> Vec<u8> {
 		let retk = self.privatekey.data.clone();
 		self.privatekey.data = key.to_vec().clone();
@@ -145,16 +168,16 @@ impl EC_PRIVATEKEY_ELEM {
 	}
 
 	pub fn set_public_key(&mut self,key :&[u8]) -> Option<Vec<u8>> {
-		let mut setkey :Asn1ImpSet<Asn1BitData,1> = Asn1ImpSet::init_asn1();
+		let mut setkey :Asn1ImpSet<Asn1BitDataFlag,1> = Asn1ImpSet::init_asn1();
 		let mut retv :Option<Vec<u8>> = None;
 		setkey.val = Vec::new();
-		let mut v :Asn1BitData = Asn1BitData::init_asn1();
+		let mut v :Asn1BitDataFlag = Asn1BitDataFlag::init_asn1();
 		v.data = key.to_vec().clone();
 		setkey.val.push(v);
 		if self.publickey.val.is_some() {
 			let retimp = self.publickey.val.as_ref().unwrap().clone();
 			retv = Some(retimp.val[0].data.clone());
-		}
+		} 
 		self.publickey.val = Some(setkey);
 		return retv;
 	}
@@ -164,25 +187,52 @@ impl EC_PRIVATEKEY_ELEM {
 			return None;
 		}
 		let retimp = self.publickey.val.as_ref().unwrap().clone();
-		let retk = retimp.val[0].data.clone();
-		Some(retk)
+		let retk = Some(retimp.val[0].data.clone());
+		retk
+	}	
+
+	pub fn set_ec_type_oid(&mut self,oid :&str) -> Result<(),Box<dyn Error>> {
+		let mut nobj :Asn1Object = Asn1Object::init_asn1();
+		let _ = nobj.set_value(oid)?;
+		let mut nopt :Asn1Opt<Asn1ImpSet<ECPKPARAMETERS,0>> = Asn1Opt::init_asn1();
+		let mut impset :Asn1ImpSet<ECPKPARAMETERS,0> = Asn1ImpSet::init_asn1();
+		let mut params :ECPKPARAMETERS = ECPKPARAMETERS::init_asn1();
+		/*it is for named_curve*/
+		params.itype = 0;
+		params.named_curve = nobj.clone();
+		impset.val.push(params);
+		nopt.val = Some(impset);
+		self.parameters = nopt;
+		Ok(())
+
 	}
 }
 
-#[asn1_sequence()]
 #[derive(Clone)]
-pub struct EC_PRIVATEKEY {
-	pub elem :Asn1Seq<EC_PRIVATEKEY_ELEM>,
+#[asn1_sequence()]
+pub struct ECPrivateKeyAsn1 {
+	pub elem :Asn1Seq<ECPrivateKeyAsn1Elem>,
 }
 
-impl EC_PRIVATEKEY {
+impl ECPrivateKeyAsn1 {
+	pub fn set_ec_type_oid(&mut self, oid :&str) -> Result<(),Box<dyn Error>> {
+		if self.elem.val.len() != 0 && self.elem.val.len()!=1 {
+			ssllib_new_error!{SslEcError,"val [{}] != 0 or 1",self.elem.val.len()}
+		}
+		if self.elem.val.len() == 0 {
+			self.elem = Asn1Seq::init_asn1();
+			self.elem.val.push(ECPrivateKeyAsn1Elem::init_asn1());
+		}
+		return self.elem.val[0].set_ec_type_oid(oid);
+	}
+
 	pub fn set_private_key(&mut self,key :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
 		if self.elem.val.len() != 0 && self.elem.val.len()!=1 {
 			ssllib_new_error!{SslEcError,"val [{}] != 0 or 1",self.elem.val.len()}
 		}
 		if self.elem.val.len() == 0 {
 			self.elem = Asn1Seq::init_asn1();
-			self.elem.val.push(EC_PRIVATEKEY_ELEM::init_asn1());
+			self.elem.val.push(ECPrivateKeyAsn1Elem::init_asn1());
 		}
 		let retk = self.elem.val[0].set_private_key(key);
 		Ok(retk)
@@ -206,7 +256,7 @@ impl EC_PRIVATEKEY {
 		}
 		if self.elem.val.len() == 0 {
 			self.elem = Asn1Seq::init_asn1();
-			self.elem.val.push(EC_PRIVATEKEY_ELEM::init_asn1());
+			self.elem.val.push(ECPrivateKeyAsn1Elem::init_asn1());
 		}
 		let retk = self.elem.val[0].set_public_key(key);
 		Ok(retk)
@@ -223,3 +273,5 @@ impl EC_PRIVATEKEY {
 		Ok(retk)
 	}
 }
+
+

@@ -25,6 +25,13 @@ ssllib_error_class!{SslPkcs12Error}
 
 #[asn1_sequence()]
 #[derive(Clone)]
+pub struct Asn1AuthSafes {
+	pub safes :Asn1Seq<Asn1Pkcs7>,
+}
+
+
+#[asn1_sequence()]
+#[derive(Clone)]
 pub struct Asn1Pkcs12MacDataElem {
 	pub dinfo : Asn1X509Sig,
 	pub salt : Asn1OctData,

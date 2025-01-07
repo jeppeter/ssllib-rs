@@ -13,8 +13,3 @@ use std::io::{Write};
 use crate::pkcs7::*;
 
 
-#[asn1_sequence()]
-#[derive(Clone)]
-pub struct Asn1AuthSafes {
-	pub safes :Asn1Seq<Asn1Pkcs7>,
-}
