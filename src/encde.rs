@@ -18,8 +18,8 @@ use aes::cipher::KeyIvInit;
 //use cfb_mode;
 
 use std::error::Error;
-// use lazy_static::lazy_static;
-// use std::collections::HashMap;
+use lazy_static::lazy_static;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::cell::RefCell;
 
@@ -442,6 +442,24 @@ pub fn get_decryptor(name :&str) -> Option<Arc<RefCell<dyn Asn1DecryptOp>>> {
             return Some(Arc::new(RefCell::new(ores.unwrap())));
         }
     }
-
     return None;
+}
+
+lazy_static!{
+    static ref OID_MAP_NAMES : HashMap<String,String> = {
+        let mut retv :HashMap<String,String> = HashMap::new();
+        retv.insert(OID_AES_256_CBC.to_string(),ENC_AES_256_CBC.to_string());
+        retv
+    };
+}
+
+pub fn get_decryptor_by_oid(oid :&str) -> Option<Arc<RefCell<dyn Asn1DecryptOp>>> {
+    match OID_MAP_NAMES.get(oid) {
+        Some(v) => {
+            return get_decryptor(&v);
+        },
+        _ => {
+            return None;
+        }
+    }
 }

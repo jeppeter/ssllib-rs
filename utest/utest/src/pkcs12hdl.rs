@@ -101,13 +101,22 @@ pub fn get_algor_pbkdf2_private_data(x509algorbytes :&[u8],encdata :&[u8],passin
             let _ = pbkdf2.decode_asn1(&decdata)?;
             let aeskey :Vec<u8> = get_hmac_sha256_key(passin,&pbkdf2.salt.content,pbkdf2.iter.val as usize);
             let types = pbe2.encryption.elem.val[0].algorithm.get_value();
-            if types  == OID_AES_256_CBC {
+            let odecrypt = get_decryptor_by_oid(&types);
+            if odecrypt.is_none() {
+            	extargs_new_error!{UtestPkcs12Error,"not supported types [{}]",types}
+            }
             	let params :Asn1Any = pbe2.encryption.elem.val[0].parameters.val.as_ref().unwrap().clone();
             	let ivkey :Vec<u8> = params.content.clone();
-            	let decdata :Vec<u8> = aes256_cbc_decrypt(encdata,&aeskey,&ivkey)?;
-            	return Ok(decdata);
-            }
-            extargs_new_error!{UtestPkcs12Error,"not support OID_PBKDF2 types [{}]", types}
+            let decrypt = odecrypt.unwrap();
+            let _ = decrypt.borrow_mut().init_decrypt(&aeskey,&ivkey)?;
+            let mut decdata :Vec<u8> = decrypt.borrow_mut().decrypt_update(encdata)?;
+            decdata.extend(decrypt.borrow_mut().decrypt_final()?);
+            return Ok(decdata);
+            // if types  == OID_AES_256_CBC {
+            // 	let decdata :Vec<u8> = aes256_cbc_decrypt(encdata,&aeskey,&ivkey)?;
+            // 	return Ok(decdata);
+            // }
+            // extargs_new_error!{UtestPkcs12Error,"not support OID_PBKDF2 types [{}]", types}
         }
         extargs_new_error!{UtestPkcs12Error,"not support OID_PBES2 types [{}]",pbe2types}
     }
