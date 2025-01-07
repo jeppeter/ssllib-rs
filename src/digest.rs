@@ -107,10 +107,38 @@ impl Asn1DigestOp for HmacSha256Digest {
 	}
 }
 
+pub struct HmacSha256DigestSimple {
+	initv8 :Vec<u8>,
+	origdata :Vec<u8>,
+}
+
+impl HmacSha256DigestSimple {
+	pub fn new(initv :&[u8]) -> Result<Self,Box<dyn Error>> {
+		Ok(HmacSha256DigestSimple {
+			initv8 : initv.to_vec().clone(),
+			origdata :vec![],
+		})
+	}
+}
+
+impl Asn1DigestOp for HmacSha256DigestSimple {
+	fn digest_update(&mut self, data :&[u8]) -> Result<(),Box<dyn Error>> {
+		self.origdata.extend(data.iter().collect::<Vec<_>>().clone());
+		return Ok(());
+	}
+
+	fn digest_final(&mut self) -> Result<Vec<u8>,Box<dyn Error>> {
+		let mut omac = HmacSha256::new_from_slice(&self.initv8)?;
+		omac.update(&self.origdata);
+		let res = omac.finalize();
+		return Ok(res.into_bytes().to_vec());
+	}
+}
+
+
 pub fn calc_hmac_sha256(initkey :&[u8],data :&[u8]) -> Vec<u8> {
-	let mut hmac = HmacSha256::new_from_slice(initkey).unwrap();
-	hmac.update(data);
-	let res = hmac.finalize();
-	return res.into_bytes().to_vec();
+	let mut shmac = HmacSha256DigestSimple::new(initkey).unwrap();
+	shmac.digest_update(data).unwrap();
+	return shmac.digest_final().unwrap();
 }
 
