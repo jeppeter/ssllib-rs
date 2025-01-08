@@ -193,13 +193,34 @@ fn asn1parse_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	Ok(())
 }
 
-#[extargs_map_function(asn1parse_handler)]
+fn asn1objenc_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
+	let sarr :Vec<String>;
+
+	init_log(ns.clone())?;
+	sarr = ns.get_array("subnargs");
+	for f in sarr.iter() {
+		let mut obj :Asn1Object = Asn1Object::init_asn1();
+		let _ = obj.set_value(f)?;
+		let code = obj.encode_asn1()?;
+		debug_buffer_trace!(code.as_ptr(),code.len(),"{} output",f);
+	}
+
+	Ok(())
+}
+
+
+
+#[extargs_map_function(asn1parse_handler,asn1objenc_handler)]
 pub fn load_asn1parse_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
 		"asn1parse<asn1parse_handler>##file ... to dump file asn1 value##" : {
 			"$" : "+"
+		},
+		"asn1objenc<asn1objenc_handler>##oid ... to dump for buffer##" : {
+			"$" : "+"
 		}
+
 	}
 	"#;
 	extargs_load_commandline!(parser,cmdline)?;
