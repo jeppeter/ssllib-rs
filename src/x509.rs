@@ -338,7 +338,7 @@ pub struct Asn1X509Crl {
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct Asn1X509Elem {
-	pub certinfo : Asn1X509Cinf,
+	pub cert_info : Asn1X509Cinf,
 	pub sig_alg : Asn1X509Algor,
 	pub signature : Asn1BitDataFlag,
 }
@@ -353,9 +353,9 @@ pub struct Asn1X509 {
 impl Asn1X509 {
 	pub fn is_self_signed(&self) -> bool {
 		self.elem.sure_safe_one("Asn1X509").unwrap();
-		let certinfo :&Asn1X509Cinf = &self.elem.val[0].certinfo;
-		certinfo.elem.sure_safe_one("Asn1X509 certinfo").unwrap();
-		if certinfo.elem.val[0].issuer.eq(&certinfo.elem.val[0].subject) {
+		let cert_info :&Asn1X509Cinf = &self.elem.val[0].cert_info;
+		cert_info.elem.sure_safe_one("Asn1X509 cert_info").unwrap();
+		if cert_info.elem.val[0].issuer.eq(&cert_info.elem.val[0].subject) {
 			return true;
 		}
 

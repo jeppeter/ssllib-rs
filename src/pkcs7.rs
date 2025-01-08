@@ -69,9 +69,9 @@ pub struct Asn1X509AttrPack {
 pub struct Asn1Pkcs7SignerInfoElem {
 	pub version : Asn1Integer,
 	pub issuer_and_serial : Asn1Pkcs7IssuerAndSerial,
-	pub digest_algo : Asn1X509Algor,
+	pub digest_alg : Asn1X509Algor,
 	pub auth_attr : Asn1Opt<Asn1ImpSet<Asn1X509Attribute,0>>,
-	pub digest_enc_algo : Asn1X509Algor,
+	pub digest_enc_alg : Asn1X509Algor,
 	pub enc_digest : Asn1OctData,
 	pub unauth_attr : Asn1Opt<Asn1ImpSet<Asn1X509Attribute,1>>,
 }
@@ -137,8 +137,8 @@ impl Asn1Pkcs7SignerInfo {
 	fn get_digest_op(&self) -> Result<Arc<RefCell<dyn Asn1DigestOp>>,Box<dyn Error>> {
 		let mut retv :Arc<RefCell<dyn Asn1DigestOp>> = Arc::new(RefCell::new(Sha256Digest::new()));
 
-		if self.elem.val[0].digest_algo.elem.val.len() > 0 {
-			let c = &(self.elem.val[0].digest_algo.elem.val[0]);
+		if self.elem.val[0].digest_alg.elem.val.len() > 0 {
+			let c = &(self.elem.val[0].digest_alg.elem.val[0]);
 			let digval :String = c.algorithm.get_value();
 			if digval.eq(OID_SHA256_DIGEST) {
 				retv = Arc::new(RefCell::new(Sha256Digest::new()));
