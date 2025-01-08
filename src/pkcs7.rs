@@ -114,7 +114,7 @@ impl Asn1Pkcs7SignerInfoElem {
 
 		let _ = self.digest_alg.set_algorithm_null(dgst)?;
 		let _ = self.digest_enc_alg.set_algorithm(pkey)?;
-		let _ = self.digest_enc_alg.set_param_null()?;
+		let _ = self.digest_enc_alg.set_param(None)?;
 
 
 		Ok((keyalgor,dgstalgor))
