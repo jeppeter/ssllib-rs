@@ -226,6 +226,16 @@ impl Asn1X509AlgorElem {
 		}		
 		Ok(retv)
 	}
+
+	pub fn set_algorithm_null(&mut self, objname :&str) -> Result<String,Box<dyn Error>> {
+		let oval = self.algorithm.set_value(objname)?;
+		let nullo :Asn1Null = Asn1Null::init_asn1();
+		let mut anyo :Asn1Any = Asn1Any::init_asn1();
+		let code = nullo.encode_asn1()?;
+		let _ = anyo.decode_asn1(&code)?;
+		self.parameters.val = Some(anyo);
+		Ok(oval)
+	}
 }
 
 //#[asn1_sequence(debug=enable)]
@@ -260,6 +270,11 @@ impl Asn1X509Algor {
 	pub fn set_param(&mut self, val :Option<Asn1Any>) -> Result<Option<Asn1Any>,Box<dyn Error>> {
 		let _ = self.elem.make_safe_one("Asn1X509Algor")?;
 		return self.elem.val[0].set_param(val);
+	}
+
+	pub fn set_algorithm_null(&mut self, val :&str) -> Result<String,Box<dyn Error>> {
+		let _ = self.elem.make_safe_one("Asn1X509Algor")?;
+		return self.elem.val[0].set_algorithm_null(val);
 	}
 
 }
@@ -360,6 +375,26 @@ impl Asn1X509 {
 		}
 
 		return false;
+	}
+
+	pub fn get_x509_name0(&self) -> Option<Asn1X509Name> {
+		let mut retv :Option<Asn1X509Name> = None;
+		if self.elem.val.len() > 0 {
+			if self.elem.val[0].cert_info.elem.val.len() > 0 {
+				retv = Some(self.elem.val[0].cert_info.elem.val[0].issuer.clone());
+			}
+		}
+		retv
+	}
+
+	pub fn get_serial_number0(&self) -> Option<Asn1BigNum> {
+		let mut retv :Option<Asn1BigNum> = None;
+		if self.elem.val.len() > 0 {
+			if self.elem.val[0].cert_info.elem.val.len() > 0 {
+				retv = Some(self.elem.val[0].cert_info.elem.val[0].serial_number.clone());
+			}
+		}
+		retv
 	}
 }
 

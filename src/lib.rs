@@ -3,7 +3,7 @@ pub mod consts;
 mod errors;
 mod logger;
 pub mod impls;
-pub (crate) mod utils;
+pub mod utils;
 mod fileop;
 mod cfbmode;
 mod kdfutils;

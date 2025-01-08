@@ -39,6 +39,8 @@ pub const OID_SHA256_DIGEST_SET :&str = "1.2.840.113549.1.9.4";
 pub const OID_EC_PUBLICK_KEY :&str = "1.2.840.10045.2.1";
 
 
+pub const OID_ECDSA_WITH_SHA256_PKEY :&str = "1.2.840.10045.4.3.2";
+
 pub const OID_AES_128_CBC :&str = "2.16.840.1.101.3.4.1.2";
 pub const OID_AES_192_CBC :&str = "2.16.840.1.101.3.4.1.22";
 pub const OID_AES_256_CBC :&str = "2.16.840.1.101.3.4.1.42";
@@ -97,3 +99,6 @@ pub const ENC_AES_256_CFB8 :&str = "aes-256-cfb8";
 pub const PKCS12_MAC_ID :u8 = 3;
 pub const SHA256_BLOCK_SIZE :usize = 64;
 pub const SHA256_DIGEST_SIZE :usize = 32;
+
+pub const DGST_SHA256 :&str = "sha256";
+pub const ECDSA_SHA256_PKEY :&str = "ecdsa-with-sha256";
