@@ -43,7 +43,7 @@ use ssllib::digest::*;
 use ssllib::encde::*;
 use ssllib::rsa::*;
 use ssllib::ec::ECPrivateKeyAsn1;
-use ssllib::impls::{Asn1DigestOp,Asn1DecryptOp};
+use ssllib::impls::{Asn1DigestOp};
 
 extargs_error_class!{UtestPkcs12Error}
 
