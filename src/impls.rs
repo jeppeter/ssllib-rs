@@ -18,17 +18,20 @@ pub trait Asn1VerifyOp {
 	fn verify_final(&mut self,signdata :&[u8], digop :Arc<RefCell<dyn Asn1DigestOp>>) -> Result<bool,Box<dyn Error>>;
 }
 
-pub trait Asn1EncryptOp {
+pub trait Asn1EncryptOp   {
 	fn init_encrypt(&mut self,key :&[u8],iv :&[u8]) -> Result<(),Box<dyn Error>>;
 	fn encrypt_update(&mut self, data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>>;
 	fn encrypt_final(&mut self) -> Result<Vec<u8>,Box<dyn Error>>;
 }
 
-pub trait Asn1DecryptOp {
+pub trait Asn1DecryptOp   {
 	fn init_decrypt(&mut self,key :&[u8],iv :&[u8]) -> Result<(),Box<dyn Error>>;
 	fn decrypt_update(&mut self, data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>>;
 	fn decrypt_final(&mut self) -> Result<Vec<u8>,Box<dyn Error>>;
 }
 
-// pub trait Asn1EncryptOpClone : Asn1EncryptOp + Clone + Sized {	
+// pub trait Asn1EncryptOpClone : Asn1EncryptOp + Clone + Sized + Sync {	
+// }
+
+// pub trait Asn1DecryptOpClone : Asn1DecryptOp + Clone + Sized + Sync {	
 // }

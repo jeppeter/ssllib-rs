@@ -20,7 +20,7 @@ use aes::cipher::KeyIvInit;
 use std::error::Error;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc};
 use std::cell::RefCell;
 
 ssllib_error_class!{SslEncDeError}
@@ -43,6 +43,19 @@ macro_rules! expand_cbc_class {
                     enc :vec![],
                     dec :vec![],
                 })
+            }
+        }
+
+        impl Drop for $algname {
+            fn drop(&mut self) {
+                self.encb = false;
+                self.decb = false;
+                if self.enc.len() > 0 {
+                    self.enc = vec![];
+                }
+                if self.dec.len() > 0 {
+                    self.dec = vec![];
+                }
             }
         }
 
@@ -170,6 +183,9 @@ macro_rules! expand_cbc_class {
             }
         }
 
+        unsafe impl Sync for $algname {}
+        unsafe impl Send for $algname {}
+
     };
 }
 
@@ -183,7 +199,6 @@ macro_rules! expand_cfb_class {
         pub type $encls = CfbBitsBufEncryptor<$aestype,$bitsize>;
         pub type $decls = CfbBitsBufDecryptor<$aestype,$bitsize>;
 
-        #[derive(Clone)]
         pub struct $algname {
             iv :Vec<u8>,
             key :Vec<u8>,
@@ -291,6 +306,9 @@ macro_rules! expand_cfb_class {
                 Ok(vec![])
             }
         }
+
+        unsafe impl Sync for $algname {}
+        unsafe impl Send for $algname {}
     };
 }
 
@@ -304,146 +322,6 @@ expand_cfb_class!{Aes256CfbAlgo,aes::Aes256,Aes256CfbEnc,Aes256CfbDec,128,32,16}
 expand_cfb_class!{Aes256Cfb1Algo,aes::Aes256,Aes256Cfb1Enc,Aes256Cfb1Dec,1,32,16}
 expand_cfb_class!{Aes256Cfb8Algo,aes::Aes256,Aes256Cfb8Enc,Aes256Cfb8Dec,8,32,16}
 
-
-pub fn get_encryptor(name :&str) -> Option<Arc<RefCell<dyn Asn1EncryptOp>>> {
-    // let key :Vec<u8> = vec![];
-    // let iv :Vec<u8> = vec![];
-    if name == ENC_AES_128_CBC {
-        let ores = Aes128CbcAlgo::new();
-        if ores.is_ok() {
-            return Some(Arc::new(RefCell::new(ores.unwrap())));    
-        }        
-    } else if name == ENC_AES_192_CBC {
-        let ores = Aes192CbcAlgo::new();
-        if ores.is_ok() {
-            return Some(Arc::new(RefCell::new(ores.unwrap())));    
-        }
-    } else if name == ENC_AES_256_CBC {
-        let ores = Aes256CbcAlgo::new();
-        if ores.is_ok() {
-            return Some(Arc::new(RefCell::new(ores.unwrap())));    
-        }
-    } else if name == ENC_AES_256_CFB {
-        let ores = Aes256CfbAlgo::new();
-        if ores.is_ok() {
-            return Some(Arc::new(RefCell::new(ores.unwrap())));
-        }
-    } else if name == ENC_AES_256_CFB1 {
-        let ores = Aes256Cfb1Algo::new();
-        if ores.is_ok() {
-            return Some(Arc::new(RefCell::new(ores.unwrap())));
-        }
-    } else if name == ENC_AES_256_CFB8 {
-        let ores = Aes256Cfb8Algo::new();
-        if ores.is_ok() {
-            return Some(Arc::new(RefCell::new(ores.unwrap())));
-        }
-    } else if name == ENC_AES_192_CFB {
-        let ores = Aes192CfbAlgo::new();
-        if ores.is_ok() {
-            return Some(Arc::new(RefCell::new(ores.unwrap())));
-        }
-    } else if name == ENC_AES_192_CFB1 {
-        let ores = Aes192Cfb1Algo::new();
-        if ores.is_ok() {
-            return Some(Arc::new(RefCell::new(ores.unwrap())));
-        }
-    } else if name == ENC_AES_192_CFB8 {
-        let ores = Aes192Cfb8Algo::new();
-        if ores.is_ok() {
-            return Some(Arc::new(RefCell::new(ores.unwrap())));
-        }
-    } else if name == ENC_AES_128_CFB {
-        let ores = Aes128CfbAlgo::new();
-        if ores.is_ok() {
-            return Some(Arc::new(RefCell::new(ores.unwrap())));
-        }
-    } else if name == ENC_AES_128_CFB1 {
-        let ores = Aes128Cfb1Algo::new();
-        if ores.is_ok() {
-            return Some(Arc::new(RefCell::new(ores.unwrap())));
-        }
-    } else if name == ENC_AES_128_CFB8 {
-        let ores = Aes128Cfb8Algo::new();
-        if ores.is_ok() {
-            return Some(Arc::new(RefCell::new(ores.unwrap())));
-        }
-    }
-
-    return None;
-}
-
-pub fn get_enc_names() -> Vec<String> {
-    return vec![ENC_AES_128_CBC.to_string(),ENC_AES_192_CBC.to_string(),ENC_AES_256_CBC.to_string(),ENC_AES_128_CFB.to_string(),ENC_AES_128_CFB1.to_string(),ENC_AES_128_CFB8.to_string(),ENC_AES_192_CFB.to_string(),ENC_AES_192_CFB1.to_string(),ENC_AES_192_CFB8.to_string(),ENC_AES_256_CFB.to_string(),ENC_AES_256_CFB1.to_string(),ENC_AES_256_CFB8.to_string()];
-}
-
-
-pub fn get_decryptor(name :&str) -> Option<Arc<RefCell<dyn Asn1DecryptOp>>> {
-    // let key :Vec<u8> = vec![];
-    // let iv :Vec<u8> = vec![];
-    if name == ENC_AES_128_CBC {
-        let ores = Aes128CbcAlgo::new();
-        if ores.is_ok() {
-            return Some(Arc::new(RefCell::new(ores.unwrap())));    
-        }        
-    } else if name == ENC_AES_192_CBC {
-        let ores = Aes192CbcAlgo::new();
-        if ores.is_ok() {
-            return Some(Arc::new(RefCell::new(ores.unwrap())));    
-        }
-    } else if name == ENC_AES_256_CBC {
-        let ores = Aes256CbcAlgo::new();
-        if ores.is_ok() {
-            return Some(Arc::new(RefCell::new(ores.unwrap())));    
-        }
-    } else if name == ENC_AES_256_CFB {
-        let ores = Aes256CfbAlgo::new();
-        if ores.is_ok() {
-            return Some(Arc::new(RefCell::new(ores.unwrap())));
-        }
-    } else if name == ENC_AES_256_CFB1 {
-        let ores = Aes256Cfb1Algo::new();
-        if ores.is_ok() {
-            return Some(Arc::new(RefCell::new(ores.unwrap())));
-        }
-    } else if name == ENC_AES_256_CFB8 {
-        let ores = Aes256Cfb8Algo::new();
-        if ores.is_ok() {
-            return Some(Arc::new(RefCell::new(ores.unwrap())));
-        }
-    } else if name == ENC_AES_192_CFB {
-        let ores = Aes192CfbAlgo::new();
-        if ores.is_ok() {
-            return Some(Arc::new(RefCell::new(ores.unwrap())));
-        }
-    } else if name == ENC_AES_192_CFB1 {
-        let ores = Aes192Cfb1Algo::new();
-        if ores.is_ok() {
-            return Some(Arc::new(RefCell::new(ores.unwrap())));
-        }
-    } else if name == ENC_AES_192_CFB8 {
-        let ores = Aes192Cfb8Algo::new();
-        if ores.is_ok() {
-            return Some(Arc::new(RefCell::new(ores.unwrap())));
-        }
-    } else if name == ENC_AES_128_CFB {
-        let ores = Aes128CfbAlgo::new();
-        if ores.is_ok() {
-            return Some(Arc::new(RefCell::new(ores.unwrap())));
-        }
-    } else if name == ENC_AES_128_CFB1 {
-        let ores = Aes128Cfb1Algo::new();
-        if ores.is_ok() {
-            return Some(Arc::new(RefCell::new(ores.unwrap())));
-        }
-    } else if name == ENC_AES_128_CFB8 {
-        let ores = Aes128Cfb8Algo::new();
-        if ores.is_ok() {
-            return Some(Arc::new(RefCell::new(ores.unwrap())));
-        }
-    }
-    return None;
-}
 
 lazy_static!{
     static ref ENCDE_OID_MAP_NAMES : HashMap<String,String> = {
@@ -467,6 +345,91 @@ lazy_static!{
         retv
     };
 }
+
+macro_rules! expand_operator {
+    ($name:expr) => {
+        if $name == ENC_AES_128_CBC {
+            let ores = Aes128CbcAlgo::new();
+            if ores.is_ok() {
+                return Some(Arc::new(RefCell::new(ores.unwrap())));    
+            }        
+        } else if $name == ENC_AES_192_CBC {
+            let ores = Aes192CbcAlgo::new();
+            if ores.is_ok() {
+                return Some(Arc::new(RefCell::new(ores.unwrap())));    
+            }
+        } else if $name == ENC_AES_256_CBC {
+            let ores = Aes256CbcAlgo::new();
+            if ores.is_ok() {
+                return Some(Arc::new(RefCell::new(ores.unwrap())));    
+            }
+        } else if $name == ENC_AES_256_CFB {
+            let ores = Aes256CfbAlgo::new();
+            if ores.is_ok() {
+                return Some(Arc::new(RefCell::new(ores.unwrap())));
+            }
+        } else if $name == ENC_AES_256_CFB1 {
+            let ores = Aes256Cfb1Algo::new();
+            if ores.is_ok() {
+                return Some(Arc::new(RefCell::new(ores.unwrap())));
+            }
+        } else if $name == ENC_AES_256_CFB8 {
+            let ores = Aes256Cfb8Algo::new();
+            if ores.is_ok() {
+                return Some(Arc::new(RefCell::new(ores.unwrap())));
+            }
+        } else if $name == ENC_AES_192_CFB {
+            let ores = Aes192CfbAlgo::new();
+            if ores.is_ok() {
+                return Some(Arc::new(RefCell::new(ores.unwrap())));
+            }
+        } else if $name == ENC_AES_192_CFB1 {
+            let ores = Aes192Cfb1Algo::new();
+            if ores.is_ok() {
+                return Some(Arc::new(RefCell::new(ores.unwrap())));
+            }
+        } else if $name == ENC_AES_192_CFB8 {
+            let ores = Aes192Cfb8Algo::new();
+            if ores.is_ok() {
+                return Some(Arc::new(RefCell::new(ores.unwrap())));
+            }
+        } else if $name == ENC_AES_128_CFB {
+            let ores = Aes128CfbAlgo::new();
+            if ores.is_ok() {
+                return Some(Arc::new(RefCell::new(ores.unwrap())));
+            }
+        } else if $name == ENC_AES_128_CFB1 {
+            let ores = Aes128Cfb1Algo::new();
+            if ores.is_ok() {
+                return Some(Arc::new(RefCell::new(ores.unwrap())));
+            }
+        } else if $name == ENC_AES_128_CFB8 {
+            let ores = Aes128Cfb8Algo::new();
+            if ores.is_ok() {
+                return Some(Arc::new(RefCell::new(ores.unwrap())));
+            }
+        }
+
+        return None;
+    };
+}
+
+
+pub fn get_encryptor(name :&str) -> Option<Arc<RefCell<dyn Asn1EncryptOp>>> {
+    // let key :Vec<u8> = vec![];
+    // let iv :Vec<u8> = vec![];
+    expand_operator!(name);
+}
+
+pub fn get_enc_names() -> Vec<String> {
+    return vec![ENC_AES_128_CBC.to_string(),ENC_AES_192_CBC.to_string(),ENC_AES_256_CBC.to_string(),ENC_AES_128_CFB.to_string(),ENC_AES_128_CFB1.to_string(),ENC_AES_128_CFB8.to_string(),ENC_AES_192_CFB.to_string(),ENC_AES_192_CFB1.to_string(),ENC_AES_192_CFB8.to_string(),ENC_AES_256_CFB.to_string(),ENC_AES_256_CFB1.to_string(),ENC_AES_256_CFB8.to_string()];
+}
+
+
+pub fn get_decryptor(name :&str) -> Option<Arc<RefCell<dyn Asn1DecryptOp>>> {
+    expand_operator!(name);
+}
+
 
 pub fn get_decryptor_by_oid(oid :&str) -> Option<Arc<RefCell<dyn Asn1DecryptOp>>> {
     match ENCDE_OID_MAP_NAMES.get(oid) {

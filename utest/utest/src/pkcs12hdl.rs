@@ -72,16 +72,6 @@ pub fn get_hmac_sha256_key(passv8 :&[u8], saltv8 :&[u8], itertimes : usize) -> V
 }
 
 
-pub fn aes256_cbc_decrypt(encrypted_data: &[u8], key: &[u8], iv: &[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
-	let mut decryptor = Aes256CbcAlgo::new()?;
-	let mut retdata :Vec<u8> = vec![];
-	decryptor.init_decrypt(key,iv)?;
-	retdata.extend(decryptor.decrypt_update(encrypted_data)?);
-	let ndata = decryptor.decrypt_final()?;
-	retdata.extend(ndata);
-	return Ok(retdata);
-}
-
 
 pub fn get_algor_pbkdf2_private_data(x509algorbytes :&[u8],encdata :&[u8],passin :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
 	let mut algor :Asn1X509Algor = Asn1X509Algor::init_asn1();
