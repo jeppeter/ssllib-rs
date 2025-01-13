@@ -23,7 +23,7 @@ use crate::x509::*;
 use crate::impls::*;
 use crate::digest::*;
 use crate::consts::*;
-use crate::utils::*;
+//use crate::utils::*;
 
 
 ssllib_error_class!{SslPkcs7Error}
@@ -168,6 +168,31 @@ impl Asn1Pkcs7SignerInfo {
 }
 
 impl Asn1Pkcs7SignerInfo {
+	pub fn new_signer_info_from_cert(cert :&Asn1X509,pkey :&str ,dgst :&str) -> Result<Asn1Pkcs7SignerInfo,Box<dyn Error>> {
+		let mut retv :Asn1Pkcs7SignerInfo = Asn1Pkcs7SignerInfo::init_asn1();
+		if retv.elem.val.len() < 1 {
+			retv.elem.val.push(Asn1Pkcs7SignerInfoElem::init_asn1());
+		}
+		retv.elem.val[0].version.val = 1;
+		let oissuer = cert.get_x509_name0();
+		if oissuer.is_none() {
+			ssllib_new_error!{SslPkcs7Error,"no issuer for x509"}
+		}
+		let issuer = oissuer.unwrap();
+		let _ = retv.set_issuer(&issuer)?;
+
+		let onumber = cert.get_serial_number0();
+		if onumber.is_none() {
+			ssllib_new_error!{SslPkcs7Error,"no serial number for x509"}
+		}
+		let number = onumber.unwrap();
+		let _ = retv.set_issuer_serial(&number)?;
+
+		let _ = retv.set_enc_and_digest(pkey,dgst)?;
+
+		Ok(retv)
+	}
+
 	pub fn get_auth_attrs(&self) -> Result<Vec<Asn1X509Attribute>,Box<dyn Error>> {
 		let mut retv :Vec<Asn1X509Attribute> = Vec::new();
 		if self.elem.val.len() != 1 && self.elem.val.len() != 0 {
@@ -368,32 +393,6 @@ pub struct Asn1Pkcs7Elem {
 	pub anyobj :Asn1Any,
 }
 
-impl Asn1Pkcs7Elem {
-	pub fn add_signer(&mut self,cert :&Asn1X509,pkey :&str ,dgst :&str) -> Result<Asn1Pkcs7SignerInfo,Box<dyn Error>> {
-		let mut retv :Asn1Pkcs7SignerInfo = Asn1Pkcs7SignerInfo::init_asn1();
-		if retv.elem.val.len() < 1 {
-			retv.elem.val.push(Asn1Pkcs7SignerInfoElem::init_asn1());
-		}
-		retv.elem.val[0].version.val = 1;
-		let oissuer = cert.get_x509_name0();
-		if oissuer.is_none() {
-			ssllib_new_error!{SslPkcs7Error,"no issuer for x509"}
-		}
-		let issuer = oissuer.unwrap();
-		let _ = retv.set_issuer(&issuer)?;
-
-		let onumber = cert.get_serial_number0();
-		if onumber.is_none() {
-			ssllib_new_error!{SslPkcs7Error,"no serial number for x509"}
-		}
-		let number = onumber.unwrap();
-		let _ = retv.set_issuer_serial(&number)?;
-
-		let _ = retv.set_enc_and_digest(pkey,dgst)?;
-
-		Ok(retv)
-	}
-}
 
 //#[asn1_sequence(debug=enable)]
 #[asn1_sequence()]
@@ -434,16 +433,4 @@ impl Asn1Pkcs7 {
 		ssllib_new_error!{SslPkcs7Error,"not signed data"}	
 	}
 
-	pub fn add_signer(&mut self,cert :&Asn1X509,pkey :&str,dgst :&str) -> Result<Asn1Pkcs7SignerInfo,Box<dyn Error>> {
-		let ipkey = format!("{}",pkey);
-		let mut idgst = format!("{}",dgst);
-		if dgst.len() == 0 {
-			idgst = get_digest_from_pkey(pkey)?;
-		}
-
-		if self.elem.val.len()  < 1 {
-			self.elem.val.push(Asn1Pkcs7Elem::init_asn1());
-		}
-		return self.elem.val[0].add_signer(cert,&ipkey,&idgst);
-	}
 }

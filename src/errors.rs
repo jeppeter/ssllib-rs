@@ -22,7 +22,7 @@ macro_rules! ssllib_error_class {
 	}
 
 	impl $type {
-		fn create(c :&str) -> $type {
+		pub fn create(c :&str) -> $type {
 			$type {msg : format!("{}",c)}
 		}
 	}

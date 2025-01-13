@@ -102,11 +102,9 @@ fn pkcs7appsignature_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn 
 	let x509code = read_file_into_der(&x509file)?;
 	let mut cert :Asn1X509 = Asn1X509::init_asn1();
 	let _ = cert.decode_asn1(&x509code)?;
-	let mut sig :Asn1Pkcs7 = Asn1Pkcs7::init_asn1();
-	let signerinfo = sig.add_signer(&cert,&oidpkey,&oiddgst)?;
+	let signerinfo = Asn1Pkcs7SignerInfo::new_signer_info_from_cert(&cert,&oidpkey,&oiddgst)?;
 	let mut outf = std::io::stdout();
 	signerinfo.print_asn1("Asn1Pkcs7SignerInfo",0,&mut outf)?;
-	sig.print_asn1("Asn1Pkcs7",0,&mut outf)?;
 
 
 	Ok(())

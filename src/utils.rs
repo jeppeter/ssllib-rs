@@ -33,7 +33,7 @@ pub (crate) fn check_equal_u8(a :&[u8],b :&[u8]) -> bool {
     return true;
 }
 
-pub (crate) fn get_digest_from_pkey(pkey :&str) -> Result<String,Box<dyn Error>> {
+pub fn get_digest_from_pkey(pkey :&str) -> Result<String,Box<dyn Error>> {
     ssllib_new_error!{SslUtilsError,"cannot find {}",pkey}
 }
 
