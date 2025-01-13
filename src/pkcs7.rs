@@ -404,7 +404,7 @@ pub struct Asn1Pkcs7Encrypt {
 }
 
 //#[asn1_obj_selector(debug=enable,anyobj=default,signed="1.2.840.113549.1.7.2",encryptdata="1.2.840.113549.1.7.6",data="1.2.840.113549.1.7.1")]
-#[asn1_obj_selector(anyobj=default,signed="1.2.840.113549.1.7.2",encryptdata="1.2.840.113549.1.7.6",data="1.2.840.113549.1.7.1")]
+#[asn1_obj_selector(anyobj=default,data="1.2.840.113549.1.7.1",signed="1.2.840.113549.1.7.2",envlop="1.2.840.113549.1.7.3",envlopsigned="1.2.840.113549.1.7.4",digestdata="1.2.840.113549.1.7.5",encryptdata="1.2.840.113549.1.7.6")]
 #[derive(Clone)]
 pub struct Asn1Pkcs7Selector {
 	pub val :Asn1Object,
@@ -415,10 +415,12 @@ pub struct Asn1Pkcs7Selector {
 #[derive(Clone)]
 pub struct Asn1Pkcs7Elem {
 	pub selector :Asn1Pkcs7Selector,
-	pub signed : Asn1Ndef<Asn1Pkcs7Signed,0>,
-	pub encryptdata : Asn1Ndef<Asn1Pkcs7Encrypt,0>,
 	pub data : Asn1Ndef<Asn1OctData,0>,
-	pub anyobj :Asn1Any,
+	pub signed : Asn1Ndef<Asn1Pkcs7Signed,0>,
+	pub envlop :Asn1Any,
+	pub envlopsigned :Asn1Any,
+	pub digestdata :Asn1Any,
+	pub encryptdata : Asn1Ndef<Asn1Pkcs7Encrypt,0>,
 }
 
 
@@ -431,6 +433,36 @@ pub struct Asn1Pkcs7 {
 
 #[allow(dead_code)]
 impl Asn1Pkcs7 {
+	pub fn set_type(&mut self,types :&str) -> Result<(),Box<dyn Error>> {
+		let oid :String;
+		if types == PKCS7_TYPE_DATA {
+			oid = PKCS7_DATA_OID.to_string();
+		} else if types == PKCS7_TYPE_SIGNED  {
+			oid = PKCS7_SIGNED_DATA_OID.to_string();
+		} else if types == PKCS7_TYPE_ENVLOP  {
+			oid = PKCS7_ENVLOP_DATA_OID.to_string();
+		} else if types == PKCS7_TYPE_ENVLOP_AND_SIGNED  {
+			oid = PKCS7_ENVLOP_AND_SIGNED_DATA_OID.to_string();
+		} else if types == PKCS7_TYPE_DIGEST  {
+			oid = PKCS7_DIGEST_DATA_OID.to_string();
+		} else if types == PKCS7_TYPE_ENCRYPTED  {
+			oid = PKCS7_ENCRYPTED_DATA_OID.to_string();
+		} else {
+			ssllib_new_error!{SslPkcs7Error,"not supported type {}", types}
+		}
+		if self.elem.val.len() == 0 {
+			self.elem.val.push(Asn1Pkcs7Elem::init_asn1());
+		}
+		self.elem.val[0].selector.val.set_value(&oid)?;
+
+		self.elem.val[0].signed = Asn1Ndef::init_asn1();
+		self.elem.val[0].data = Asn1Ndef::init_asn1();
+		self.elem.val[0].envlop = Asn1Any::init_asn1();
+		self.elem.val[0].envlopsigned = Asn1Any::init_asn1();
+		self.elem.val[0].encryptdata = Asn1Ndef::init_asn1();
+		Ok(())
+	}
+
 	pub fn is_signed_data(&self) -> bool {
 		if self.elem.val.len() < 1 {
 			return false;
@@ -459,6 +491,14 @@ impl Asn1Pkcs7 {
 			return Ok(self.elem.val[0].signed.val.as_mut().unwrap());
 		}
 		ssllib_new_error!{SslPkcs7Error,"not signed data"}	
+	}
+
+	pub fn add_signer(&mut self,si :&Asn1Pkcs7SignerInfo) -> Result<(),Box<dyn Error>> {
+		if self.elem.val.len() == 0 {
+			self.elem.val.push(Asn1Pkcs7Elem::init_asn1());
+		}
+
+		Ok(())
 	}
 
 }

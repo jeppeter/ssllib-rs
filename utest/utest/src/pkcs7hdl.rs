@@ -153,10 +153,81 @@ fn pkcs7signerinfoaddauthattr_handler(ns :NameSpaceEx,_optargset :Option<Arc<Ref
 	Ok(())
 }
 
-#[extargs_map_function(pkcs7dec_handler,pkcs7signerinfodec_handler,pkcs7appsignature_handler,pkcs7signerinfoaddauthattr_handler)]
+const SPC_STATEMENT_TYPE_OBJID :&str = "1.3.6.1.4.1.311.2.1.11";
+const SPC_INDIRECT_DATA_OBJID :&str = "1.3.6.1.4.1.311.2.1.4";
+const PKCS9_CONTENT_TYPE_OID :&str = "1.2.840.113549.1.9.3";
+
+fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
+	let sarr :Vec<String>;
+
+	init_log(ns.clone())?;
+
+	sarr = ns.get_array("subnargs");
+
+	if sarr.len() < 3 {
+		extargs_new_error!{Pkcs7Error,"need x509file pkeyname dgstname"}
+	}
+
+	let x509file = format!("{}",sarr[0]);
+	let pkeyname = format!("{}",sarr[1]);
+	let dgstname = format!("{}",sarr[2]);
+	let ooidpkey = get_pkey_oid(&pkeyname);
+	if ooidpkey.is_none() {
+		extargs_new_error!{Pkcs7Error,"no pkey oid for {}",pkeyname}
+	}
+
+	let ooiddgst = get_digest_oid(&dgstname);
+	if ooiddgst.is_none() {
+		extargs_new_error!{Pkcs7Error,"no dgst oid for {}",dgstname}	
+	}
+	let oidpkey = ooidpkey.unwrap();
+	let oiddgst = ooiddgst.unwrap();
+	let x509code = read_file_into_der(&x509file)?;
+	let mut cert :Asn1X509 = Asn1X509::init_asn1();
+	let _ = cert.decode_asn1(&x509code)?;
+	let mut si = Asn1Pkcs7SignerInfo::new_signer_info_from_cert(&cert,&oidpkey,&oiddgst)?;
+	let mut oany :Asn1Any = Asn1Any::init_asn1();
+	let mut outf = std::io::stdout();
+	let mut oany :Asn1Any = Asn1Any::init_asn1();
+
+
+	let mut oid :String;
+	let mut obj :Asn1Object = Asn1Object::init_asn1();
+	let _ = obj.set_value(SPC_INDIRECT_DATA_OBJID)?;
+	oid = PKCS9_CONTENT_TYPE_OID.to_string();
+	oany.tag = 0x31;
+	oany.data = obj.encode_asn1()?;
+
+	let _ = si.append_auth_attr(&oid,&oany)?:
+
+	oid = = SPC_STATEMENT_TYPE_OBJID.to_string();
+	if ns.get_bool("pkcs7comm") {
+		oany.tag = 0x31;
+		oany.data = vec![0x30,0x0c,0x06,0x0a,0x2b,0x06,0x01,0x04,0x01,0x82,0x37,0x02,0x01,0x16];
+	} else {
+		oany.tag = 0x31;
+		oany.data = vec![0x30,0x0c,0x06,0x0a,0x2b,0x06,0x01,0x04,0x01,0x82,0x37,0x02,0x01,0x15];
+	}
+	let _ = si.append_auth_attr(&oid,&oany)?;
+
+	let mut pkcs7obj :Asn1Pkcs7 = Asn1Pkcs7::init_asn1();
+	let _ = pkcs7obj.add_signer(&si)?;
+	
+
+
+
+	Ok(())
+}
+
+
+#[extargs_map_function(pkcs7dec_handler,pkcs7signerinfodec_handler,pkcs7appsignature_handler,pkcs7signerinfoaddauthattr_handler,pkcs7sign_handler)]
 pub fn load_pkcs7_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
+		"certs" : [],
+		"xcerts" : [],
+		"crls" : [],
+		"pkcs7comm" : false,
 		"pkcs7dec<pkcs7dec_handler>##file ... ##" : {
 			"$" : "+"
 		},
@@ -168,6 +239,9 @@ pub fn load_pkcs7_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 		},
 		"pkcs7signerinfoaddauthattr<pkcs7signerinfoaddauthattr_handler>##pkcs7signerinfofile oid oanyfile to append ##" : {
 			"$" : 3
+		},
+		"pkcs7sign<pkcs7sign_handler>##x509file pkeyname dgstname ##" : {
+			"$" : "+"
 		}
 	}
 	"#;

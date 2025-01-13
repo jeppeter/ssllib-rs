@@ -102,3 +102,20 @@ pub const SHA256_DIGEST_SIZE :usize = 32;
 
 pub const DGST_SHA256 :&str = "sha256";
 pub const ECDSA_SHA256_PKEY :&str = "ecdsa-with-sha256";
+
+
+pub const PKCS7_TYPE_DATA :&str   = "data";
+pub const PKCS7_TYPE_SIGNED :&str = "signed";
+pub const PKCS7_TYPE_ENVLOP :&str = "envlop";
+pub const PKCS7_TYPE_ENVLOP_AND_SIGNED :&str = "envlopandsigned";
+pub const PKCS7_TYPE_DIGEST :&str = "digest";
+pub const PKCS7_TYPE_ENCRYPTED :&str = "encrypted";
+
+
+
+pub const PKCS7_DATA_OID :&str = "1.2.840.113549.1.7.1";
+pub const PKCS7_SIGNED_DATA_OID :&str = "1.2.840.113549.1.7.2";
+pub const PKCS7_ENVLOP_DATA_OID :&str = "1.2.840.113549.1.7.3";
+pub const PKCS7_ENVLOP_AND_SIGNED_DATA_OID :&str = "1.2.840.113549.1.7.4";
+pub const PKCS7_DIGEST_DATA_OID :&str = "1.2.840.113549.1.7.5";
+pub const PKCS7_ENCRYPTED_DATA_OID :&str = "1.2.840.113549.1.7.6";
