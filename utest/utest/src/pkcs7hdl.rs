@@ -35,6 +35,8 @@ use ssllib::pkcs7::*;
 use ssllib::utils::*;
 use ssllib::x509::*;
 use asn1obj::asn1impl::*;
+use asn1obj::base::*;
+use super::fileop::*;
 
 extargs_error_class!{Pkcs7Error}
 
@@ -105,13 +107,53 @@ fn pkcs7appsignature_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn 
 	let signerinfo = Asn1Pkcs7SignerInfo::new_signer_info_from_cert(&cert,&oidpkey,&oiddgst)?;
 	let mut outf = std::io::stdout();
 	signerinfo.print_asn1("Asn1Pkcs7SignerInfo",0,&mut outf)?;
+	let output = ns.get_string("output");
+	if output.len() > 0 {
+		let code = signerinfo.encode_asn1()?;
+		let _ = write_file_bytes(&output,&code)?;
+	}
 
 
 	Ok(())
 }
 
 
-#[extargs_map_function(pkcs7dec_handler,pkcs7signerinfodec_handler,pkcs7appsignature_handler)]
+fn pkcs7signerinfoaddauthattr_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
+	let sarr :Vec<String>;
+
+	init_log(ns.clone())?;
+
+	sarr = ns.get_array("subnargs");
+
+	if sarr.len() < 3 {
+		extargs_new_error!{Pkcs7Error,"need x509file pkeyname dgstname"}
+	}
+
+	let sifile = format!("{}",sarr[0]);
+	let oid = format!("{}",sarr[1]);
+	let oanyfile = format!("{}",sarr[2]);
+	let sicode = read_file_into_der(&sifile)?;
+	let oanycode = read_file_into_der(&oanyfile)?;
+
+	let mut si :Asn1Pkcs7SignerInfo = Asn1Pkcs7SignerInfo::init_asn1();
+	let _  =si.decode_asn1(&sicode)?;
+	let mut oany :Asn1Any = Asn1Any::init_asn1();
+	let mut outf = std::io::stdout();
+	oany.decode_asn1(&oanycode)?;
+	si.append_auth_attr(&oid,&oany)?;
+
+	si.print_asn1("Asn1Pkcs7SignerInfo",0,&mut outf)?;
+	let output = ns.get_string("output");
+	if output.len() > 0 {
+		let code = si.encode_asn1()?;
+		let _ = write_file_bytes(&output,&code)?;
+	}
+
+
+	Ok(())
+}
+
+#[extargs_map_function(pkcs7dec_handler,pkcs7signerinfodec_handler,pkcs7appsignature_handler,pkcs7signerinfoaddauthattr_handler)]
 pub fn load_pkcs7_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -121,7 +163,10 @@ pub fn load_pkcs7_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 		"pkcs7signerinfodec<pkcs7signerinfodec_handler>####" : {
 			"$" : "+"
 		},
-		"pkcs7appsignature<pkcs7appsignature_handler>##x509file pkeyname dgstname to add##" : {
+		"pkcs7appsignature<pkcs7appsignature_handler>##x509file pkeyname dgstname to add and output##" : {
+			"$" : 3
+		},
+		"pkcs7signerinfoaddauthattr<pkcs7signerinfoaddauthattr_handler>##pkcs7signerinfofile oid oanyfile to append ##" : {
 			"$" : 3
 		}
 	}

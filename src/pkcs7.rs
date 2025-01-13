@@ -120,6 +120,23 @@ impl Asn1Pkcs7SignerInfoElem {
 		Ok((keyalgor,dgstalgor))
 	}
 
+	pub fn append_auth_attr(&mut self, oid :&str,oany :&Asn1Any) -> Result<(),Box<dyn Error>> {
+		let mut attr :Asn1X509Attribute = Asn1X509Attribute::init_asn1();
+		attr.elem.val.push(Asn1X509AttributeElem::init_asn1());
+		let _ = attr.elem.val[0].object.set_value(oid)?;
+		let mut impset :Asn1ImpSet<Asn1X509Attribute,0> = Asn1ImpSet::init_asn1();
+		attr.elem.val[0].set = oany.clone();
+		if self.auth_attr.val.is_none() {
+			impset.val.push(attr);
+			self.auth_attr.val = Some(impset);
+		} else {
+			let mut v :Asn1ImpSet<Asn1X509Attribute,0> = self.auth_attr.val.as_ref().unwrap().clone();
+			v.val.push(attr);
+			self.auth_attr.val = Some(v);
+		}
+		Ok(())
+	}
+
 
 }
 
@@ -163,6 +180,17 @@ impl Asn1Pkcs7SignerInfo {
 			let _ = self.elem.val[0].set_enc_and_digest(pkey,dgst)?;
 		}
 		Ok((keyalgor,dgstalgor))
+	}
+
+	pub fn append_auth_attr(&mut self,oid :&str ,oany :&Asn1Any) -> Result<(),Box<dyn Error>> {
+		if self.elem.val.len() > 0 {
+			let _ = self.elem.val[0].append_auth_attr(oid,oany)?;
+		} else {
+			let mut elm :Asn1Pkcs7SignerInfoElem = Asn1Pkcs7SignerInfoElem::init_asn1();
+			let _ = elm.append_auth_attr(oid,oany)?;
+			self.elem.val.push(elm);
+		}
+		Ok(())
 	}
 
 }
