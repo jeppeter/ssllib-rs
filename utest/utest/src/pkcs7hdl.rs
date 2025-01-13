@@ -34,6 +34,7 @@ use super::pemlib::*;
 use ssllib::pkcs7::*;
 use ssllib::utils::*;
 use ssllib::x509::*;
+use ssllib::consts::*;
 use asn1obj::asn1impl::*;
 use asn1obj::base::*;
 use super::fileop::*;
@@ -196,23 +197,24 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	let _ = obj.set_value(SPC_INDIRECT_DATA_OBJID)?;
 	oid = PKCS9_CONTENT_TYPE_OID.to_string();
 	oany.tag = 0x31;
-	oany.data = obj.encode_asn1()?;
+	oany.content = obj.encode_asn1()?;
 
-	let _ = si.append_auth_attr(&oid,&oany)?:
+	let _ = si.append_auth_attr(&oid,&oany)?;
 
-	oid = = SPC_STATEMENT_TYPE_OBJID.to_string();
+	oid = SPC_STATEMENT_TYPE_OBJID.to_string();
 	if ns.get_bool("pkcs7comm") {
 		oany.tag = 0x31;
-		oany.data = vec![0x30,0x0c,0x06,0x0a,0x2b,0x06,0x01,0x04,0x01,0x82,0x37,0x02,0x01,0x16];
+		oany.content = vec![0x30,0x0c,0x06,0x0a,0x2b,0x06,0x01,0x04,0x01,0x82,0x37,0x02,0x01,0x16];
 	} else {
 		oany.tag = 0x31;
-		oany.data = vec![0x30,0x0c,0x06,0x0a,0x2b,0x06,0x01,0x04,0x01,0x82,0x37,0x02,0x01,0x15];
+		oany.content = vec![0x30,0x0c,0x06,0x0a,0x2b,0x06,0x01,0x04,0x01,0x82,0x37,0x02,0x01,0x15];
 	}
 	let _ = si.append_auth_attr(&oid,&oany)?;
 
 	let mut pkcs7obj :Asn1Pkcs7 = Asn1Pkcs7::init_asn1();
+	pkcs7obj.set_type(PKCS7_TYPE_SIGNED)?;
 	let _ = pkcs7obj.add_signer(&si)?;
-	
+
 
 
 
