@@ -16,7 +16,7 @@ use std::io::{Write};
 #[allow(unused_imports)]
 use crate::{ssllib_new_error,ssllib_error_class};
 #[allow(unused_imports)]
-use crate::{ssllib_log_error,ssllib_buffer_trace,ssllib_format_buffer_log};
+use crate::{ssllib_log_error,ssllib_buffer_trace,ssllib_format_buffer_log,ssllib_log_trace};
 use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
 
 use crate::x509::*;
@@ -516,25 +516,38 @@ impl Asn1Pkcs7Elem {
 		self.digestdata = Asn1Ndef::init_asn1();
 		self.encryptdata = Asn1Ndef::init_asn1();
 
-		if oid == PKCS7_TYPE_DATA {
+		if types == PKCS7_TYPE_DATA {
 			let data :Asn1OctData = Asn1OctData::init_asn1();
 			self.data.val =  Some(data);
-		} else if oid == PKCS7_TYPE_SIGNED {
-			let signed :Asn1Pkcs7Signed = Asn1Pkcs7Signed::init_asn1();
+		} else if types == PKCS7_TYPE_SIGNED {
+			let mut signed :Asn1Pkcs7Signed = Asn1Pkcs7Signed::init_asn1();
+			let ncert :Asn1ImpSet<Asn1X509,0> = Asn1ImpSet::init_asn1();
+			signed.elem.val.push(Asn1Pkcs7SignedElem::init_asn1());
+			signed.elem.val[0].version.val = 1;
+			signed.elem.val[0].cert.val = Some(ncert);
 			self.signed.val = Some(signed);
 		} else if types == PKCS7_TYPE_ENVLOP  {
-			let envlop :Asn1Pkcs7Envelope = Asn1Pkcs7Envelope::init_asn1();
+			let mut envlop :Asn1Pkcs7Envelope = Asn1Pkcs7Envelope::init_asn1();
+			envlop.elem.val.push(Asn1Pkcs7EnvelopeElem::init_asn1());
+			envlop.elem.val[0].version.val = 1;
 			self.envlop.val = Some(envlop);
 		} else if types == PKCS7_TYPE_ENVLOP_AND_SIGNED  {
-			let envlopsigned :Asn1Pkcs7SignedEnvelope = Asn1Pkcs7SignedEnvelope::init_asn1();
+			let mut envlopsigned :Asn1Pkcs7SignedEnvelope = Asn1Pkcs7SignedEnvelope::init_asn1();
+			envlopsigned.elem.val.push(Asn1Pkcs7SignedEnvelopeElem::init_asn1());
+			envlopsigned.elem.val[0].version.val = 1;
 			self.envlopsigned.val = Some(envlopsigned);
 		} else if types == PKCS7_TYPE_DIGEST  {
-			let digest :Asn1Pkcs7Digest = Asn1Pkcs7Digest::init_asn1();
+			let mut digest :Asn1Pkcs7Digest = Asn1Pkcs7Digest::init_asn1();
+			digest.elem.val.push(Asn1Pkcs7DigestElem::init_asn1());
+			digest.elem.val[0].version.val = 1;
 			self.digestdata.val = Some(digest);
 		} else if types == PKCS7_TYPE_ENCRYPTED  {
-			let encrypt :Asn1Pkcs7Encrypt = Asn1Pkcs7Encrypt::init_asn1();
+			let mut encrypt :Asn1Pkcs7Encrypt = Asn1Pkcs7Encrypt::init_asn1();
+			encrypt.elem.val.push(Asn1Pkcs7EncryptElem::init_asn1());
+			encrypt.elem.val[0].version.val = 1;
 			self.encryptdata.val = Some(encrypt);
 		}
+
 		Ok(())
 	}
 
@@ -599,7 +612,7 @@ impl Asn1Pkcs7Elem {
 				if self.envlopsigned.val.is_some() {
 					let c  = self.signed.val.as_ref().unwrap().clone();
 					if c.elem.val.len() > 0 {						
-							md_algs = c.elem.val[0].md_algs.clone();
+						md_algs = c.elem.val[0].md_algs.clone();
 					}
 				}
 			} else {
@@ -621,6 +634,7 @@ impl Asn1Pkcs7Elem {
 					c.elem.val.push(Asn1Pkcs7SignedElem::init_asn1());
 				}
 				c.elem.val[0].md_algs = md_algs.clone();
+				c.elem.val[0].signer_info.val.push(si.clone());
 				let mut ndef :Asn1Ndef<Asn1Pkcs7Signed,0> = Asn1Ndef::init_asn1();
 				ndef.val = Some(c);
 				self.signed = ndef;
@@ -636,12 +650,55 @@ impl Asn1Pkcs7Elem {
 				let mut copt :Asn1Opt<Asn1Set<Asn1X509Algor>> = Asn1Opt::init_asn1();
 				copt.val = Some(md_algs.clone());
 				c.elem.val[0].md_algs = copt;
+				let mut nsigner :Asn1Set<Asn1Pkcs7SignerInfo> = Asn1Set::init_asn1();
+				if c.elem.val[0].signer_info.val.is_some() {
+					nsigner = c.elem.val[0].signer_info.val.as_ref().unwrap().clone();
+				}
+				nsigner.val.push(si.clone());
+				c.elem.val[0].signer_info.val= Some(nsigner);
 				let mut ndef :Asn1Ndef<Asn1Pkcs7SignedEnvelope,0> = Asn1Ndef::init_asn1();
 				ndef.val = Some(c);
 				self.envlopsigned = ndef;
 			} else {
 				panic!("can not here for type [{}]",selstr);
 			}
+		}
+
+
+		if selstr == PKCS7_TYPE_SIGNED {
+			let mut c :Asn1Pkcs7Signed = Asn1Pkcs7Signed::init_asn1();
+
+			if self.signed.val.is_some() {
+				c = self.signed.val.as_ref().unwrap().clone();
+			}
+
+			if c.elem.val.len() == 0 {
+				c.elem.val.push(Asn1Pkcs7SignedElem::init_asn1());
+			}
+			c.elem.val[0].signer_info.val.push(si.clone());
+			let mut ndef :Asn1Ndef<Asn1Pkcs7Signed,0> = Asn1Ndef::init_asn1();
+			ndef.val = Some(c);
+			self.signed = ndef;
+		} else if selstr == PKCS7_TYPE_ENVLOP_AND_SIGNED {
+			let mut c :Asn1Pkcs7SignedEnvelope = Asn1Pkcs7SignedEnvelope::init_asn1();
+			if self.envlopsigned.val.is_some() {
+				c  = self.envlopsigned.val.as_ref().unwrap().clone();
+			}
+
+			if c.elem.val.len() == 0 {
+				c.elem.val.push(Asn1Pkcs7SignedEnvelopeElem::init_asn1());
+			}
+			let mut nsigner :Asn1Set<Asn1Pkcs7SignerInfo> = Asn1Set::init_asn1();
+			if c.elem.val[0].signer_info.val.is_some() {
+				nsigner = c.elem.val[0].signer_info.val.as_ref().unwrap().clone();
+			}
+			nsigner.val.push(si.clone());
+			c.elem.val[0].signer_info.val= Some(nsigner);
+			let mut ndef :Asn1Ndef<Asn1Pkcs7SignedEnvelope,0> = Asn1Ndef::init_asn1();
+			ndef.val = Some(c);
+			self.envlopsigned = ndef;
+		} else {
+			panic!("can not here for type [{}]",selstr);
 		}
 		Ok(())
 	}
