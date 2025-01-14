@@ -38,6 +38,8 @@ use ssllib::consts::*;
 use asn1obj::asn1impl::*;
 use asn1obj::base::*;
 use super::fileop::*;
+#[allow(unused_imports)]
+use chrono::{Utc,DateTime,Datelike,Timelike};
 
 extargs_error_class!{Pkcs7Error}
 
@@ -192,6 +194,9 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	let mut outf = std::io::stdout();
 
 
+	let nowt = Utc::now();
+	si.add_time_attr(&nowt)?;
+
 	let mut oid :String;
 	let mut obj :Asn1Object = Asn1Object::init_asn1();
 	let _ = obj.set_value(SPC_INDIRECT_DATA_OBJID)?;
@@ -200,6 +205,8 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	oany.content = obj.encode_asn1()?;
 
 	let _ = si.append_auth_attr(&oid,&oany)?;
+
+
 
 	oid = SPC_STATEMENT_TYPE_OBJID.to_string();
 	if ns.get_bool("pkcs7comm") {

@@ -12,6 +12,7 @@ use std::error::Error;
 use std::sync::Arc;
 use std::cell::RefCell;
 use std::io::{Write};
+use chrono::{Utc,Local,DateTime};
 
 #[allow(unused_imports)]
 use crate::{ssllib_new_error,ssllib_error_class};
@@ -137,6 +138,26 @@ impl Asn1Pkcs7SignerInfoElem {
 		Ok(())
 	}
 
+	pub fn add_time_attr(&mut self,dt :&DateTime<Utc>) -> Result<(),Box<dyn Error>> {
+		let mut atime :Asn1Set<Asn1Time> = Asn1Set::init_asn1();
+		atime.val.push(Asn1Time::init_asn1());
+		atime.val[0].set_value_time(dt)?;
+		let code = atime.encode_asn1()?;
+		let mut oany :Asn1Any = Asn1Any::init_asn1();
+		oany.decode_asn1(&code)?;
+		return self.append_auth_attr(SIGNING_TIME_OID,&oany);
+	}
+
+	pub fn add_time_attr_local(&mut self,dt :&DateTime<Local>) -> Result<(),Box<dyn Error>> {
+		let mut atime :Asn1Set<Asn1Time> = Asn1Set::init_asn1();
+		atime.val.push(Asn1Time::init_asn1());
+		atime.val[0].set_value_time_local(dt)?;
+		let code = atime.encode_asn1()?;
+		let mut oany :Asn1Any = Asn1Any::init_asn1();
+		oany.decode_asn1(&code)?;
+		return self.append_auth_attr(SIGNING_TIME_OID,&oany);		
+	}
+
 
 }
 
@@ -148,51 +169,45 @@ pub struct Asn1Pkcs7SignerInfo {
 }
 
 impl Asn1Pkcs7SignerInfo {
-	pub fn set_issuer(&mut self, name :&Asn1X509Name) -> Result<Option<Asn1X509Name>,Box<dyn Error>> {
-		let mut retv :Option<Asn1X509Name> = None;
-		if self.elem.val.len() > 0 {
-			retv = self.elem.val[0].set_issuer(name)?;
-		} else {
+	fn _make_sure_elem(&mut self) -> Result<(),Box<dyn Error>> {
+		if self.elem.val.len() == 0 {
 			self.elem.val.push(Asn1Pkcs7SignerInfoElem::init_asn1());
-			let _ = self.elem.val[0].set_issuer(name)?;
-		}
-		Ok(retv)
-	}
-
-	pub fn set_issuer_serial(&mut self,serialnum :&Asn1BigNum) -> Result<Option<Asn1BigNum>,Box<dyn Error>> {
-		let mut retv :Option<Asn1BigNum> = None;
-		if self.elem.val.len() > 0 {
-			retv = self.elem.val[0].set_issuer_serial(serialnum)?;
-		} else {
-			self.elem.val.push(Asn1Pkcs7SignerInfoElem::init_asn1());
-			let _ = self.elem.val[0].set_issuer_serial(serialnum)?;
-		}
-		Ok(retv)
-	}
-
-	pub fn set_enc_and_digest(&mut self,pkey :&str, dgst:&str) -> Result<(Option<Asn1X509Algor>,Option<Asn1X509Algor>),Box<dyn Error>> {
-		let mut keyalgor :Option<Asn1X509Algor> = None;
-		let mut dgstalgor :Option<Asn1X509Algor> = None;
-		if self.elem.val.len() > 0 {
-			(keyalgor,dgstalgor) = self.elem.val[0].set_enc_and_digest(pkey,dgst)?;
-		} else {
-			self.elem.val.push(Asn1Pkcs7SignerInfoElem::init_asn1());
-			let _ = self.elem.val[0].set_enc_and_digest(pkey,dgst)?;
-		}
-		Ok((keyalgor,dgstalgor))
-	}
-
-	pub fn append_auth_attr(&mut self,oid :&str ,oany :&Asn1Any) -> Result<(),Box<dyn Error>> {
-		if self.elem.val.len() > 0 {
-			let _ = self.elem.val[0].append_auth_attr(oid,oany)?;
-		} else {
-			let mut elm :Asn1Pkcs7SignerInfoElem = Asn1Pkcs7SignerInfoElem::init_asn1();
-			let _ = elm.append_auth_attr(oid,oany)?;
-			self.elem.val.push(elm);
 		}
 		Ok(())
 	}
 
+	pub fn set_issuer(&mut self, name :&Asn1X509Name) -> Result<Option<Asn1X509Name>,Box<dyn Error>> {
+		self._make_sure_elem()?;
+		let retv = self.elem.val[0].set_issuer(name)?;
+		Ok(retv)
+	}
+
+	pub fn set_issuer_serial(&mut self,serialnum :&Asn1BigNum) -> Result<Option<Asn1BigNum>,Box<dyn Error>> {
+		self._make_sure_elem()?;
+		let retv = self.elem.val[0].set_issuer_serial(serialnum)?;
+		Ok(retv)
+	}
+
+	pub fn set_enc_and_digest(&mut self,pkey :&str, dgst:&str) -> Result<(Option<Asn1X509Algor>,Option<Asn1X509Algor>),Box<dyn Error>> {
+		self._make_sure_elem()?;
+		let (keyalgor,dgstalgor) = self.elem.val[0].set_enc_and_digest(pkey,dgst)?;
+		Ok((keyalgor,dgstalgor))
+	}
+
+	pub fn append_auth_attr(&mut self,oid :&str ,oany :&Asn1Any) -> Result<(),Box<dyn Error>> {
+		self._make_sure_elem()?;
+		let _ = self.elem.val[0].append_auth_attr(oid,oany)?;
+		Ok(())
+	}
+	pub fn add_time_attr(&mut self,dt :&DateTime<Utc>) -> Result<(),Box<dyn Error>> {
+		self._make_sure_elem()?;
+		return self.elem.val[0].add_time_attr(dt);
+	}
+
+	pub fn add_time_attr_local(&mut self,dt :&DateTime<Local>) -> Result<(),Box<dyn Error>> {
+		self._make_sure_elem()?;
+		return self.elem.val[0].add_time_attr_local(dt);
+	}
 }
 
 impl Asn1Pkcs7SignerInfo {
@@ -599,6 +614,7 @@ impl Asn1Pkcs7Elem {
 		}
 
 		if !searched {
+			/*make sure we insert algorithm so insert it*/
 			let mut md_algs :Asn1Set<Asn1X509Algor> = Asn1Set::init_asn1();
 			if selstr == PKCS7_TYPE_SIGNED {
 				if self.signed.val.is_some() {
@@ -634,7 +650,6 @@ impl Asn1Pkcs7Elem {
 					c.elem.val.push(Asn1Pkcs7SignedElem::init_asn1());
 				}
 				c.elem.val[0].md_algs = md_algs.clone();
-				c.elem.val[0].signer_info.val.push(si.clone());
 				let mut ndef :Asn1Ndef<Asn1Pkcs7Signed,0> = Asn1Ndef::init_asn1();
 				ndef.val = Some(c);
 				self.signed = ndef;
@@ -650,12 +665,6 @@ impl Asn1Pkcs7Elem {
 				let mut copt :Asn1Opt<Asn1Set<Asn1X509Algor>> = Asn1Opt::init_asn1();
 				copt.val = Some(md_algs.clone());
 				c.elem.val[0].md_algs = copt;
-				let mut nsigner :Asn1Set<Asn1Pkcs7SignerInfo> = Asn1Set::init_asn1();
-				if c.elem.val[0].signer_info.val.is_some() {
-					nsigner = c.elem.val[0].signer_info.val.as_ref().unwrap().clone();
-				}
-				nsigner.val.push(si.clone());
-				c.elem.val[0].signer_info.val= Some(nsigner);
 				let mut ndef :Asn1Ndef<Asn1Pkcs7SignedEnvelope,0> = Asn1Ndef::init_asn1();
 				ndef.val = Some(c);
 				self.envlopsigned = ndef;

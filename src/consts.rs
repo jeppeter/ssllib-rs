@@ -119,3 +119,6 @@ pub const PKCS7_ENVLOP_DATA_OID :&str = "1.2.840.113549.1.7.3";
 pub const PKCS7_ENVLOP_AND_SIGNED_DATA_OID :&str = "1.2.840.113549.1.7.4";
 pub const PKCS7_DIGEST_DATA_OID :&str = "1.2.840.113549.1.7.5";
 pub const PKCS7_ENCRYPTED_DATA_OID :&str = "1.2.840.113549.1.7.6";
+
+
+pub const SIGNING_TIME_OID:&str = "1.2.840.113549.1.9.5";
