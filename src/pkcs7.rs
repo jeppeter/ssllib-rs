@@ -309,7 +309,7 @@ impl Asn1Pkcs7SignerInfo {
 pub struct Asn1Pkcs7SignedElem {
 	pub version :Asn1Integer,
 	pub md_algs : Asn1Set<Asn1X509Algor>,
-	pub contents : Asn1Pkcs7Content,
+	pub contents : Asn1Pkcs7,
 	pub cert :Asn1Opt<Asn1ImpSet<Asn1X509,0>>,
 	pub crl : Asn1ImpSet<Asn1X509Crl,1>,
 	pub signer_info : Asn1Set<Asn1Pkcs7SignerInfo>,
@@ -515,6 +515,26 @@ impl Asn1Pkcs7Elem {
 		self.envlopsigned = Asn1Ndef::init_asn1();
 		self.digestdata = Asn1Ndef::init_asn1();
 		self.encryptdata = Asn1Ndef::init_asn1();
+
+		if oid == PKCS7_TYPE_DATA {
+			let data :Asn1OctData = Asn1OctData::init_asn1();
+			self.data.val =  Some(data);
+		} else if oid == PKCS7_TYPE_SIGNED {
+			let signed :Asn1Pkcs7Signed = Asn1Pkcs7Signed::init_asn1();
+			self.signed.val = Some(signed);
+		} else if types == PKCS7_TYPE_ENVLOP  {
+			let envlop :Asn1Pkcs7Envelope = Asn1Pkcs7Envelope::init_asn1();
+			self.envlop.val = Some(envlop);
+		} else if types == PKCS7_TYPE_ENVLOP_AND_SIGNED  {
+			let envlopsigned :Asn1Pkcs7SignedEnvelope = Asn1Pkcs7SignedEnvelope::init_asn1();
+			self.envlopsigned.val = Some(envlopsigned);
+		} else if types == PKCS7_TYPE_DIGEST  {
+			let digest :Asn1Pkcs7Digest = Asn1Pkcs7Digest::init_asn1();
+			self.digestdata.val = Some(digest);
+		} else if types == PKCS7_TYPE_ENCRYPTED  {
+			let encrypt :Asn1Pkcs7Encrypt = Asn1Pkcs7Encrypt::init_asn1();
+			self.encryptdata.val = Some(encrypt);
+		}
 		Ok(())
 	}
 
@@ -566,20 +586,94 @@ impl Asn1Pkcs7Elem {
 		}
 
 		if !searched {
-			// let mut csigner :Asn1Pkcs7SignerInfo = Asn1Pkcs7SignerInfo::init_asn1();
-			// if selstr == PKCS7_TYPE_SIGNED {
-			// 	if self.signed.val.is_some() {
-			// 		csigner  = self.signed.val.as_ref().unwrap().clone();
-			// 	}
-			// } else if selstr == PKCS7_TYPE_ENVLOP_AND_SIGNED {
-			// 	if self.envlopsigned.val.is_some() {
-			// 		csigner = self.envlopsigned.val.as_ref().unwrap().clone();
-			// 	}
-			// }
+			let mut md_algs :Asn1Set<Asn1X509Algor> = Asn1Set::init_asn1();
+			if selstr == PKCS7_TYPE_SIGNED {
+				if self.signed.val.is_some() {
+					let c  = self.signed.val.as_ref().unwrap().clone();
+					if c.elem.val.len() > 0 {
+						md_algs = c.elem.val[0].md_algs.clone();
+					}
 
-			// csigner.
+				}
+			} else if selstr == PKCS7_TYPE_ENVLOP_AND_SIGNED {
+				if self.envlopsigned.val.is_some() {
+					let c  = self.signed.val.as_ref().unwrap().clone();
+					if c.elem.val.len() > 0 {						
+							md_algs = c.elem.val[0].md_algs.clone();
+					}
+				}
+			} else {
+				panic!("can not here for type [{}]",selstr);
+			}
+
+			let mut naglr :Asn1X509Algor = Asn1X509Algor::init_asn1();
+			let _ = naglr.set_algorithm_null(&cmdstr)?;
+			md_algs.val.push(naglr);
+
+			if selstr == PKCS7_TYPE_SIGNED {
+				let mut c :Asn1Pkcs7Signed = Asn1Pkcs7Signed::init_asn1();
+
+				if self.signed.val.is_some() {
+					c = self.signed.val.as_ref().unwrap().clone();
+				}
+
+				if c.elem.val.len() == 0 {
+					c.elem.val.push(Asn1Pkcs7SignedElem::init_asn1());
+				}
+				c.elem.val[0].md_algs = md_algs.clone();
+				let mut ndef :Asn1Ndef<Asn1Pkcs7Signed,0> = Asn1Ndef::init_asn1();
+				ndef.val = Some(c);
+				self.signed = ndef;
+			} else if selstr == PKCS7_TYPE_ENVLOP_AND_SIGNED {
+				let mut c :Asn1Pkcs7SignedEnvelope = Asn1Pkcs7SignedEnvelope::init_asn1();
+				if self.envlopsigned.val.is_some() {
+					c  = self.envlopsigned.val.as_ref().unwrap().clone();
+				}
+
+				if c.elem.val.len() == 0 {
+					c.elem.val.push(Asn1Pkcs7SignedEnvelopeElem::init_asn1());
+				}
+				let mut copt :Asn1Opt<Asn1Set<Asn1X509Algor>> = Asn1Opt::init_asn1();
+				copt.val = Some(md_algs.clone());
+				c.elem.val[0].md_algs = copt;
+				let mut ndef :Asn1Ndef<Asn1Pkcs7SignedEnvelope,0> = Asn1Ndef::init_asn1();
+				ndef.val = Some(c);
+				self.envlopsigned = ndef;
+			} else {
+				panic!("can not here for type [{}]",selstr);
+			}
 		}
+		Ok(())
+	}
 
+	pub fn set_content_new(&mut self, types :&str) -> Result<(),Box<dyn Error>> {
+		let selstr :String = self.selector.encode_select()?;
+		let mut np7 :Asn1Pkcs7 = Asn1Pkcs7::init_asn1();
+		np7.set_type(types)?;
+		if selstr == PKCS7_TYPE_SIGNED {
+			let mut signeddata :Asn1Pkcs7Signed = Asn1Pkcs7Signed::init_asn1();
+			if self.signed.val.is_some() {
+				signeddata = self.signed.val.as_ref().unwrap().clone();
+			}
+			if signeddata.elem.val.len() == 0 {
+				signeddata.elem.val.push(Asn1Pkcs7SignedElem::init_asn1());
+			}
+			signeddata.elem.val[0].contents = np7.clone();
+			self.signed.val = Some(signeddata);
+		} else if selstr == PKCS7_TYPE_DIGEST {
+			let mut digestdata :Asn1Pkcs7Digest = Asn1Pkcs7Digest::init_asn1();
+			if self.digestdata.val.is_some() {
+				digestdata = self.digestdata.val.as_ref().unwrap().clone();
+			}
+			if digestdata.elem.val.len() == 0 {
+				digestdata.elem.val.push(Asn1Pkcs7DigestElem::init_asn1());
+			}
+			digestdata.elem.val[0].contents = np7.clone();
+			self.digestdata.val = Some(digestdata);
+
+		} else {
+			ssllib_new_error!{SslPkcs7Error,"not supported type [{}]", selstr}
+		}
 		Ok(())
 	}
 }
@@ -594,11 +688,14 @@ pub struct Asn1Pkcs7 {
 
 #[allow(dead_code)]
 impl Asn1Pkcs7 {
-
-	pub fn set_type(&mut self,types :&str) -> Result<(),Box<dyn Error>> {
+	fn _make_sure_elem(&mut self) -> Result<(),Box<dyn Error>> {
 		if self.elem.val.len() == 0 {
 			self.elem.val.push(Asn1Pkcs7Elem::init_asn1());
 		}
+		Ok(())		
+	}
+	pub fn set_type(&mut self,types :&str) -> Result<(),Box<dyn Error>> {
+		self._make_sure_elem()?;
 		return self.elem.val[0].set_type(types);
 	}
 
@@ -633,13 +730,16 @@ impl Asn1Pkcs7 {
 	}
 
 	pub fn add_signer(&mut self,si :&Asn1Pkcs7SignerInfo) -> Result<(),Box<dyn Error>> {
-		if self.elem.val.len() == 0 {
-			self.elem.val.push(Asn1Pkcs7Elem::init_asn1());
-		}
+		self._make_sure_elem()?;
 
 		let _ = self.elem.val[0].add_signer(si)?;
 
 		Ok(())
+	}
+
+	pub fn set_content_new(&mut self,types :&str) -> Result<(),Box<dyn Error>> {
+		self._make_sure_elem()?;
+		return self.elem.val[0].set_content_new(types);
 	}
 
 }
