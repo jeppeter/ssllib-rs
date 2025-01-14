@@ -403,12 +403,78 @@ pub struct Asn1Pkcs7Encrypt {
 	pub elem : Asn1Seq<Asn1Pkcs7EncryptElem>,
 }
 
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1Pkcs7RecipInfoElem {
+	pub version :Asn1Integer,
+	pub issuer_and_serial :Asn1Pkcs7IssuerAndSerial,
+	pub key_enc_algor :Asn1X509Algor,
+	pub enc_key :Asn1OctData,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1Pkcs7RecipInfo {
+	pub elem :Asn1Seq<Asn1Pkcs7RecipInfoElem>,
+}
+
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1Pkcs7EnvelopeElem {
+	pub version :Asn1Integer,
+	pub recipientinfo :Asn1Pkcs7RecipInfo,
+	pub enc_data :Asn1Pkcs7EncContent,	
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1Pkcs7Envelope {
+	pub elem :Asn1Seq<Asn1Pkcs7EnvelopeElem>,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1Pkcs7SignedEnvelopeElem {
+	pub version :Asn1Integer,
+	pub recipientinfo :Asn1Opt<Asn1Set<Asn1Pkcs7RecipInfo>>,
+	pub md_algs :Asn1Opt<Asn1Set<Asn1X509Algor>>,
+	pub enc_data :Asn1Pkcs7EncContent,
+	pub cert:Asn1Opt<Asn1ImpSet<Asn1X509,0>>,
+	pub crl :Asn1Opt<Asn1ImpSet<Asn1X509Crl,1>>,
+	pub signer_info :Asn1Opt<Asn1Set<Asn1Pkcs7SignerInfo>>,
+}
+
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1Pkcs7SignedEnvelope {
+	pub elem :Asn1Seq<Asn1Pkcs7SignedEnvelopeElem>,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1Pkcs7DigestElem {
+	pub version :Asn1Integer,
+	pub md :Asn1X509Algor,
+	pub contents :Asn1Pkcs7,
+	pub digest :Asn1OctData,
+}
+
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1Pkcs7Digest {
+	pub elem :Asn1Seq<Asn1Pkcs7DigestElem>,
+}
+
 //#[asn1_obj_selector(debug=enable,anyobj=default,signed="1.2.840.113549.1.7.2",encryptdata="1.2.840.113549.1.7.6",data="1.2.840.113549.1.7.1")]
 #[asn1_obj_selector(anyobj=default,data="1.2.840.113549.1.7.1",signed="1.2.840.113549.1.7.2",envlop="1.2.840.113549.1.7.3",envlopsigned="1.2.840.113549.1.7.4",digestdata="1.2.840.113549.1.7.5",encryptdata="1.2.840.113549.1.7.6")]
 #[derive(Clone)]
 pub struct Asn1Pkcs7Selector {
 	pub val :Asn1Object,
 }
+
 
 //#[asn1_choice(selector=selector,debug=enable)]
 #[asn1_choice(selector=selector)]
@@ -417,22 +483,13 @@ pub struct Asn1Pkcs7Elem {
 	pub selector :Asn1Pkcs7Selector,
 	pub data : Asn1Ndef<Asn1OctData,0>,
 	pub signed : Asn1Ndef<Asn1Pkcs7Signed,0>,
-	pub envlop :Asn1Any,
-	pub envlopsigned :Asn1Any,
-	pub digestdata :Asn1Any,
+	pub envlop :Asn1Ndef<Asn1Pkcs7Envelope,0>,
+	pub envlopsigned :Asn1Ndef<Asn1Pkcs7SignedEnvelope,0>,
+	pub digestdata :Asn1Ndef<Asn1Pkcs7Digest,0>,
 	pub encryptdata : Asn1Ndef<Asn1Pkcs7Encrypt,0>,
 }
 
-
-//#[asn1_sequence(debug=enable)]
-#[asn1_sequence()]
-#[derive(Clone)]
-pub struct Asn1Pkcs7 {
-	pub elem :Asn1Seq<Asn1Pkcs7Elem>,
-}
-
-#[allow(dead_code)]
-impl Asn1Pkcs7 {
+impl Asn1Pkcs7Elem {
 	pub fn set_type(&mut self,types :&str) -> Result<(),Box<dyn Error>> {
 		let oid :String;
 		if types == PKCS7_TYPE_DATA {
@@ -450,17 +507,99 @@ impl Asn1Pkcs7 {
 		} else {
 			ssllib_new_error!{SslPkcs7Error,"not supported type {}", types}
 		}
+		self.selector.val.set_value(&oid)?;
+
+		self.data = Asn1Ndef::init_asn1();
+		self.signed = Asn1Ndef::init_asn1();
+		self.envlop = Asn1Ndef::init_asn1();
+		self.envlopsigned = Asn1Ndef::init_asn1();
+		self.digestdata = Asn1Ndef::init_asn1();
+		self.encryptdata = Asn1Ndef::init_asn1();
+		Ok(())
+	}
+
+	pub fn add_signer(&mut self,si :&Asn1Pkcs7SignerInfo) -> Result<(),Box<dyn Error>> {
+		let selstr :String = self.selector.encode_select()?;
+		let mut osi :Option<&Asn1Set<Asn1Pkcs7SignerInfo>> = None;
+		let mut omd :Option<&Asn1Set<Asn1X509Algor>> = None;
+		if selstr == PKCS7_TYPE_SIGNED {
+			if self.signed.val.is_some() {
+				let refv = self.signed.val.as_ref().unwrap();
+				if refv.elem.val.len() > 0 {
+					osi = Some(&refv.elem.val[0].signer_info);
+					omd = Some(&refv.elem.val[0].md_algs);
+				}
+			}
+		} else if selstr == PKCS7_TYPE_ENVLOP_AND_SIGNED {
+			if self.envlopsigned.val.is_some() {
+				let refv = self.envlopsigned.val.as_ref().unwrap();
+				if refv.elem.val.len() > 0 {
+					if refv.elem.val[0].signer_info.val.is_some() {
+						osi = Some(refv.elem.val[0].signer_info.val.as_ref().unwrap());						
+					}
+					if refv.elem.val[0].md_algs.val.is_some() {
+						omd = Some(refv.elem.val[0].md_algs.val.as_ref().unwrap());
+					}
+				}
+			}
+		} else {
+			ssllib_new_error!{SslPkcs7Error,"not supported type [{}] for add signer",selstr}
+		}
+		let mut searched :bool = false;
+		if si.elem.val.len() < 1{ 
+			ssllib_new_error!{SslPkcs7Error,"val {} < 1",si.elem.val.len()}
+		}
+		let cmdstr :String = si.elem.val[0].digest_alg.get_algorithm()?;
+		if osi.is_some() && omd.is_some() {
+			let mut mdstr :String;
+			if si.elem.val.len() > 0 {
+				let cv = omd.unwrap();
+
+				for idx in 0..cv.val.len()	{
+					mdstr = cv.val[idx].get_algorithm()?;
+					if mdstr == cmdstr {
+						searched = true;
+						break;
+					}
+				}
+			}
+		}
+
+		if !searched {
+			// let mut csigner :Asn1Pkcs7SignerInfo = Asn1Pkcs7SignerInfo::init_asn1();
+			// if selstr == PKCS7_TYPE_SIGNED {
+			// 	if self.signed.val.is_some() {
+			// 		csigner  = self.signed.val.as_ref().unwrap().clone();
+			// 	}
+			// } else if selstr == PKCS7_TYPE_ENVLOP_AND_SIGNED {
+			// 	if self.envlopsigned.val.is_some() {
+			// 		csigner = self.envlopsigned.val.as_ref().unwrap().clone();
+			// 	}
+			// }
+
+			// csigner.
+		}
+
+		Ok(())
+	}
+}
+
+
+//#[asn1_sequence(debug=enable)]
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1Pkcs7 {
+	pub elem :Asn1Seq<Asn1Pkcs7Elem>,
+}
+
+#[allow(dead_code)]
+impl Asn1Pkcs7 {
+
+	pub fn set_type(&mut self,types :&str) -> Result<(),Box<dyn Error>> {
 		if self.elem.val.len() == 0 {
 			self.elem.val.push(Asn1Pkcs7Elem::init_asn1());
 		}
-		self.elem.val[0].selector.val.set_value(&oid)?;
-
-		self.elem.val[0].signed = Asn1Ndef::init_asn1();
-		self.elem.val[0].data = Asn1Ndef::init_asn1();
-		self.elem.val[0].envlop = Asn1Any::init_asn1();
-		self.elem.val[0].envlopsigned = Asn1Any::init_asn1();
-		self.elem.val[0].encryptdata = Asn1Ndef::init_asn1();
-		Ok(())
+		return self.elem.val[0].set_type(types);
 	}
 
 	pub fn is_signed_data(&self) -> bool {
@@ -497,6 +636,8 @@ impl Asn1Pkcs7 {
 		if self.elem.val.len() == 0 {
 			self.elem.val.push(Asn1Pkcs7Elem::init_asn1());
 		}
+
+		let _ = self.elem.val[0].add_signer(si)?;
 
 		Ok(())
 	}
