@@ -533,6 +533,7 @@ pub struct Asn1Pkcs7Elem {
 	pub envlopsigned :Asn1Ndef<Asn1Pkcs7SignedEnvelope,0>,
 	pub digestdata :Asn1Ndef<Asn1Pkcs7Digest,0>,
 	pub encryptdata : Asn1Ndef<Asn1Pkcs7Encrypt,0>,
+	pub anyobj :Asn1Ndef<Asn1Any,0>,
 }
 
 impl Asn1Pkcs7Elem {
@@ -551,7 +552,7 @@ impl Asn1Pkcs7Elem {
 		} else if types == PKCS7_TYPE_ENCRYPTED  {
 			oid = PKCS7_ENCRYPTED_DATA_OID.to_string();
 		} else {
-			ssllib_new_error!{SslPkcs7Error,"not supported type {}", types}
+			oid = format!("{}",types);
 		}
 		self.selector.val.set_value(&oid)?;
 
@@ -561,6 +562,7 @@ impl Asn1Pkcs7Elem {
 		self.envlopsigned = Asn1Ndef::init_asn1();
 		self.digestdata = Asn1Ndef::init_asn1();
 		self.encryptdata = Asn1Ndef::init_asn1();
+		self.anyobj = Asn1Ndef::init_asn1();
 
 		if types == PKCS7_TYPE_DATA {
 			let data :Asn1OctData = Asn1OctData::init_asn1();
@@ -592,6 +594,9 @@ impl Asn1Pkcs7Elem {
 			encrypt.elem.val.push(Asn1Pkcs7EncryptElem::init_asn1());
 			encrypt.elem.val[0].version.val = 1;
 			self.encryptdata.val = Some(encrypt);
+		} else  {
+			let oany :Asn1Any = Asn1Any::init_asn1();
+			self.anyobj.val = Some(oany);
 		}
 
 		Ok(())
@@ -743,10 +748,9 @@ impl Asn1Pkcs7Elem {
 		Ok(())
 	}
 
-	pub fn set_content_new(&mut self, types :&str) -> Result<(),Box<dyn Error>> {
+
+	pub fn set_content(&mut self,np7 :&Asn1Pkcs7) -> Result<(),Box<dyn Error>> {
 		let selstr :String = self.selector.encode_select()?;
-		let mut np7 :Asn1Pkcs7 = Asn1Pkcs7::init_asn1();
-		np7.set_type(types)?;
 		if selstr == PKCS7_TYPE_SIGNED {
 			let mut signeddata :Asn1Pkcs7Signed = Asn1Pkcs7Signed::init_asn1();
 			if self.signed.val.is_some() {
@@ -767,11 +771,17 @@ impl Asn1Pkcs7Elem {
 			}
 			digestdata.elem.val[0].contents = np7.clone();
 			self.digestdata.val = Some(digestdata);
-
 		} else {
 			ssllib_new_error!{SslPkcs7Error,"not supported type [{}]", selstr}
 		}
 		Ok(())
+
+	}
+
+	pub fn set_content_new_pkcs7(&mut self, types :&str) -> Result<(),Box<dyn Error>> {
+		let mut np7 :Asn1Pkcs7 = Asn1Pkcs7::init_asn1();
+		np7.set_type(types)?;
+		return self.set_content(&np7);
 	}
 
 	pub fn add_cert(&mut self, cert :&Asn1X509) -> Result<(),Box<dyn Error>> {
@@ -887,9 +897,14 @@ impl Asn1Pkcs7 {
 		Ok(())
 	}
 
-	pub fn set_content_new(&mut self,types :&str) -> Result<(),Box<dyn Error>> {
+	pub fn set_content_new_pkcs7(&mut self,types :&str) -> Result<(),Box<dyn Error>> {
 		self._make_sure_elem()?;
-		return self.elem.val[0].set_content_new(types);
+		return self.elem.val[0].set_content_new_pkcs7(types);
+	}
+
+	pub fn set_content(&mut self,np7 :&Asn1Pkcs7) -> Result<(),Box<dyn Error>> {
+		self._make_sure_elem()?;
+		return self.elem.val[0].set_content(np7);
 	}
 
 	pub fn add_cert(&mut self,cert :&Asn1X509) -> Result<(),Box<dyn Error>> {

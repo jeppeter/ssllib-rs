@@ -232,7 +232,7 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	pkcs7obj.set_type(PKCS7_TYPE_SIGNED)?;
 	let _ = pkcs7obj.add_signer(&si)?;
 
-	pkcs7obj.set_content_new(PKCS7_TYPE_DATA)?;
+	pkcs7obj.set_content_new_pkcs7(PKCS7_TYPE_DATA)?;
 	pkcs7obj.add_cert(&cert)?;
 
 	let certs :Vec<String> = ns.get_array("certs");
@@ -244,6 +244,14 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 			continue;
 		}
 		pkcs7obj.add_cert(&acert)?;
+	}
+
+	let np7s = ns.get_string("contentpk7");
+	if np7s.len() != 0 {
+		let code = read_file_into_der(&np7s)?;
+		let mut np7 :Asn1Pkcs7 = Asn1Pkcs7::init_asn1();
+		let _ = np7.decode_asn1(&code)?;
+		pkcs7obj.set_content(&np7)?;
 	}
 
 	let _ = pkcs7obj.print_asn1("Asn1Pkcs7",0,&mut outf)?;
@@ -264,6 +272,7 @@ pub fn load_pkcs7_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 		"pkcs7comm" : false,
 		"utctime" : null,
 		"localtime" : null,
+		"contentpk7" : null,
 		"pkcs7dec<pkcs7dec_handler>##file ... ##" : {
 			"$" : "+"
 		},
