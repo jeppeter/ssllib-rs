@@ -71,29 +71,6 @@ impl Asn1VerifyOp for Asn1RsaPubkey {
 	}
 }
 
-//#[asn1_obj_selector(selector=val,any=default,rsa="1.2.840.113549.1.1.1",debug=enable)]
-#[asn1_obj_selector(selector=val,any=default,rsa="1.2.840.113549.1.1.1")]
-#[derive(Clone)]
-pub struct Asn1X509PubkeySelector {
-	pub val : Asn1Object,
-	pub padded : Asn1Any,
-}
-
-//#[asn1_choice(selector=valid,debug=enable)]
-#[asn1_choice(selector=valid)]
-#[derive(Clone)]
-pub struct Asn1X509PubkeyElem {
-	pub valid : Asn1SeqSelector<Asn1X509PubkeySelector>,
-	pub rsa : Asn1BitSeq<Asn1RsaPubkey>,
-	pub any : Asn1Any,
-}
-
-//#[asn1_sequence(debug=enable)]
-#[asn1_sequence()]
-#[derive(Clone)]
-pub struct Asn1X509Pubkey {
-	pub elem :Asn1Seq<Asn1X509PubkeyElem>,
-}
 
 #[asn1_sequence()]
 #[derive(Clone)]

@@ -192,10 +192,20 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	let mut si = Asn1Pkcs7SignerInfo::new_signer_info_from_cert(&cert,&oidpkey,&oiddgst)?;
 	let mut oany :Asn1Any = Asn1Any::init_asn1();
 	let mut outf = std::io::stdout();
+	let mut ctime :String;
+	ctime = ns.get_string("utctime");
+	if ctime.len() == 0 {
+		ctime = ns.get_string("localtime");
+		if ctime.len() == 0 {
+			//let nowt = Utc::now();
+			//si.add_time_attr(&nowt)?;
+		} else {
+			si.add_time_str_attr_local(&ctime)?;
+		}
+	} else {
+		si.add_time_str_attr(&ctime)?;
+	}
 
-
-	let nowt = Utc::now();
-	si.add_time_attr(&nowt)?;
 
 	let mut oid :String;
 	let mut obj :Asn1Object = Asn1Object::init_asn1();
@@ -223,6 +233,7 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	let _ = pkcs7obj.add_signer(&si)?;
 
 	pkcs7obj.set_content_new(PKCS7_TYPE_DATA)?;
+	pkcs7obj.add_cert(&cert)?;
 	let _ = pkcs7obj.print_asn1("Asn1Pkcs7",0,&mut outf)?;
 
 
@@ -239,6 +250,8 @@ pub fn load_pkcs7_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 		"xcerts" : [],
 		"crls" : [],
 		"pkcs7comm" : false,
+		"utctime" : null,
+		"localtime" : null,
 		"pkcs7dec<pkcs7dec_handler>##file ... ##" : {
 			"$" : "+"
 		},

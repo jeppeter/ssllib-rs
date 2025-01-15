@@ -5,6 +5,7 @@ use asn1obj::base::*;
 use asn1obj::complex::*;
 use asn1obj::strop::*;
 use asn1obj::asn1impl::*;
+use asn1obj::consts::{ASN1_UTCTIME_FLAG,ASN1_GENERALTIME_FLAG};
 #[allow(unused_imports)]
 use asn1obj::*;
 
@@ -158,6 +159,27 @@ impl Asn1Pkcs7SignerInfoElem {
 		return self.append_auth_attr(SIGNING_TIME_OID,&oany);		
 	}
 
+	pub fn add_time_str_attr(&mut self, dt :&str) -> Result<(),Box<dyn Error>> {
+		let mut atime :Asn1Set<Asn1Time> = Asn1Set::init_asn1();
+		atime.val.push(Asn1Time::init_asn1());
+		atime.val[0].set_value_str(dt)?;
+		atime.val[0].set_utag(ASN1_UTCTIME_FLAG)?;
+		let code = atime.encode_asn1()?;
+		let mut oany :Asn1Any = Asn1Any::init_asn1();
+		oany.decode_asn1(&code)?;
+		return self.append_auth_attr(SIGNING_TIME_OID,&oany);
+	}
+
+	pub fn add_time_str_attr_local(&mut self, dt :&str) -> Result<(),Box<dyn Error>> {
+		let mut atime :Asn1Set<Asn1Time> = Asn1Set::init_asn1();
+		atime.val.push(Asn1Time::init_asn1());
+		atime.val[0].set_value_str(dt)?;
+		atime.val[0].set_utag(ASN1_GENERALTIME_FLAG)?;
+		let code = atime.encode_asn1()?;
+		let mut oany :Asn1Any = Asn1Any::init_asn1();
+		oany.decode_asn1(&code)?;
+		return self.append_auth_attr(SIGNING_TIME_OID,&oany);
+	}
 
 }
 
@@ -207,6 +229,15 @@ impl Asn1Pkcs7SignerInfo {
 	pub fn add_time_attr_local(&mut self,dt :&DateTime<Local>) -> Result<(),Box<dyn Error>> {
 		self._make_sure_elem()?;
 		return self.elem.val[0].add_time_attr_local(dt);
+	}
+	pub fn add_time_str_attr(&mut self,dt :&str) -> Result<(),Box<dyn Error>> {
+		self._make_sure_elem()?;
+		return self.elem.val[0].add_time_str_attr(dt);
+	}
+
+	pub fn add_time_str_attr_local(&mut self,dt :&str) -> Result<(),Box<dyn Error>> {
+		self._make_sure_elem()?;
+		return self.elem.val[0].add_time_str_attr_local(dt);
 	}
 }
 
@@ -742,6 +773,59 @@ impl Asn1Pkcs7Elem {
 		}
 		Ok(())
 	}
+
+	pub fn add_cert(&mut self, cert :&Asn1X509) -> Result<(),Box<dyn Error>> {
+		let selstr :String = self.selector.encode_select()?;
+		let mut xs :Asn1ImpSet<Asn1X509,0> = Asn1ImpSet::init_asn1();
+		if selstr == PKCS7_TYPE_SIGNED {
+			if self.signed.val.is_some() {
+				let c = self.signed.val.as_ref().unwrap();
+				if c.elem.val.len() > 0 {
+					if c.elem.val[0].cert.val.is_some() {
+						xs = c.elem.val[0].cert.val.as_ref().unwrap().clone();
+					}
+				}
+			}
+		} else if selstr == PKCS7_TYPE_ENVLOP_AND_SIGNED {
+			if self.envlopsigned.val.is_some() {
+				let c = self.envlopsigned.val.as_ref().unwrap();
+				if c.elem.val.len() > 0 {
+					if c.elem.val[0].cert.val.is_some() {
+						xs = c.elem.val[0].cert.val.as_ref().unwrap().clone();
+					}
+				}
+			}
+		} else {
+			ssllib_new_error!{SslPkcs7Error,"not supported type [{}]",selstr}
+		}
+
+		let _ = add_asn1set_with_x509(&mut xs.val,cert,false,true)?;
+		if selstr == PKCS7_TYPE_SIGNED {
+			let mut signed :Asn1Pkcs7Signed = Asn1Pkcs7Signed::init_asn1();
+			if self.signed.val.is_some() {
+				signed = self.signed.val.as_ref().unwrap().clone();
+			}
+			if signed.elem.val.len() == 0 {
+				signed.elem.val.push(Asn1Pkcs7SignedElem::init_asn1());
+			}
+
+			signed.elem.val[0].cert.val = Some(xs);
+			self.signed.val = Some(signed);
+		} else if selstr == PKCS7_TYPE_ENVLOP_AND_SIGNED {
+			let mut signedenv :Asn1Pkcs7SignedEnvelope = Asn1Pkcs7SignedEnvelope::init_asn1();
+			if self.envlopsigned.val.is_some() {
+				signedenv = self.envlopsigned.val.as_ref().unwrap().clone();
+			}
+			if signedenv.elem.val.len() == 0 {
+				signedenv.elem.val.push(Asn1Pkcs7SignedEnvelopeElem::init_asn1());
+			}
+			signedenv.elem.val[0].cert.val = Some(xs);
+			self.envlopsigned.val = Some(signedenv);
+		} else {
+			panic!("not supported type {}", selstr);
+		}
+		Ok(())
+	}
 }
 
 
@@ -806,6 +890,11 @@ impl Asn1Pkcs7 {
 	pub fn set_content_new(&mut self,types :&str) -> Result<(),Box<dyn Error>> {
 		self._make_sure_elem()?;
 		return self.elem.val[0].set_content_new(types);
+	}
+
+	pub fn add_cert(&mut self,cert :&Asn1X509) -> Result<(),Box<dyn Error>> {
+		self._make_sure_elem()?;
+		return self.elem.val[0].add_cert(cert);
 	}
 
 }

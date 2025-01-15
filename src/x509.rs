@@ -15,7 +15,7 @@ use std::io::{Write};
 use crate::{ssllib_new_error,ssllib_error_class};
 #[allow(unused_imports)]
 use crate::{ssllib_buffer_trace,ssllib_format_buffer_log,ssllib_log_trace};
-use crate::rsa::*;
+//use crate::rsa::*;
 use crate::consts::*;
 use crate::digest::*;
 use crate::impls::*;
@@ -26,6 +26,21 @@ use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
 use crate::config::ConfigValue;
 
 ssllib_error_class!{SslX509Error}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1X509PubkeyElem {
+	pub algor : Asn1X509Algor,
+	pub public_key :Asn1BitDataFlag,
+}
+
+//#[asn1_sequence(debug=enable)]
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1X509Pubkey {
+	pub elem :Asn1Seq<Asn1X509PubkeyElem>,
+}
+
 
 #[asn1_sequence()]
 #[derive(Clone)]
@@ -357,6 +372,7 @@ pub struct Asn1X509Elem {
 	pub sig_alg : Asn1X509Algor,
 	pub signature : Asn1BitDataFlag,
 }
+
 
 //#[asn1_sequence(debug=enable)]
 #[asn1_sequence()]
@@ -836,4 +852,24 @@ pub struct Asn1GeneralName {
 	pub uri : Asn1Imp<Asn1IA5String,6>,
 	pub ipaddress :Asn1Imp<Asn1IA5String,7>,
 	pub registerid :Asn1Imp<Asn1Object,8>,
+}
+
+
+pub (crate) fn add_asn1set_with_x509(xs :&mut Vec<Asn1X509>, cert :&Asn1X509, duplicated :bool,selfsignedallow :bool) -> Result<(),Box<dyn Error>> {
+
+	if !duplicated {
+		for i in 0..xs.len() {
+			if xs[i].equal_asn1(cert) {
+				/*that is the same ,so we do this*/
+				return Ok(());
+			}
+		}
+	}
+	if !selfsignedallow {
+		if cert.is_self_signed() {
+			ssllib_new_error!{SslX509Error,"self signed cert"}
+		}
+	}
+	xs.push(cert.clone());
+	Ok(())
 }
