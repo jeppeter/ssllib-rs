@@ -234,6 +234,18 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 
 	pkcs7obj.set_content_new(PKCS7_TYPE_DATA)?;
 	pkcs7obj.add_cert(&cert)?;
+
+	let certs :Vec<String> = ns.get_array("certs");
+	let mut acert :Asn1X509 = Asn1X509::init_asn1();
+	for i in 0..certs.len() {
+		let code = read_file_into_der(&certs[i])?;
+		acert.decode_asn1(&code)?;
+		if acert.equal_asn1(&cert) {
+			continue;
+		}
+		pkcs7obj.add_cert(&acert)?;
+	}
+
 	let _ = pkcs7obj.print_asn1("Asn1Pkcs7",0,&mut outf)?;
 
 
