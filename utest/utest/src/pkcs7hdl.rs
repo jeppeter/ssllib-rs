@@ -251,7 +251,7 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 		let code = read_file_into_der(&np7s)?;
 		let mut np7 :Asn1Pkcs7 = Asn1Pkcs7::init_asn1();
 		let _ = np7.decode_asn1(&code)?;
-		pkcs7obj.set_content(&np7)?;
+		pkcs7obj.set_content_pk7(&np7)?;
 	}
 
 	let _ = pkcs7obj.print_asn1("Asn1Pkcs7",0,&mut outf)?;

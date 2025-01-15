@@ -749,7 +749,7 @@ impl Asn1Pkcs7Elem {
 	}
 
 
-	pub fn set_content(&mut self,np7 :&Asn1Pkcs7) -> Result<(),Box<dyn Error>> {
+	pub fn set_content_pk7(&mut self,np7 :&Asn1Pkcs7) -> Result<(),Box<dyn Error>> {
 		let selstr :String = self.selector.encode_select()?;
 		if selstr == PKCS7_TYPE_SIGNED {
 			let mut signeddata :Asn1Pkcs7Signed = Asn1Pkcs7Signed::init_asn1();
@@ -781,7 +781,7 @@ impl Asn1Pkcs7Elem {
 	pub fn set_content_new_pkcs7(&mut self, types :&str) -> Result<(),Box<dyn Error>> {
 		let mut np7 :Asn1Pkcs7 = Asn1Pkcs7::init_asn1();
 		np7.set_type(types)?;
-		return self.set_content(&np7);
+		return self.set_content_pk7(&np7);
 	}
 
 	pub fn add_cert(&mut self, cert :&Asn1X509) -> Result<(),Box<dyn Error>> {
@@ -902,9 +902,9 @@ impl Asn1Pkcs7 {
 		return self.elem.val[0].set_content_new_pkcs7(types);
 	}
 
-	pub fn set_content(&mut self,np7 :&Asn1Pkcs7) -> Result<(),Box<dyn Error>> {
+	pub fn set_content_pk7(&mut self,np7 :&Asn1Pkcs7) -> Result<(),Box<dyn Error>> {
 		self._make_sure_elem()?;
-		return self.elem.val[0].set_content(np7);
+		return self.elem.val[0].set_content_pk7(np7);
 	}
 
 	pub fn add_cert(&mut self,cert :&Asn1X509) -> Result<(),Box<dyn Error>> {
