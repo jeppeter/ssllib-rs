@@ -41,6 +41,7 @@ mod pemlib;
 mod pemhdl;
 mod iniexec;
 mod asn1parse;
+mod gennamehdl;
 mod x509exec;
 mod ecparam;
 mod privkey;
@@ -72,6 +73,7 @@ fn main() -> Result<(),Box<dyn Error>> {
 	pkcs7hdl::load_pkcs7_handler(parser.clone())?;
 	pkcs12hdl::load_pkcs12_handler(parser.clone())?;
 	encdehdl::load_encde_handler(parser.clone())?;
+	gennamehdl::load_genname_handler(parser.clone())?;
 	let ores = parser.parse_commandline_ex(None,None,None,None);
 	if ores.is_err() {
 		let e = ores.err().unwrap();
