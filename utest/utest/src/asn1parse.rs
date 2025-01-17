@@ -156,7 +156,7 @@ fn asn1_parse_out<T : std::io::Write>(code :&[u8],outf :&mut T,tabs :i32,offseti
 					oany.print_asn1(&cstr,tabs,outf)?;	
 				}
 			}
-		} else if (btag & ASN1_IMP_FLAG_MASK) == ASN1_IMP_FLAG_MASK {
+		} else if (btag & ASN1_IMP_FILTER_MASK) == ASN1_IMP_FLAG_MASK {
 			let ctag = (oany.tag as u8 ) & ASN1_PRIMITIVE_TAG ;
 			let mut boffset : usize = curv + offseti;
 			boffset += incode.len() - oany.content.len();
@@ -168,6 +168,21 @@ fn asn1_parse_out<T : std::io::Write>(code :&[u8],outf :&mut T,tabs :i32,offseti
 			} else {
 				if flushed {
 					let cstr = format!("[0x{:x}] Imp tag [{}:0x{:x}] size [{}:0x{:x}]", curv + offseti, ctag,ctag,incode.len(),incode.len());
+					oany.print_asn1(&cstr,tabs,outf)?;
+				}
+			}
+		} else if (btag & ASN1_IMP_FILTER_MASK) == ASN1_IMP_SET_MASK {
+			let ctag = (oany.tag as u8 ) & ASN1_PRIMITIVE_TAG ;
+			let mut boffset : usize = curv + offseti;
+			boffset += incode.len() - oany.content.len();
+			
+			let ores = asn1_parse_out(&(oany.content),outf,tabs + 1, boffset,false);
+			if ores.is_ok() {
+				write_tab_line!(flushed,outf,tabs,"[0x{:x}] ImpA0 tag [{}:0x{:x}] size [{}:0x{:x}]", curv + offseti, ctag,ctag,incode.len(),incode.len());
+				let _ = asn1_parse_out(&(oany.content),outf,tabs + 1, boffset,flushed)?;
+			} else {
+				if flushed {
+					let cstr = format!("[0x{:x}] ImpA0 tag [{}:0x{:x}] size [{}:0x{:x}]", curv + offseti, ctag,ctag,incode.len(),incode.len());
 					oany.print_asn1(&cstr,tabs,outf)?;
 				}
 			}
