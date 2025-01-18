@@ -83,7 +83,7 @@ fn directorynameenc_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn A
 }
 
 
-#[extargs_map_function(gennamedec_handler)]
+#[extargs_map_function(gennamedec_handler,directorynameenc_handler)]
 pub fn load_genname_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
