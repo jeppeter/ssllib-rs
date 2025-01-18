@@ -36,22 +36,26 @@ pub struct OtherName {
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct DirectoryName {
-	pub elem :Asn1ImpA0<Asn1Seq<Asn1Set<Asn1X509Algor>>,4>,
+	pub elem :Asn1ImpA0<Asn1Set<Asn1Seq<Asn1Set<Asn1X509Algor>>>,4>,
 }
 
 impl DirectoryName {
 	pub fn set_algo(&mut self,oid :&str, oany :&Asn1Any) -> Result<(),Box<dyn Error>> {
 		if self.elem.val.val.len() == 0 {
-			self.elem.val.val.push(Asn1Set::init_asn1());
+			self.elem.val.val.push(Asn1Seq::init_asn1());
 		}
 
 		if self.elem.val.val[0].val.len() == 0 {
-			self.elem.val.val[0].val.push(Asn1X509Algor::init_asn1());
+			self.elem.val.val[0].val.push(Asn1Set::init_asn1());
+		}
+
+		if self.elem.val.val[0].val[0].val.len() == 0 {
+			self.elem.val.val[0].val[0].val.push(Asn1X509Algor::init_asn1());
 		}
 
 
-		self.elem.val.val[0].val[0].set_algorithm(oid)?;
-		self.elem.val.val[0].val[0].set_param(Some(oany.clone()))?;
+		self.elem.val.val[0].val[0].val[0].set_algorithm(oid)?;
+		self.elem.val.val[0].val[0].val[0].set_param(Some(oany.clone()))?;
 		Ok(())
 	}
 }
