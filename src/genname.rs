@@ -32,6 +32,22 @@ pub struct OtherName {
 	pub elem :Asn1ImpA0<Asn1Seq<OtherNameElem>,0>,
 }
 
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct DirectoryName {
+	pub elem :Asn1ImpA0<Asn1Seq<Asn1Set<Asn1Seq<Asn1X509Elem>>>,4>,
+}
+
+impl DirectoryName {
+	pub fn set_algo(&mut self,oid :&str, oany :&Asn1Any) -> Result<(),Box<dyn Error>> {
+		if self.elem.val.val.len() == 0 {
+			self.elem.val.val.push(Asn1Set::init_asn1());
+		}
+		Ok(())
+	}
+}
+
 #[asn1_int_choice(selector=itype,othername=0,rfc822name=1,dnsname=2,directoryname=4)]
 #[derive(Clone)]
 pub struct Asn1_GENERAL_NAME {
@@ -39,7 +55,7 @@ pub struct Asn1_GENERAL_NAME {
 	pub othername :OtherName,
 	pub rfc822name :Asn1Imp<Asn1IA5String,1>,
 	pub dnsname :Asn1Imp<Asn1IA5String,2>,
-	pub directoryname :Asn1ImpA0<Asn1Seq<Asn1Set<Asn1Seq<Asn1X509Elem>>>,4>,
+	pub directoryname :DirectoryName,
 }
 
 

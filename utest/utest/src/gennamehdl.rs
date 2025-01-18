@@ -36,7 +36,10 @@ use asn1obj::asn1impl::*;
 #[allow(unused_imports)]
 use chrono::{Utc,DateTime,Datelike,Timelike};
 
-extargs_error_class!{Pkcs7Error}
+use super::*;
+use asn1obj::base::{Asn1Any};
+
+extargs_error_class!{GenNameError}
 
 fn gennamedec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
 	let sarr :Vec<String>;
@@ -56,6 +59,28 @@ fn gennamedec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 	Ok(())
 }
 
+fn directorynameenc_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
+	let sarr :Vec<String>;
+
+	init_log(ns.clone())?;
+
+	sarr = ns.get_array("subnargs");
+	if sarr.len() < 2 {
+		extargs_new_error!{GenNameError,"need oid oanyfile"}
+	}
+
+	let oid = format!("{}",sarr[0]);
+	let ofile = format!("{}",sarr[1]);
+	let ocode = read_file_into_der(&ofile)?;
+	let mut oany :Asn1Any = Asn1Any::init_asn1();
+	let _ = oany.decode_asn1(&ocode)?;
+	let mut dname :DirectoryName = DirectoryName::init_asn1();
+	dname.set_algo(&oid,&oany)?;
+	let code = dname.encode_asn1()?;
+	debug_buffer_trace!(code.as_ptr(),code.len(),"DirectoryName");
+
+	Ok(())
+}
 
 
 #[extargs_map_function(gennamedec_handler)]
@@ -64,6 +89,9 @@ pub fn load_genname_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> 
 	{
 		"gennamedec<gennamedec_handler>##file ... to decode_asn1 GENERNAL_NAME ##" : {
 			"$" : "+"
+		},
+		"directorynameenc<directorynameenc_handler>##oid oanyfile to set DirectoryName##" : {
+			"$" : 2
 		}
 	}
 	"#;
