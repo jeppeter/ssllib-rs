@@ -60,7 +60,42 @@ impl DirectoryName {
 	}
 }
 
-#[asn1_int_choice(selector=itype,othername=0,rfc822name=1,dnsname=2,directoryname=4)]
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct EDIPARTYNAMEElem {
+	pub nameAssigner :Asn1ImpA0<Asn1Seq<Asn1OctData>,0>,
+	pub partyname :Asn1ImpA0<Asn1Any,1>,
+}
+
+impl EDIPARTYNAMEElem {
+	pub fn set_names(&mut self,assigname :&str ,oany :&Asn1Any) -> Result<(),Box<dyn Error>> {
+		if self.nameAssigner.val.val.len() == 0 {
+			self.nameAssigner.val.val.push(Asn1OctData::init_asn1());
+		}
+		self.nameAssigner.val.val[0].data = assigname.as_bytes().to_vec().clone();
+
+		self.partyname.val = oany.clone();
+		Ok(())
+	}
+}
+
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct EDIPARTYNAME {
+	pub elem :Asn1ImpA0<Asn1Seq<EDIPARTYNAMEElem>,5>,
+}
+
+impl EDIPARTYNAME {
+	pub fn set_names(&mut self,assigname :&str ,oany :&Asn1Any) -> Result<(),Box<dyn Error>> {
+		if self.elem.val.val.len() == 0 {
+			self.elem.val.val.push(EDIPARTYNAMEElem::init_asn1());
+		}
+		return self.elem.val.val[0].set_names(assigname,oany);
+	}
+}
+
+#[asn1_int_choice(selector=itype,othername=0,rfc822name=1,dnsname=2,directoryname=4,edipartyname=5)]
 #[derive(Clone)]
 pub struct Asn1_GENERAL_NAME {
 	pub itype :i32,
@@ -68,6 +103,7 @@ pub struct Asn1_GENERAL_NAME {
 	pub rfc822name :Asn1Imp<Asn1IA5String,1>,
 	pub dnsname :Asn1Imp<Asn1IA5String,2>,
 	pub directoryname :DirectoryName,
+	pub edipartyname :EDIPARTYNAME,
 }
 
 

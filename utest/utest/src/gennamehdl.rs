@@ -83,7 +83,31 @@ fn directorynameenc_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn A
 }
 
 
-#[extargs_map_function(gennamedec_handler,directorynameenc_handler)]
+fn edinameenc_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
+	let sarr :Vec<String>;
+
+	init_log(ns.clone())?;
+
+	sarr = ns.get_array("subnargs");
+	if sarr.len() < 2 {
+		extargs_new_error!{GenNameError,"need assignname partyname"}
+	}
+
+	let assignname = format!("{}",sarr[0]);
+	let ofile = format!("{}",sarr[1]);
+	let ocode = read_file_into_der(&ofile)?;
+	let mut oany :Asn1Any = Asn1Any::init_asn1();
+	let _ = oany.decode_asn1(&ocode)?;
+	let mut ediname :EDIPARTYNAME = EDIPARTYNAME::init_asn1();
+	ediname.set_names(&assignname,&oany)?;
+	let code = ediname.encode_asn1()?;
+	debug_buffer_trace!(code.as_ptr(),code.len(),"EDIPARTYNAME");
+
+	Ok(())
+}
+
+
+#[extargs_map_function(gennamedec_handler,directorynameenc_handler,edinameenc_handler)]
 pub fn load_genname_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -91,6 +115,9 @@ pub fn load_genname_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> 
 			"$" : "+"
 		},
 		"directorynameenc<directorynameenc_handler>##oid oanyfile to set DirectoryName##" : {
+			"$" : 2
+		},
+		"edinameenc<edinameenc_handler>##assignname partyname to encode EDIPARTYNAME##" : {
 			"$" : 2
 		}
 	}
