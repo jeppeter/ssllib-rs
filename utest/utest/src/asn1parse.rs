@@ -113,6 +113,10 @@ fn asn1_parse_out<T : std::io::Write>(code :&[u8],outf :&mut T,tabs :i32,offseti
 			let mut utcasn1 :Asn1Time = Asn1Time::init_asn1();
 			let _ = utcasn1.decode_asn1(&incode)?;
 			write_tab_line!(flushed,outf,tabs,"[0x{:x}] GeneralTime [{}]", curv + offseti, utcasn1.get_value_str());
+		} else if btag == ASN1_BMPSTRING_FLAG {
+			let mut bmpstr :Asn1BMPString = Asn1BMPString::init_asn1();
+			let _ = bmpstr.decode_asn1(&incode)?;
+			write_tab_line!(flushed,outf,tabs,"[0x{:x}] BMPString [{}]", curv + offseti, bmpstr.val);
 		} else if btag == ASN1_SEQ_MASK {
 			let mut boffset : usize = curv + offseti;
 			boffset += incode.len() - oany.content.len();

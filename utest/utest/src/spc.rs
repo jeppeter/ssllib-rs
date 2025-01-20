@@ -57,6 +57,8 @@ pub struct SpcIndirectDataContent {
 }
 
 
+#[asn1_sequence()]
+#[derive(Clone)]
 pub struct TimeStampTokenElem {
 	pub version :Asn1Integer,
 	pub policy_id :Asn1Object,
@@ -68,6 +70,30 @@ pub struct TimeStampTokenElem {
 	pub nonce :Asn1Integer,
 }
 
+#[asn1_sequence()]
+#[derive(Clone)]
 pub struct TimeStampToken {
 	pub elem :Asn1Seq<TimeStampTokenElem>,
+}
+
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct SpcSerializedObjectElem {
+	pub classId :Asn1OctString,
+	pub serializedData :Asn1OctString,	
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct SpcSerializedObject {
+	pub elem :Asn1Seq<SpcSerializedObjectElem>,
+}
+
+#[asn1_int_choice()]
+#[derive(Clone)]
+pub struct SpcLink {
+	pub itype :i32,
+	pub url :Asn1I5AString,
+	pub moniker :SpcSerializedObject,
 }
