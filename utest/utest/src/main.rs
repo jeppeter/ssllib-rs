@@ -48,6 +48,8 @@ mod privkey;
 mod pkcs7hdl;
 mod pkcs12hdl;
 mod encdehdl;
+mod spc;
+mod spchdl;
 
 
 #[extargs_map_function()]
@@ -74,6 +76,7 @@ fn main() -> Result<(),Box<dyn Error>> {
 	pkcs12hdl::load_pkcs12_handler(parser.clone())?;
 	encdehdl::load_encde_handler(parser.clone())?;
 	gennamehdl::load_genname_handler(parser.clone())?;
+	spchdl::load_spc_handler(parser.clone())?;
 	let ores = parser.parse_commandline_ex(None,None,None,None);
 	if ores.is_err() {
 		let e = ores.err().unwrap();

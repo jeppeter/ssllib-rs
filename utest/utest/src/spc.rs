@@ -1,6 +1,21 @@
 #[allow(unused_imports)]
 use asn1obj_codegen::{asn1_choice,asn1_obj_selector,asn1_sequence,asn1_int_choice};
+use asn1obj::asn1impl::*;
+use asn1obj::complex::*;
+use asn1obj::base::*;
+use asn1obj::strop::{asn1_format_line};
+use serde_json;
+use asn1obj::{asn1obj_error_class,asn1obj_new_error};
+use std::error::Error;
+use std::io::Write;
 
+#[asn1_int_choice(selector=itype,unicode=0,ascii=1)]
+#[derive(Clone)]
+pub struct SpcString {
+	pub itype :i32,
+	pub unicode :Asn1Imp<Asn1BMPString,0>,
+	pub ascii :Asn1Imp<Asn1IA5String,1>,
+}
 
 #[asn1_sequence()]
 #[derive(Clone)]
@@ -56,6 +71,33 @@ pub struct SpcIndirectDataContent {
 	pub elem :Asn1Seq<SpcIndirectDataContentElem>,
 }
 
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct MessageImprintElem {
+	pub digestAlgorithm :AlgorithmIdentifier,
+	pub digest :Asn1OctData,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct MessageImprint {
+	pub elem :Asn1Seq<MessageImprintElem>,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct TimeStampAccuracyElem {
+	pub seconds :Asn1Opt<Asn1Integer>,
+	pub millis :Asn1Opt<Asn1Imp<Asn1Integer,0>>,
+	pub micros :Asn1Opt<Asn1Imp<Asn1Integer,1>>,
+}
+
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct TimeStampAccuracy {
+	pub elem :Asn1Seq<TimeStampAccuracyElem>,
+}
 
 #[asn1_sequence()]
 #[derive(Clone)]
@@ -66,7 +108,7 @@ pub struct TimeStampTokenElem {
 	pub serial :Asn1BigNum,
 	pub time :Asn1Time,
 	pub accuracy :TimeStampAccuracy,
-	pub ordering :Asn1Bool,
+	pub ordering :Asn1Boolean,
 	pub nonce :Asn1Integer,
 }
 
@@ -90,10 +132,56 @@ pub struct SpcSerializedObject {
 	pub elem :Asn1Seq<SpcSerializedObjectElem>,
 }
 
-#[asn1_int_choice()]
+#[asn1_int_choice(selector=itype,url=0,moniker=1,file=2)]
 #[derive(Clone)]
 pub struct SpcLink {
 	pub itype :i32,
-	pub url :Asn1I5AString,
-	pub moniker :SpcSerializedObject,
+	pub url :Asn1Imp<Asn1IA5String,0>,
+	pub moniker :Asn1Imp<SpcSerializedObject,1>,
+	pub file :Asn1Imp<SpcString,2>,
+}
+
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct SpcPeImageDataElem {
+	pub flags :Asn1BitData,
+	pub file : Asn1Opt<Asn1ImpA0<Asn1Seq<Asn1ImpA0<Asn1Seq<Asn1Imp<SpcLink,0>>,2>>,0>>,
+}
+
+impl SpcPeImageDataElem {
+	pub fn add_code(&mut self,code: i32,fstr :&str) -> Result<(),Box<dyn Error>> {
+		self.flags.data = vec![];
+		if code != 0 {
+			self.flags.data.push((code& 0xff)as u8);	
+		}
+		
+		let mut c :Asn1ImpA0<Asn1Seq<Asn1ImpA0<Asn1Seq<Asn1Imp<SpcLink,0>>,2>>,0> = Asn1ImpA0::init_asn1();
+		if c.val.val.len() == 0 {
+			c.val.val.push(Asn1ImpA0::init_asn1());
+		}
+		if c.val.val[0].val.val.len() == 0 {
+			c.val.val[0].val.val.push(Asn1Imp::init_asn1());
+		}
+		c.val.val[0].val.val[0].val.itype = 2;
+		c.val.val[0].val.val[0].val.file.val.unicode.val.val = format!("{}",fstr);
+		c.val.val[0].val.val[0].val.file.val.itype = 0;
+		self.file.val = Some(c);
+		Ok(())
+	}
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct SpcPeImageData {
+	pub elem :Asn1Seq<SpcPeImageDataElem>,
+}
+
+impl SpcPeImageData {
+	pub fn add_code(&mut self,code: i32,fstr :&str) -> Result<(),Box<dyn Error>> {
+		if self.elem.val.len() == 0 {
+			self.elem.val.push(SpcPeImageDataElem::init_asn1());
+		}
+		return self.elem.val[0].add_code(code,fstr);
+	}
 }

@@ -7,8 +7,8 @@ use asn1obj::asn1impl::*;
 use asn1obj::*;
 use asn1obj::strop::{asn1_format_line};
 use crate::*;
-use crate::logger::*;
-use bytes::{BytesMut,BufMut};
+//use crate::logger::*;
+//use bytes::{BytesMut,BufMut};
 use crate::x509::*;
 
 use std::error::Error;
