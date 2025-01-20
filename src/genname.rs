@@ -95,7 +95,7 @@ impl EDIPARTYNAME {
 	}
 }
 
-#[asn1_int_choice(selector=itype,othername=0,rfc822name=1,dnsname=2,directoryname=4,edipartyname=5)]
+#[asn1_int_choice(selector=itype,othername=0,rfc822name=1,dnsname=2,directoryname=4,edipartyname=5,uniformresource=6,ipaddress=7,registerid=8)]
 #[derive(Clone)]
 pub struct Asn1_GENERAL_NAME {
 	pub itype :i32,
@@ -104,6 +104,10 @@ pub struct Asn1_GENERAL_NAME {
 	pub dnsname :Asn1Imp<Asn1IA5String,2>,
 	pub directoryname :DirectoryName,
 	pub edipartyname :EDIPARTYNAME,
+	pub uniformresource :Asn1Imp<Asn1IA5String,6>,
+	pub ipaddress :Asn1Imp<Asn1OctData,7>,
+	pub registerid :Asn1Imp<Asn1Object,8>,
+
 }
 
 
