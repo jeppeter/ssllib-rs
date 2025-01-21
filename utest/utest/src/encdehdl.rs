@@ -23,6 +23,7 @@ use std::any::Any;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use ssllib::encde::*;
+use ssllib::digest::{get_digest_operator};
 use ssllib::impls::*;
 
 use super::*;
@@ -32,6 +33,7 @@ use super::fileop::*;
 #[allow(unused_imports)]
 use std::io::Write;
 
+use crate::strop::*;
 
 extargs_error_class!{EncDeError}
 
@@ -159,7 +161,50 @@ fn listenc_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl
 	Ok(())
 }
 
-#[extargs_map_function(cipherenc_handler,cipherdec_handler,listenc_handler)]
+fn dgst_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
+
+	init_log(ns.clone())?;
+	let sarr :Vec<String>;
+	let mut initv :Vec<u8> = vec![];
+	let mut times :u32 = 0;
+	sarr = ns.get_array("subnargs");
+	if sarr.len() < 2 {
+		extargs_new_error!{EncDeError,"need digestname file [times] [initv]"}
+	}
+	let digestname = format!("{}",sarr[0]);
+	let dcode = read_file_bytes(&sarr[1])?;
+	let outfile = ns.get_string("output");
+	let dgstop :Arc<RefCell<dyn Asn1DigestOp>>;
+	if sarr.len() > 2 {
+		times = parse_u64(&sarr[2])? as u32;
+	}
+	if sarr.len() > 3 {
+		initv = read_file_bytes(&sarr[3])?;
+	}
+
+	let ores = get_digest_operator(&digestname);
+	if ores.is_none() {
+		extargs_new_error!{EncDeError,"can not find {} cipher", digestname}
+	}
+	dgstop = ores.unwrap();
+	let _ = dgstop.borrow_mut().init_digest(times,&initv)?;
+	let mut outdata :Vec<u8> = vec![];
+
+	let _ =  dgstop.borrow_mut().digest_update(&dcode)?;
+	outdata.extend(dgstop.borrow_mut().digest_final()?);
+
+	if outfile.len() > 0 {
+		let _ = write_file_bytes(&outfile,&outdata)?;
+	} else {
+		out_buffer_data(&dcode,file!(),line!(),"dcode");
+		//debug_buffer_trace!(dcode.as_ptr(),dcode.len(),"dcode");
+		//debug_buffer_trace!(outdata.as_ptr(),outdata.len(), "outdata");
+	}
+
+	Ok(())
+}
+
+#[extargs_map_function(cipherenc_handler,cipherdec_handler,listenc_handler,dgst_handler)]
 pub fn load_encde_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -171,6 +216,9 @@ pub fn load_encde_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 		},
 		"listenc<listenc_handler>##to list encrypt method names##" : {
 			"$" : 0
+		},
+		"dgst<dgst_handler>##dgsttype file [times] [ivfile] to display digest##" : {
+			"$" : "+"
 		}
 	}
 	"#;

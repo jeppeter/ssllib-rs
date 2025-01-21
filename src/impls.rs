@@ -4,6 +4,7 @@ use std::cell::RefCell;
 use std::sync::Arc;
 
 pub trait Asn1DigestOp {
+	fn init_digest(&mut self,times :u32,initv :&[u8]) -> Result<(),Box<dyn Error>>;
 	fn digest_update(&mut self, data :&[u8]) -> Result<(),Box<dyn Error>>;
 	fn digest_final(&mut self) -> Result<Vec<u8>,Box<dyn Error>>;
 }

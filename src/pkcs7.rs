@@ -318,13 +318,13 @@ impl Asn1Pkcs7SignerInfo {
 	}
 
 	fn get_digest_op(&self) -> Result<Arc<RefCell<dyn Asn1DigestOp>>,Box<dyn Error>> {
-		let mut retv :Arc<RefCell<dyn Asn1DigestOp>> = Arc::new(RefCell::new(Sha256Digest::new()));
+		let mut retv :Arc<RefCell<dyn Asn1DigestOp>> = Arc::new(RefCell::new(Sha256Digest::new()?));
 
 		if self.elem.val[0].digest_alg.elem.val.len() > 0 {
 			let c = &(self.elem.val[0].digest_alg.elem.val[0]);
 			let digval :String = c.algorithm.get_value();
 			if digval.eq(OID_SHA256_DIGEST) {
-				retv = Arc::new(RefCell::new(Sha256Digest::new()));
+				retv = Arc::new(RefCell::new(Sha256Digest::new()?));
 			}
 		}
 
