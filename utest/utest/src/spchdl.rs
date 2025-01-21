@@ -36,7 +36,6 @@ use asn1obj::asn1impl::*;
 use chrono::{Utc,DateTime,Datelike,Timelike};
 
 use super::*;
-use asn1obj::base::{Asn1Any};
 use super::spc::*;
 use super::strop::{parse_u64};
 

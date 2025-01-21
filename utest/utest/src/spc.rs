@@ -11,10 +11,16 @@ use std::io::Write;
 
 #[asn1_int_choice(selector=itype,unicode=0,ascii=1)]
 #[derive(Clone)]
-pub struct SpcString {
+pub struct SpcStringElem {
 	pub itype :i32,
 	pub unicode :Asn1Imp<Asn1BMPString,0>,
 	pub ascii :Asn1Imp<Asn1IA5String,1>,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct SpcString {
+	pub elem :Asn1Seq<SpcStringElem>,
 }
 
 #[asn1_sequence()]
@@ -134,11 +140,17 @@ pub struct SpcSerializedObject {
 
 #[asn1_int_choice(selector=itype,url=0,moniker=1,file=2)]
 #[derive(Clone)]
-pub struct SpcLink {
+pub struct SpcLinkElem {
 	pub itype :i32,
 	pub url :Asn1Imp<Asn1IA5String,0>,
 	pub moniker :Asn1Imp<SpcSerializedObject,1>,
-	pub file :Asn1Imp<SpcString,2>,
+	pub file :Asn1Exp<SpcString,2>,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct SpcLink {
+	pub elem :Asn1Seq<SpcLinkElem>,
 }
 
 
@@ -146,7 +158,7 @@ pub struct SpcLink {
 #[derive(Clone)]
 pub struct SpcPeImageDataElem {
 	pub flags :Asn1BitData,
-	pub file : Asn1Opt<Asn1ImpA0<Asn1Seq<Asn1ImpA0<Asn1Seq<Asn1Imp<SpcLink,0>>,2>>,0>>,
+	pub file : Asn1Opt<Asn1Exp<SpcLink,0>>,
 }
 
 impl SpcPeImageDataElem {
@@ -156,16 +168,17 @@ impl SpcPeImageDataElem {
 			self.flags.data.push((code& 0xff)as u8);	
 		}
 		
-		let mut c :Asn1ImpA0<Asn1Seq<Asn1ImpA0<Asn1Seq<Asn1Imp<SpcLink,0>>,2>>,0> = Asn1ImpA0::init_asn1();
-		if c.val.val.len() == 0 {
-			c.val.val.push(Asn1ImpA0::init_asn1());
+		let mut c :Asn1Exp<SpcLink,0> = Asn1Exp::init_asn1();
+		if c.val.elem.val.len() == 0 {
+			c.val.elem.val.push(SpcLinkElem::init_asn1());
 		}
-		if c.val.val[0].val.val.len() == 0 {
-			c.val.val[0].val.val.push(Asn1Imp::init_asn1());
+		c.val.elem.val[0].itype = 2;
+		if c.val.elem.val[0].file.val.elem.val.len() == 0 {
+			c.val.elem.val[0].file.val.elem.val.push(SpcStringElem::init_asn1());
 		}
-		c.val.val[0].val.val[0].val.itype = 2;
-		c.val.val[0].val.val[0].val.file.val.unicode.val.val = format!("{}",fstr);
-		c.val.val[0].val.val[0].val.file.val.itype = 0;
+		
+		c.val.elem.val[0].file.val.elem.val[0].itype = 0;
+		c.val.elem.val[0].file.val.elem.val[0].unicode.val.val = format!("{}",fstr);
 		self.file.val = Some(c);
 		Ok(())
 	}

@@ -29,14 +29,14 @@ pub struct OtherNameElem {
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct OtherName {
-	pub elem :Asn1ImpA0<Asn1Seq<OtherNameElem>,0>,
+	pub elem :Asn1Exp<Asn1Seq<OtherNameElem>,0>,
 }
 
 
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct DirectoryName {
-	pub elem :Asn1ImpA0<Asn1Set<Asn1Seq<Asn1Set<Asn1X509Algor>>>,4>,
+	pub elem :Asn1Exp<Asn1Set<Asn1Seq<Asn1Set<Asn1X509Algor>>>,4>,
 }
 
 impl DirectoryName {
@@ -63,8 +63,8 @@ impl DirectoryName {
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct EDIPARTYNAMEElem {
-	pub nameAssigner :Asn1ImpA0<Asn1Seq<Asn1OctData>,0>,
-	pub partyname :Asn1ImpA0<Asn1Any,1>,
+	pub nameAssigner :Asn1Exp<Asn1Seq<Asn1OctData>,0>,
+	pub partyname :Asn1Exp<Asn1Any,1>,
 }
 
 impl EDIPARTYNAMEElem {
@@ -83,7 +83,7 @@ impl EDIPARTYNAMEElem {
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct EDIPARTYNAME {
-	pub elem :Asn1ImpA0<Asn1Seq<EDIPARTYNAMEElem>,5>,
+	pub elem :Asn1Exp<Asn1Seq<EDIPARTYNAMEElem>,5>,
 }
 
 impl EDIPARTYNAME {
