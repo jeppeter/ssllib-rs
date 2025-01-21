@@ -97,6 +97,7 @@ pub const ENC_AES_256_CFB1 :&str = "aes-256-cfb1";
 pub const ENC_AES_256_CFB8 :&str = "aes-256-cfb8";
 
 pub const DIGEST_HMAC_SHA256 :&str = "hmacsha256";
+//pub const DIGEST_HMAC_SHA256_EX :&str = "hmacsha256ex";
 pub const DIGEST_HMAC_SHA256_SIMPLE :&str = "hmacsha256simple";
 pub const DIGEST_SHA256 :&str = "sha256";
 

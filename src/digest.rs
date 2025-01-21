@@ -7,6 +7,8 @@ use crate::*;
 use std::sync::{Arc};
 use std::cell::RefCell;
 use crate::consts::*;
+use crate::logger::*;
+
 
 ssllib_error_class!{SslDigestError}
 
@@ -62,16 +64,16 @@ impl Asn1DigestOp for Sha256Digest {
 
 pub type HmacSha256 = Hmac<Sha256>;
 
-pub struct HmacSha256Digest {
+pub struct HmacSha256DigestOrig {
 	times :u32,
 	initv8 :Vec<u8>,
 	origdata :Vec<u8>,
 	inited :bool,
 }
 
-impl HmacSha256Digest {
+impl HmacSha256DigestOrig {
 	pub fn new() -> Result<Self,Box<dyn Error>> {
-		Ok(HmacSha256Digest {
+		Ok(Self {
 			//times :times,
 			times :0,
 			//initv8 : initv.to_vec().clone(),
@@ -82,7 +84,7 @@ impl HmacSha256Digest {
 	}
 }
 
-impl Asn1DigestOp for HmacSha256Digest {
+impl Asn1DigestOp for HmacSha256DigestOrig {
 	fn init_digest(&mut self,times :u32,initv :&[u8]) -> Result<(),Box<dyn Error>> {
 		self.inited = true;
 		self.times = times;
@@ -108,6 +110,7 @@ impl Asn1DigestOp for HmacSha256Digest {
 		let mut i :usize = 1;
 		let mut p :Vec<u8> = Vec::new();
 		let mut plen :usize = 0;
+		let mut odigtmp :Vec<u8>;
 
 		while tkeylen > 0 {
 			let mut itmp :Vec<u8> = Vec::new();
@@ -121,7 +124,9 @@ impl Asn1DigestOp for HmacSha256Digest {
 			itmp.push(curv);
 			curv = ((i >> 0) & 0xff) as u8;
 			itmp.push(curv);
+			ssllib_buffer_trace!(self.origdata.as_ptr(),self.origdata.len(),"origdata [{}]",i);
 			nmac.update(&self.origdata);
+			ssllib_buffer_trace!(itmp.as_ptr(),itmp.len(),"itmp [{}]",i);
 			nmac.update(&itmp);
 			let mut resdigtmp = nmac.finalize();
 			let mut digtmp = resdigtmp.into_bytes();
@@ -132,17 +137,22 @@ impl Asn1DigestOp for HmacSha256Digest {
 					p[i+plen] = digtmp[i];
 				}
 			}
+			ssllib_buffer_trace!(p.as_ptr(),p.len(),"[{}]p",i);
 
 
-			for _ in 1..self.times {
+			for _j in 1..self.times {
 				nmac = omac.clone();
+				odigtmp = digtmp.to_vec().clone();
 				nmac.update(&digtmp);
 				resdigtmp = nmac.finalize();
 				digtmp = resdigtmp.into_bytes();
+				ssllib_buffer_trace!(odigtmp.as_ptr(),odigtmp.len(),"[{}]odigtmp",_j);
+				ssllib_buffer_trace!(digtmp.as_ptr(),digtmp.len(),"[{}]digtmp",_j);
 				for k in 0..cplen {
 					p[k+plen] ^= digtmp[k];
 				}
 			}
+			ssllib_buffer_trace!(p.as_ptr(),p.len(),"[{}]after p",i);
 
 			tkeylen -= cplen;
 			i += 1;
@@ -151,6 +161,95 @@ impl Asn1DigestOp for HmacSha256Digest {
 		return Ok(p);
 	}
 }
+
+pub struct HmacSha256Digest {
+	times :u32,
+	initv8 :Vec<u8>,
+	inited :bool,
+	hasher :Vec<HmacSha256>,
+}
+
+impl HmacSha256Digest {
+	pub fn new() -> Result<Self,Box<dyn Error>> {
+		Ok(Self {
+			//times :times,
+			times :0,
+			//initv8 : initv.to_vec().clone(),
+			initv8 :vec![],
+			inited : false,
+			hasher : vec![],
+		})
+	}
+}
+
+impl Asn1DigestOp for HmacSha256Digest {
+	fn init_digest(&mut self,times :u32,initv :&[u8]) -> Result<(),Box<dyn Error>> {
+		self.inited = true;
+		self.times = times;
+		self.initv8 = initv.to_vec().clone();
+		if self.hasher.len() > 0 {
+			self.hasher[0] = HmacSha256::new_from_slice(initv)?;
+		} else {
+			self.hasher.push(HmacSha256::new_from_slice(initv)?);
+		}
+		Ok(())
+	}
+	fn digest_update(&mut self, data :&[u8]) -> Result<(),Box<dyn Error>> {
+		if !self.inited {
+			ssllib_new_error!{SslDigestError,"not inited"}
+		}
+
+		//self.origdata.extend(data.iter().collect::<Vec<_>>().clone());
+		self.hasher[0].update(data);
+		return Ok(());
+	}
+
+	fn digest_final(&mut self) -> Result<Vec<u8>,Box<dyn Error>> {
+		if !self.inited {
+			ssllib_new_error!{SslDigestError,"not inited"}
+		}
+		let cplen :usize = 32;
+		let mut p :Vec<u8> = Vec::new();
+		let plen :usize = 0;
+		let mut curv:u8;
+		let i :usize=1;
+		let mut itmp :Vec<u8> = vec![];
+		curv = ((i >> 24) & 0xff) as u8;
+		itmp.push(curv);
+		curv = ((i >> 16) & 0xff) as u8;
+		itmp.push(curv);
+		curv = ((i >> 8) & 0xff) as u8;
+		itmp.push(curv);
+		curv = ((i >> 0) & 0xff) as u8;
+		itmp.push(curv);
+		let mut nmac = self.hasher[0].clone();
+		nmac.update(&itmp);
+
+		let mut resdigtmp = nmac.finalize();
+		let mut digtmp = resdigtmp.into_bytes();
+		for i in 0..digtmp.len() {
+			if (p.len()-plen) <= i {
+				p.push(digtmp[i]);
+			} else {
+				p[i+plen] = digtmp[i];
+			}
+		}
+
+		for _j in 1..self.times {
+			let mut nmac = HmacSha256::new_from_slice(&self.initv8)?;
+			nmac.update(&digtmp);
+			resdigtmp = nmac.finalize();
+			digtmp = resdigtmp.into_bytes();
+			for k in 0..cplen {
+				p[k+plen] ^= digtmp[k];
+			}
+		}
+
+
+		return Ok(p);
+	}
+}
+
 
 pub struct HmacSha256DigestSimple {
 	initv8 :Vec<u8>,
@@ -205,29 +304,29 @@ pub fn calc_hmac_sha256(initkey :&[u8],data :&[u8]) -> Vec<u8> {
 
 
 macro_rules! expand_digest_operator {
-    ($name:expr) => {
-        if $name == DIGEST_SHA256 {
-            let ores = Sha256Digest::new();
-            if ores.is_ok() {
-                return Some(Arc::new(RefCell::new(ores.unwrap())));    
-            }        
-        } else if $name == DIGEST_HMAC_SHA256 {
-            let ores = HmacSha256Digest::new();
-            if ores.is_ok() {
-                return Some(Arc::new(RefCell::new(ores.unwrap())));    
-            }
-        } else if $name == DIGEST_HMAC_SHA256_SIMPLE {
-            let ores = HmacSha256DigestSimple::new();
-            if ores.is_ok() {
-                return Some(Arc::new(RefCell::new(ores.unwrap())));    
-            }
-        }
+	($name:expr) => {
+		if $name == DIGEST_SHA256 {
+			let ores = Sha256Digest::new();
+			if ores.is_ok() {
+				return Some(Arc::new(RefCell::new(ores.unwrap())));    
+			}        
+		} else if $name == DIGEST_HMAC_SHA256 {
+			let ores = HmacSha256Digest::new();
+			if ores.is_ok() {
+				return Some(Arc::new(RefCell::new(ores.unwrap())));    
+			}
+		} else if $name == DIGEST_HMAC_SHA256_SIMPLE {
+			let ores = HmacSha256DigestSimple::new();
+			if ores.is_ok() {
+				return Some(Arc::new(RefCell::new(ores.unwrap())));    
+			}
+		}
 
-        return None;
-    };
+		return None;
+	};
 }
 
 
 pub fn get_digest_operator(name :&str) -> Option<Arc<RefCell<dyn Asn1DigestOp>>> {
-    expand_digest_operator!(name);
+	expand_digest_operator!(name);
 }

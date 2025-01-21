@@ -196,7 +196,7 @@ fn dgst_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>
 	if outfile.len() > 0 {
 		let _ = write_file_bytes(&outfile,&outdata)?;
 	} else {
-		out_buffer_data(&dcode,file!(),line!(),"dcode");
+		out_buffer_data(&outdata,file!(),line!(),"outdata")?;
 		//debug_buffer_trace!(dcode.as_ptr(),dcode.len(),"dcode");
 		//debug_buffer_trace!(outdata.as_ptr(),outdata.len(), "outdata");
 	}
