@@ -7,7 +7,7 @@ use crate::*;
 use std::sync::{Arc};
 use std::cell::RefCell;
 use crate::consts::*;
-use crate::logger::*;
+//use crate::logger::*;
 
 
 ssllib_error_class!{SslDigestError}
@@ -63,7 +63,7 @@ impl Asn1DigestOp for Sha256Digest {
 }
 
 pub type HmacSha256 = Hmac<Sha256>;
-
+/*
 pub struct HmacSha256DigestOrig {
 	times :u32,
 	initv8 :Vec<u8>,
@@ -161,6 +161,7 @@ impl Asn1DigestOp for HmacSha256DigestOrig {
 		return Ok(p);
 	}
 }
+*/
 
 pub struct HmacSha256Digest {
 	times :u32,
