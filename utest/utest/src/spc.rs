@@ -27,7 +27,7 @@ pub struct SpcString {
 #[derive(Clone)]
 pub struct SpcAttributeTypeAndOptionalValueElem {
 	pub itype :Asn1Object,
-	pub value :Asn1Any,
+	pub value :Asn1Opt<Asn1Any>,
 }
 
 #[asn1_sequence()]

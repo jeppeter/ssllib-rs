@@ -78,8 +78,26 @@ fn spcpeimgenc_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSet
 	Ok(())
 }
 
+fn sidcdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
+	let sarr :Vec<String>;
 
-#[extargs_map_function(spcpeimgdec_handler,spcpeimgenc_handler)]
+	init_log(ns.clone())?;
+
+	sarr = ns.get_array("subnargs");
+	for f in sarr.iter() {
+		let code = read_file_into_der(f)?;
+		let mut spc :SpcIndirectDataContent = SpcIndirectDataContent::init_asn1();
+		let size = spc.decode_asn1(&code)?;
+		let mut outf = std::io::stdout();
+		let cstr = format!("SpcIndirectDataContent in {} size {}[0x{:x}]\n",f,size,size);
+		spc.print_asn1(&cstr,0,&mut outf)?;
+	}
+
+	Ok(())
+}
+
+
+#[extargs_map_function(spcpeimgdec_handler,spcpeimgenc_handler,sidcdec_handler)]
 pub fn load_spc_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -88,6 +106,9 @@ pub fn load_spc_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 		},
 		"spcpeimgenc<spcpeimgenc_handler>##flags str to encode SpcPeImageData##" : {
 			"$" : 2
+		},
+		"sidcdec<sidcdec_handler>##file ... to decode_asn1 SpcIndirectDataContent##" : {
+			"$" : "+"
 		}
 	}
 	"#;
