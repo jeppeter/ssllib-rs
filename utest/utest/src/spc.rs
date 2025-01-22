@@ -10,7 +10,7 @@ use std::error::Error;
 use std::io::Write;
 use extargsparse_worker::{extargs_new_error,extargs_error_class};
 use super::pelib::pe_get_digest;
-use ssllib::digest::ssllib_get_digest_oid;
+use ssllib::utils::ssllib_get_digest_oid;
 
 
 extargs_error_class!{SpcError}

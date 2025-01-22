@@ -52,7 +52,7 @@ lazy_static !{
     };
 }
 
-pub fn get_digest_oid(sname :&str) -> Option<String> {
+pub fn ssllib_get_digest_oid(sname :&str) -> Option<String> {
     match DIGEST_MAP_STRING_OID.get(sname) {
         Some(v) => {
             return Some(format!("{}",v));
@@ -63,7 +63,7 @@ pub fn get_digest_oid(sname :&str) -> Option<String> {
     }
 }
 
-pub fn get_pkey_oid(sname :&str)  -> Option<String> {
+pub fn ssllib_get_pkey_oid(sname :&str)  -> Option<String> {
     match PKEY_MAP_STRING_OID.get(sname) {
         Some(v) => {
             return Some(format!("{}",v));

@@ -23,7 +23,6 @@ use std::any::Any;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use ssllib::encde::*;
-use ssllib::digest::{ssllib_get_digest_operator};
 use ssllib::impls::*;
 
 use super::*;
@@ -34,6 +33,7 @@ use super::fileop::*;
 use std::io::Write;
 
 use crate::strop::*;
+use crate::dgstlib::dgst_get_value;
 
 extargs_error_class!{EncDeError}
 
@@ -174,7 +174,6 @@ fn dgst_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>
 	let digestname = format!("{}",sarr[0]);
 	let dcode = read_file_bytes(&sarr[1])?;
 	let outfile = ns.get_string("output");
-	let dgstop :Arc<RefCell<dyn Asn1DigestOp>>;
 	if sarr.len() > 2 {
 		times = parse_u64(&sarr[2])? as u32;
 	}
@@ -182,16 +181,7 @@ fn dgst_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>
 		initv = read_file_bytes(&sarr[3])?;
 	}
 
-	let ores = ssllib_get_digest_operator(&digestname);
-	if ores.is_none() {
-		extargs_new_error!{EncDeError,"can not find {} cipher", digestname}
-	}
-	dgstop = ores.unwrap();
-	let _ = dgstop.borrow_mut().init_digest(times,&initv)?;
-	let mut outdata :Vec<u8> = vec![];
-
-	let _ =  dgstop.borrow_mut().digest_update(&dcode)?;
-	outdata.extend(dgstop.borrow_mut().digest_final()?);
+	let outdata = dgst_get_value(&digestname,times,&initv,&dcode)?;
 
 	if outfile.len() > 0 {
 		let _ = write_file_bytes(&outfile,&outdata)?;
