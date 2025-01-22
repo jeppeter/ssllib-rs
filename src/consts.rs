@@ -35,7 +35,6 @@ pub const OID_PKCS7_ENCRYPTED_DATA :&str = "1.2.840.113549.1.7.6";
 pub const OID_PKCS7_DATA :&str = "1.2.840.113549.1.7.1";
 pub const OID_PKCS12_SAFE_BAG_X509_CERT :&str = "1.2.840.113549.1.9.22.1";
 pub const OID_SHA256_DIGEST :&str = "2.16.840.1.101.3.4.2.1";
-pub const OID_SHA256_DIGEST_SET :&str = "1.2.840.113549.1.9.4";
 pub const OID_EC_PUBLICK_KEY :&str = "1.2.840.10045.2.1";
 
 

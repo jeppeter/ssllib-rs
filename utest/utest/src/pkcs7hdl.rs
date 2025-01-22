@@ -164,6 +164,7 @@ fn pkcs7signerinfoaddauthattr_handler(ns :NameSpaceEx,_optargset :Option<Arc<Ref
 const SPC_STATEMENT_TYPE_OBJID :&str = "1.3.6.1.4.1.311.2.1.11";
 const SPC_INDIRECT_DATA_OBJID :&str = "1.3.6.1.4.1.311.2.1.4";
 const PKCS9_CONTENT_TYPE_OID :&str = "1.2.840.113549.1.9.3";
+const PKCS9_MESSAGE_DIGEST_TYPE_OID :&str = "1.2.840.113549.1.9.4";
 
 fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
 	let sarr :Vec<String>;
@@ -257,7 +258,13 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 
 	let dgstcode = dgst_get_value(&dgstname,0,&initv,&(oany.content))?;
 	debug_buffer_trace!(dgstcode.as_ptr(),dgstcode.len(),"dgstcode");
-
+	let  mut setdgst :Asn1Set<Asn1OctData> = Asn1Set::init_asn1();
+	setdgst.val.push(Asn1OctData::init_asn1());
+	setdgst.val.data = dgstcode.clone();
+	let mut odgst :Asn1Any = Asn1Any::init_asn1();
+	let ocode = setdgst.encode_asn1()?;
+	odgst.decode_asn1(&ocode)?;
+	si.append_auth_attr(PKCS9_MESSAGE_DIGEST_TYPE_OID,&odgst)?;
 
 	let _ = pkcs7obj.add_signer(&si)?;
 
