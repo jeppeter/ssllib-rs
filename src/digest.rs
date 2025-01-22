@@ -8,6 +8,8 @@ use std::sync::{Arc};
 use std::cell::RefCell;
 use crate::consts::*;
 //use crate::logger::*;
+use lazy_static::lazy_static;
+use std::collections::HashMap;
 
 
 ssllib_error_class!{SslDigestError}
@@ -327,7 +329,26 @@ macro_rules! expand_digest_operator {
 	};
 }
 
+lazy_static!{
+    static ref DIGEST_NAME_TO_OID_MAP: HashMap<String,String> = {
+        let mut retv :HashMap<String,String> = HashMap::new();
+        retv.insert(DGST_SHA256.to_string(),OID_SHA256_DIGEST.to_string());
 
-pub fn get_digest_operator(name :&str) -> Option<Arc<RefCell<dyn Asn1DigestOp>>> {
+        retv
+    };
+}
+
+pub fn ssllib_get_digest_operator(name :&str) -> Option<Arc<RefCell<dyn Asn1DigestOp>>> {
 	expand_digest_operator!(name);
+}
+
+pub fn ssllib_get_digest_oid(name :&str) -> Option<String> {
+	match DIGEST_NAME_TO_OID_MAP.get(name) {
+		Some(v) => {
+			return Some(format!("{}",v));
+		},
+		None => {
+			return None;
+		}
+	}
 }

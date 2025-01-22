@@ -38,6 +38,7 @@ use ssllib::consts::*;
 use asn1obj::asn1impl::*;
 use asn1obj::base::*;
 use super::fileop::*;
+//use super::pelib::{pe_get_digest};
 #[allow(unused_imports)]
 use chrono::{Utc,DateTime,Datelike,Timelike};
 
@@ -168,13 +169,14 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 
 	sarr = ns.get_array("subnargs");
 
-	if sarr.len() < 3 {
-		extargs_new_error!{Pkcs7Error,"need x509file pkeyname dgstname"}
+	if sarr.len() < 4 {
+		extargs_new_error!{Pkcs7Error,"need x509file pkeyname dgstname pefile"}
 	}
 
 	let x509file = format!("{}",sarr[0]);
 	let pkeyname = format!("{}",sarr[1]);
 	let dgstname = format!("{}",sarr[2]);
+	let pefile = format!("{}",sarr[3]);
 	let ooidpkey = get_pkey_oid(&pkeyname);
 	if ooidpkey.is_none() {
 		extargs_new_error!{Pkcs7Error,"no pkey oid for {}",pkeyname}
@@ -248,13 +250,18 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 		pkcs7obj.add_cert(&acert)?;
 	}
 
-	let np7s = ns.get_string("contentpk7");
-	if np7s.len() != 0 {
-		let code = read_file_into_der(&np7s)?;
-		let mut np7 :Asn1Pkcs7 = Asn1Pkcs7::init_asn1();
-		let _ = np7.decode_asn1(&code)?;
-		pkcs7obj.set_content_pk7(&np7)?;
-	}
+	/*now to give the idc value*/
+	/*
+	let mut sidc :SpcPeImageData = SpcPeImageData::init_asn1();
+	sidc.add_flags(0,"<<<Obsolete>>>")?;
+	let pk7code = sidc.encode_asn1()?;
+	let mut oany :Asn1Any = Asn1Any::init_asn1();
+	oany.decode_asn1(&pk7code)?;
+	let mut pk7 :Asn1Pkcs7 = Asn1Pkcs7::init_asn1();
+	pk7.set_type(SPC_INDIRECT_DATA_OBJID)?;
+	pk7.set_onay(&oany)?;
+	pkcs7obj.set_content_pk7(&pk7)?;
+	*/
 
 	let _ = pkcs7obj.print_asn1("Asn1Pkcs7",0,&mut outf)?;
 
@@ -274,7 +281,6 @@ pub fn load_pkcs7_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 		"pkcs7comm" : false,
 		"utctime" : null,
 		"localtime" : null,
-		"contentpk7" : null,
 		"pkcs7dec<pkcs7dec_handler>##file ... ##" : {
 			"$" : "+"
 		},
@@ -287,7 +293,7 @@ pub fn load_pkcs7_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 		"pkcs7signerinfoaddauthattr<pkcs7signerinfoaddauthattr_handler>##pkcs7signerinfofile oid oanyfile to append ##" : {
 			"$" : 3
 		},
-		"pkcs7sign<pkcs7sign_handler>##x509file pkeyname dgstname ##" : {
+		"pkcs7sign<pkcs7sign_handler>##x509file pkeyname dgstname pefile##" : {
 			"$" : "+"
 		}
 	}

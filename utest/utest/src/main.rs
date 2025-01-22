@@ -46,6 +46,7 @@ mod x509exec;
 mod ecparam;
 mod privkey;
 mod pkcs7hdl;
+mod pelib;
 mod pkcs12hdl;
 mod encdehdl;
 mod spc;

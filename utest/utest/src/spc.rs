@@ -30,6 +30,18 @@ pub struct SpcAttributeTypeAndOptionalValueElem {
 	pub value :Asn1Opt<Asn1Any>,
 }
 
+impl SpcAttributeTypeAndOptionalValueElem {
+	pub fn set_value(&mut self, oid :&str,oany :Option<Asn1Any>) -> Result<(),Box<dyn Error>> {
+		self.itype.set_value(oid)?;
+		if oany.is_none() {
+			self.value.val = None;
+		} else {
+			self.value.val = Some(oany.as_ref().unwrap().clone());
+		}
+		Ok(())
+	}
+}
+
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct SpcAttributeTypeAndOptionalValue {
@@ -37,17 +49,57 @@ pub struct SpcAttributeTypeAndOptionalValue {
 }
 
 
+
+impl SpcAttributeTypeAndOptionalValue {
+	fn _make_sure_elem(&mut self) -> Result<(),Box<dyn Error>> {
+		if self.elem.val.len() == 0 {
+			self.elem.val.push(SpcAttributeTypeAndOptionalValueElem::init_asn1());
+		}
+		Ok(())		
+	}
+	pub fn set_value(&mut self, oid :&str,oany :Option<Asn1Any>) -> Result<(),Box<dyn Error>> {
+		self._make_sure_elem()?;
+		return self.elem.val[0].set_value(oid,oany);
+	}
+}
+
+
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct AlgorithmIdentifierElem {
 	pub algorithm :Asn1Object,
-	pub parameters :Asn1Any,
+	pub parameters :Asn1Opt<Asn1Any>,
+}
+
+impl AlgorithmIdentifierElem {
+	pub fn set_value(&mut self, oid :&str, oany :Option<Asn1Any>) -> Result<(),Box<dyn Error>> {
+		self.algorithm.set_value(oid)?;
+		if oany.is_some() {
+			self.parameters.val = Some(oany.as_ref().unwrap().clone());
+		} else {
+			self.parameters.val = None;
+		}
+		Ok(())
+	}	
 }
 
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct AlgorithmIdentifier {
 	pub elem :Asn1Seq<AlgorithmIdentifierElem>,
+}
+
+impl AlgorithmIdentifier {
+	fn _make_sure_elem(&mut self) -> Result<(),Box<dyn Error>> {
+		if self.elem.val.len() == 0 {
+			self.elem.val.push(AlgorithmIdentifierElem::init_asn1());
+		}
+		Ok(())		
+	}
+	pub fn set_value(&mut self, oid :&str, oany :Option<Asn1Any>) -> Result<(),Box<dyn Error>> {
+		self._make_sure_elem()?;
+		return self.elem.val[0].set_value(oid,oany);
+	}	
 }
 
 
@@ -58,11 +110,41 @@ pub struct DigestInfoElem {
 	pub digest : Asn1OctData,
 }
 
+impl DigestInfoElem {
+	pub fn set_algo(&mut self,oid:&str,oany :Option<Asn1Any>) -> Result<(),Box<dyn Error>> {
+		return self.digestAlgorithm.set_value(oid,oany);
+	}
+
+	pub fn set_digest(&mut self,data :&[u8]) -> Result<(),Box<dyn Error>> {
+		self.digest.data = data.to_vec().clone();
+		Ok(())
+	}
+}
+
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct DigestInfo {
 	pub elem :Asn1Seq<DigestInfoElem>,
 }
+
+impl DigestInfo {
+	fn _make_sure_elem(&mut self) -> Result<(),Box<dyn Error>> {
+		if self.elem.val.len() == 0 {
+			self.elem.val.push(DigestInfoElem::init_asn1());
+		}
+		Ok(())		
+	}
+	pub fn set_algo(&mut self, oid :&str, oany :Option<Asn1Any>) -> Result<(),Box<dyn Error>> {
+		self._make_sure_elem()?;
+		return self.elem.val[0].set_algo(oid,oany);
+	}	
+	pub fn set_digest(&mut self, data :&[u8]) -> Result<(),Box<dyn Error>> {
+		self._make_sure_elem()?;
+		return self.elem.val[0].set_digest(data);
+	}	
+}
+
+
 
 #[asn1_sequence()]
 #[derive(Clone)]
@@ -71,11 +153,41 @@ pub struct SpcIndirectDataContentElem {
 	pub messageDigest :DigestInfo,
 }
 
+impl SpcIndirectDataContentElem {
+	pub fn set_data(&mut self,oid :&str,oany :Option<Asn1Any>) -> Result<(),Box<dyn Error>> {
+		return self.data.set_value(oid,oany);
+	}
+
+	pub fn set_digest(&mut self,digoid :&str,params :Option<Asn1Any>,data :&[u8]) -> Result<(),Box<dyn Error>> {
+		self.messageDigest.set_algo(digoid,params)?;
+		return self.messageDigest.set_digest(data);
+	}
+}
+
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct SpcIndirectDataContent {
 	pub elem :Asn1Seq<SpcIndirectDataContentElem>,
 }
+
+impl SpcIndirectDataContent {
+	fn _make_sure_elem(&mut self) -> Result<(),Box<dyn Error>> {
+		if self.elem.val.len() == 0 {
+			self.elem.val.push(SpcIndirectDataContentElem::init_asn1());
+		}
+		Ok(())		
+	}
+	pub fn set_data(&mut self,oid :&str,oany :Option<Asn1Any>) -> Result<(),Box<dyn Error>> {
+		self._make_sure_elem()?;
+		return self.elem.val[0].set_data(oid,oany);
+	}
+
+	pub fn set_digest(&mut self,digoid :&str,params :Option<Asn1Any>,data :&[u8]) -> Result<(),Box<dyn Error>> {
+		self._make_sure_elem()?;
+		return self.elem.val[0].set_digest(digoid,params,data);
+	}
+}
+
 
 #[asn1_sequence()]
 #[derive(Clone)]

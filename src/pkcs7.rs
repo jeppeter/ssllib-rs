@@ -602,6 +602,16 @@ impl Asn1Pkcs7Elem {
 		Ok(())
 	}
 
+	pub fn set_oany(&mut self, oany :&Asn1Any) -> Result<(),Box<dyn Error>> {
+		let selstr = self.selector.val.get_value();
+		if selstr != "anyobj" {
+			ssllib_new_error!{SslPkcs7Error,"not valid type {}",selstr}
+		}
+		self.anyobj.val = Some(oany.clone());
+		Ok(())
+
+	}
+
 	pub fn add_signer(&mut self,si :&Asn1Pkcs7SignerInfo) -> Result<(),Box<dyn Error>> {
 		let selstr :String = self.selector.encode_select()?;
 		let mut osi :Option<&Asn1Set<Asn1Pkcs7SignerInfo>> = None;
@@ -910,6 +920,11 @@ impl Asn1Pkcs7 {
 	pub fn add_cert(&mut self,cert :&Asn1X509) -> Result<(),Box<dyn Error>> {
 		self._make_sure_elem()?;
 		return self.elem.val[0].add_cert(cert);
+	}
+
+	pub fn set_oany(&mut self, oany :&Asn1Any) -> Result<(),Box<dyn Error>> {
+		self._make_sure_elem()?;
+		return self.elem.val[0].set_oany(oany);
 	}
 
 }

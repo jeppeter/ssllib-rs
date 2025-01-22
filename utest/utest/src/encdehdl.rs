@@ -23,7 +23,7 @@ use std::any::Any;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use ssllib::encde::*;
-use ssllib::digest::{get_digest_operator};
+use ssllib::digest::{ssllib_get_digest_operator};
 use ssllib::impls::*;
 
 use super::*;
@@ -182,7 +182,7 @@ fn dgst_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>
 		initv = read_file_bytes(&sarr[3])?;
 	}
 
-	let ores = get_digest_operator(&digestname);
+	let ores = ssllib_get_digest_operator(&digestname);
 	if ores.is_none() {
 		extargs_new_error!{EncDeError,"can not find {} cipher", digestname}
 	}
