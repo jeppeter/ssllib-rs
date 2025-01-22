@@ -182,11 +182,11 @@ fn asn1_parse_out<T : std::io::Write>(code :&[u8],outf :&mut T,tabs :i32,offseti
 			
 			let ores = asn1_parse_out(&(oany.content),outf,tabs + 1, boffset,false);
 			if ores.is_ok() {
-				write_tab_line!(flushed,outf,tabs,"[0x{:x}] ImpA0 tag [{}:0x{:x}] size [{}:0x{:x}]", curv + offseti, ctag,ctag,incode.len(),incode.len());
+				write_tab_line!(flushed,outf,tabs,"[0x{:x}] Exp tag [{}:0x{:x}] size [{}:0x{:x}]", curv + offseti, ctag,ctag,incode.len(),incode.len());
 				let _ = asn1_parse_out(&(oany.content),outf,tabs + 1, boffset,flushed)?;
 			} else {
 				if flushed {
-					let cstr = format!("[0x{:x}] ImpA0 tag [{}:0x{:x}] size [{}:0x{:x}]", curv + offseti, ctag,ctag,incode.len(),incode.len());
+					let cstr = format!("[0x{:x}] Exp tag [{}:0x{:x}] size [{}:0x{:x}]", curv + offseti, ctag,ctag,incode.len(),incode.len());
 					oany.print_asn1(&cstr,tabs,outf)?;
 				}
 			}

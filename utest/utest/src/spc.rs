@@ -8,6 +8,12 @@ use serde_json;
 use asn1obj::{asn1obj_error_class,asn1obj_new_error};
 use std::error::Error;
 use std::io::Write;
+use extargsparse_worker::{extargs_new_error,extargs_error_class};
+use super::pelib::pe_get_digest;
+use ssllib::digest::ssllib_get_digest_oid;
+
+
+extargs_error_class!{SpcError}
 
 #[asn1_int_choice(selector=itype,unicode=0,ascii=1)]
 #[derive(Clone)]
@@ -309,4 +315,28 @@ impl SpcPeImageData {
 		}
 		return self.elem.val[0].add_code(code,fstr);
 	}
+}
+
+pub const SPC_PE_IMAGE_DATA_OBJID :&str = "1.3.6.1.4.1.311.2.1.15";
+
+pub fn form_sidc_from_pefile(dgstname :&str,pefile :&str,times :u32, initv :&[u8]) -> Result<SpcIndirectDataContent,Box<dyn Error>> {
+	let mut sidc :SpcIndirectDataContent = SpcIndirectDataContent::init_asn1();
+	let mut spi :SpcPeImageData = SpcPeImageData::init_asn1();
+	spi.add_code(0,"<<<Obsolete>>>")?;
+	let spicode = spi.encode_asn1()?;
+	let mut oany :Asn1Any = Asn1Any::init_asn1();
+	oany.decode_asn1(&spicode)?;
+	sidc.set_data(SPC_PE_IMAGE_DATA_OBJID,Some(oany))?;
+	let dgstcode = pe_get_digest(dgstname,pefile,times,initv)?;
+	let ooid = ssllib_get_digest_oid(dgstname);
+	if ooid.is_none() {
+		extargs_new_error!{SpcError,"not support {} dgst",dgstname}
+	}
+	let oidname = ooid.unwrap();
+	let nulv :Asn1Null = Asn1Null::init_asn1();
+	let nullcode = nulv.encode_asn1()?;
+	let mut coany :Asn1Any = Asn1Any::init_asn1();
+	coany.decode_asn1(&nullcode)?;
+	sidc.set_digest(&oidname,Some(coany),&dgstcode)?;
+	return Ok(sidc);
 }

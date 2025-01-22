@@ -39,9 +39,6 @@ use super::*;
 use super::spc::*;
 use super::strop::{parse_u64,out_buffer_data};
 use super::fileop::{read_file_bytes};
-use asn1obj::base::*;
-use super::pelib::pe_get_digest;
-use ssllib::digest::ssllib_get_digest_oid;
 
 extargs_error_class!{SpcHdlError}
 
@@ -100,6 +97,8 @@ fn sidcdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl
 	Ok(())
 }
 
+
+
 fn sidcform_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
 	let sarr :Vec<String>;
 	let mut times :u32 = 0;
@@ -108,38 +107,23 @@ fn sidcform_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImp
 	init_log(ns.clone())?;
 
 	sarr = ns.get_array("subnargs");
-	if sarr.len() < 4 {
-		extargs_new_error!{SpcHdlError,"need flags fstr dgstname exefile "}
+	if sarr.len() < 2 {
+		extargs_new_error!{SpcHdlError,"need dgstname exefile "}
 	}
 
-	let flags = parse_u64(&sarr[0])? as i32;
-	let fstr = format!("{}",sarr[1]);
-	let dgstname = format!("{}",sarr[2]);
-	let pefile =format!("{}",sarr[3]);
-	if sarr.len() > 4 {
-		times = parse_u64(&sarr[4])? as u32;
+	let dgstname = format!("{}",sarr[0]);
+	let pefile =format!("{}",sarr[1]);
+	if sarr.len() > 2 {
+		times = parse_u64(&sarr[2])? as u32;
 	}
-	if sarr.len() > 5 {
-		initv = read_file_bytes(&sarr[5])?;
+	if sarr.len() > 3 {
+		initv = read_file_bytes(&sarr[3])?;
 	}
-	let mut sidc :SpcIndirectDataContent = SpcIndirectDataContent::init_asn1();
-	let mut spi :SpcPeImageData = SpcPeImageData::init_asn1();
-	spi.add_code(flags,&fstr)?;
-	let spicode = spi.encode_asn1()?;
-	let mut oany :Asn1Any = Asn1Any::init_asn1();
-	oany.decode_asn1(&spicode)?;
-	sidc.set_data("1.3.6.1.4.1.311.2.1.4",Some(oany))?;
-	let dgstcode = pe_get_digest(&dgstname,&pefile,times,&initv)?;
-	let ooid = ssllib_get_digest_oid(&dgstname);
-	if ooid.is_none() {
-		extargs_new_error!{SpcHdlError,"not support {} dgst",dgstname}
-	}
-	let oidname = ooid.unwrap();
-	sidc.set_digest(&oidname,None,&dgstcode)?;
-	let ocode = sidc.encode_asn1()?;
+	let sidc = form_sidc_from_pefile(&dgstname,&pefile,times,&initv)?;
+	let cstr = format!("format SpcIndirectDataContent\n");
 	let mut outf = std::io::stdout();
-	let cstr = format!("SpcIndirectDataContent \n");
 	sidc.print_asn1(&cstr,0,&mut outf)?;
+	let ocode = sidc.encode_asn1()?;
 	out_buffer_data(&ocode,file!(),line!(),"sidc form")?;
 
 	Ok(())
@@ -159,7 +143,7 @@ pub fn load_spc_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 		"sidcdec<sidcdec_handler>##file ... to decode_asn1 SpcIndirectDataContent##" : {
 			"$" : "+"
 		},
-		"sidcform<sidcform_handler>##flags str dgstname exefile [times] [initfile] to form sidc##" : {
+		"sidcform<sidcform_handler>##dgstname exefile [times] [initfile] to form sidc##" : {
 			"$" : "+"
 		}
 	}

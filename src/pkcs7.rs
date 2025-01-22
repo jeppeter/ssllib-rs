@@ -603,7 +603,7 @@ impl Asn1Pkcs7Elem {
 	}
 
 	pub fn set_oany(&mut self, oany :&Asn1Any) -> Result<(),Box<dyn Error>> {
-		let selstr = self.selector.val.get_value();
+		let selstr = self.selector.encode_select()?;
 		if selstr != "anyobj" {
 			ssllib_new_error!{SslPkcs7Error,"not valid type {}",selstr}
 		}
