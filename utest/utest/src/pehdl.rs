@@ -107,7 +107,6 @@ fn pe_get_digest(digestname :&str, pefile :&str,times :u32,initv :&[u8]) -> Resu
 	let mut start:usize;
 	let mut end :usize;
 	let mut incode :Vec<u8>;
-	let mut digcode :Vec<u8> = vec![];
 	if ores.is_none() {
 		extargs_new_error!{PeHdlError,"can not find {} digest", digestname}
 	}
@@ -118,24 +117,18 @@ fn pe_get_digest(digestname :&str, pefile :&str,times :u32,initv :&[u8]) -> Resu
 	/*first before header size*/
 	start = 0;
 	end = pehdr.headersize + 88;
-	digcode.extend(&pecode[start..end]);
 	digop.borrow_mut().digest_update(&pecode[start..end])?;
-	debug_trace!("pecode [{}..{}]",start,end);
 	/*the place is checksum*/
 	start = pehdr.headersize + 88 + 4;
 	end = start + 60;
 	if pehdr.pe32plus != 0 {
 		end += pehdr.pe32plus * 16;
 	}
-	digcode.extend(&pecode[start..end]);
 	digop.borrow_mut().digest_update(&pecode[start..end])?;
-	debug_trace!("pecode [{}..{}]",start,end);
 	/*now at the end*/
 	start = end + 8;
 	end = pecode.len();
-	digcode.extend(&pecode[start..end]);
 	digop.borrow_mut().digest_update(&pecode[start..end])?;
-	debug_trace!("pecode [{}..{}]",start,end);
 
 	/*be 8 bytes alignment*/
 	if (pecode.len() % 8) != 0 {
@@ -144,11 +137,8 @@ fn pe_get_digest(digestname :&str, pefile :&str,times :u32,initv :&[u8]) -> Resu
 		while incode.len() != nlen {
 			incode.push(0);
 		}
-		digcode.extend(&incode);
 		digop.borrow_mut().digest_update(&incode)?;
-		debug_trace!("incode [{}]",incode.len());
 	}
-	debug_buffer_trace!(digcode.as_ptr(),digcode.len(),"digcode");
 
 	return digop.borrow_mut().digest_final();
 }
