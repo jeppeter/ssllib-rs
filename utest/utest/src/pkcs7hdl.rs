@@ -31,7 +31,7 @@ use std::collections::HashMap;
 
 use super::loglib::*;
 use super::pemlib::*;
-use super::*;
+//use super::*;
 use ssllib::pkcs7::*;
 use ssllib::utils::*;
 use ssllib::x509::*;
@@ -234,7 +234,7 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	}
 	let _ = si.append_auth_attr(&oid,&oany)?;
 	oany.tag = 0x31;
-	
+
 
 	let mut pkcs7obj :Asn1Pkcs7 = Asn1Pkcs7::init_asn1();
 	pkcs7obj.set_type(PKCS7_TYPE_SIGNED)?;
@@ -254,22 +254,14 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 		pkcs7obj.add_cert(&acert)?;
 	}
 	let initv :Vec<u8>= vec![];
-	debug_trace!(" ");
 	let sidc = form_sidc_from_pefile(&dgstname,&pefile,0,&initv)?;
 	let mut pk7 :Asn1Pkcs7 = Asn1Pkcs7::init_asn1();
-	debug_trace!(" ");
 	pk7.set_type(SPC_INDIRECT_DATA_OBJID)?;
-	debug_trace!(" ");
 	let code = sidc.encode_asn1()?;
-	debug_trace!(" ");
 	let mut oany :Asn1Any = Asn1Any::init_asn1();
-	debug_trace!(" ");
 	oany.decode_asn1(&code)?;
-	debug_trace!(" ");
 	pk7.set_oany(&oany)?;
-	debug_trace!(" ");
 	pkcs7obj.set_content_pk7(&pk7)?;
-	debug_trace!(" ");
 
 	/*now to give the idc value*/
 	/*
