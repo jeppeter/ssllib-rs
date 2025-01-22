@@ -38,6 +38,7 @@ use ssllib::x509::*;
 use ssllib::consts::*;
 use asn1obj::asn1impl::*;
 use asn1obj::base::*;
+use asn1obj::complex::*;
 use super::fileop::*;
 use super::spc::form_sidc_from_pefile;
 use super::dgstlib::dgst_get_value;
@@ -260,7 +261,7 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	debug_buffer_trace!(dgstcode.as_ptr(),dgstcode.len(),"dgstcode");
 	let  mut setdgst :Asn1Set<Asn1OctData> = Asn1Set::init_asn1();
 	setdgst.val.push(Asn1OctData::init_asn1());
-	setdgst.val.data = dgstcode.clone();
+	setdgst.val[0].data = dgstcode.clone();
 	let mut odgst :Asn1Any = Asn1Any::init_asn1();
 	let ocode = setdgst.encode_asn1()?;
 	odgst.decode_asn1(&ocode)?;

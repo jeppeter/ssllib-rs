@@ -45,7 +45,6 @@ lazy_static !{
         retv
     };
 
-    static ref DIGEST_
 
     static ref PKEY_MAP_STRING_OID :HashMap<String,String> = {
         let mut retv :HashMap<String,String> = HashMap::new();
