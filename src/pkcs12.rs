@@ -108,6 +108,30 @@ impl Asn1Pkcs12 {
 		}
 		Ok(retval)
 	}
+
+	pub fn get_authsafe_oid(&self) -> Result<String,Box<dyn Error>> {
+		if self.elem.val.len() == 0 {
+			ssllib_new_error!{SslPkcs12Error,"no elems"}
+		}
+		if self.elem.val[0].authsafes.elem.val.len() == 0 {
+			ssllib_new_error!{SslPkcs12Error,"no authsafes"}	
+		}
+		Ok(self.elem.val[0].authsafes.elem.val[0].selector.val.get_value())
+	}
+
+	pub fn get_authsafe_data(&self) -> Result<Vec<u8>,Box<dyn Error>> {
+		if self.elem.val.len() == 0 {
+			ssllib_new_error!{SslPkcs12Error,"no elems"}
+		}
+		if self.elem.val[0].authsafes.elem.val.len() == 0 {
+			ssllib_new_error!{SslPkcs12Error,"no authsafes"}	
+		}
+		if self.elem.val[0].authsafes.elem.val[0].data.val.is_none() {
+			ssllib_new_error!{SslPkcs12Error,"data authsafes none"}		
+		}
+		return Ok(self.elem.val[0].authsafes.elem.val[0].data.val.as_ref().unwrap().data.clone());
+	}
+
 }
 
 #[asn1_obj_selector(selector=val,any=default,x509cert="1.2.840.113549.1.9.22.1")]

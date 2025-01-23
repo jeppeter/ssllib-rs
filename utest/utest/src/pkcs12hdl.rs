@@ -290,10 +290,9 @@ fn pkcs12vfy_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 		let retval = pkcs12.verify_digest(&passin)?;
 		if retval {
 			println!("{} verify Ok", f);
-	        let types = pkcs12.elem.val[0].authsafes.elem.val[0].selector.val.get_value();
+	        let types = pkcs12.get_authsafe_oid()?;
 	        if types == OID_PKCS7_DATA {
-	            let p7data :&Asn1OctData = pkcs12.elem.val[0].authsafes.elem.val[0].data.val.as_ref().unwrap();
-	            let code = p7data.data.clone();
+	            let code = pkcs12.get_authsafe_data()?;
 	            let _ = decode_pkcs12_code(&code,passin.as_bytes())?;
 	        }
 		} else {
