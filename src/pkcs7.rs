@@ -10,8 +10,8 @@ use asn1obj::consts::{ASN1_UTCTIME_FLAG,ASN1_GENERALTIME_FLAG};
 use asn1obj::*;
 
 use std::error::Error;
-use std::sync::Arc;
-use std::cell::RefCell;
+//use std::sync::Arc;
+//use std::cell::RefCell;
 use std::io::{Write};
 use chrono::{Utc,Local,DateTime};
 
@@ -317,6 +317,7 @@ impl Asn1Pkcs7SignerInfo {
 		Ok(data)
 	}
 
+	/*
 	fn get_digest_op(&self) -> Result<Arc<RefCell<dyn Asn1DigestOp>>,Box<dyn Error>> {
 		let mut retv :Arc<RefCell<dyn Asn1DigestOp>> = Arc::new(RefCell::new(Sha256Digest::new()?));
 
@@ -330,7 +331,7 @@ impl Asn1Pkcs7SignerInfo {
 
 
 		Ok(retv)
-	}
+	}*/
 
 	pub fn sign_auth_attr_enc<T : Asn1SignOp>(&mut self, signer :&mut T) -> Result<(),Box<dyn Error>> {
 		if self.elem.val.len() != 1 && self.elem.val.len() != 0 {
@@ -339,9 +340,7 @@ impl Asn1Pkcs7SignerInfo {
 		if self.elem.val.len() != 0 {
 			let encdata = self.format_auth_attr_data()?;
 			ssllib_buffer_trace!(encdata.as_ptr(),encdata.len(),"sign data");
-			let digop = self.get_digest_op()?;
-			let _ = signer.sign_update(&encdata,digop.clone())?;
-			self.elem.val[0].enc_digest.data = signer.sign_final(digop.clone())?;
+			self.elem.val[0].enc_digest.data = signer.sign_exec(&encdata)?;
 		}
 		Ok(())
 	}

@@ -1,7 +1,7 @@
 
 use std::error::Error;
-use std::cell::RefCell;
-use std::sync::Arc;
+//use std::cell::RefCell;
+//use std::sync::Arc;
 
 pub trait Asn1DigestOp {
 	fn init_digest(&mut self,times :u32,initv :&[u8]) -> Result<(),Box<dyn Error>>;
@@ -10,13 +10,13 @@ pub trait Asn1DigestOp {
 }
 
 pub trait Asn1SignOp {
-	fn sign_update(&mut self,data :&[u8],digop :Arc<RefCell<dyn Asn1DigestOp>>) -> Result<(),Box<dyn Error>>;
-	fn sign_final(&mut self,digop:Arc<RefCell<dyn Asn1DigestOp>>) -> Result<Vec<u8>,Box<dyn Error>>;
+	fn sing_init(&mut self,key :&[u8],initv :&[u8]) -> Result<(),Box<dyn Error>>;
+	fn sign_exec(&mut self,data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>>;
 }
 
 pub trait Asn1VerifyOp {
-	fn verify_update(&mut self, origdata :&[u8], digop :Arc<RefCell<dyn Asn1DigestOp>>) -> Result<(),Box<dyn Error>>;
-	fn verify_final(&mut self,signdata :&[u8], digop :Arc<RefCell<dyn Asn1DigestOp>>) -> Result<bool,Box<dyn Error>>;
+	fn verify_init(&mut self,key :&[u8],initv :&[u8]) -> Result<(),Box<dyn Error>>;
+	fn verify_exec(&mut self, origdata :&[u8], signdata :&[u8]) -> Result<bool,Box<dyn Error>>;
 }
 
 pub trait Asn1EncryptOp   {
