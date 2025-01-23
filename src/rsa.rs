@@ -44,15 +44,26 @@ pub struct Asn1RsaPubkeyElem {
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct Asn1RsaPubkey {
+	#[asn1_gen(initfn=pubkey_vfy_init_default)]
+	pub inited :bool,
 	pub elem :Asn1Seq<Asn1RsaPubkeyElem>,
+}
+
+fn pubkey_vfy_init_default() -> bool {
+	false
 }
 
 impl Asn1VerifyOp for Asn1RsaPubkey {
 	fn verify_init(&mut self,_key :&[u8],_initv :&[u8]) -> Result<(),Box<dyn Error>> {
+		self.inited = true;
 		Ok(())
 	}
 
 	fn verify_exec(&mut self, origdata :&[u8], signdata :&[u8]) -> Result<bool,Box<dyn Error>> {
+		if !self.inited {
+			ssllib_new_error!{SslAsn1RsaError,"not inited verify"}
+		}
+
 		if self.elem.val.len() == 0 {
 			ssllib_new_error!{SslAsn1RsaError,"no elem"}
 		}
@@ -86,16 +97,32 @@ pub struct Asn1RsaPrivateKeyElem {
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct Asn1RsaPrivateKey {
+	#[asn1_gen(initfn=privkey_sign_init_default)]
+	pub signinited :bool,
+	#[asn1_gen(initfn=privkey_vfy_init_default)]
+	pub vfyinited :bool,
 	pub elem : Asn1Seq<Asn1RsaPrivateKeyElem>,
+}
+
+fn privkey_sign_init_default() -> bool {
+	false
+}
+
+fn privkey_vfy_init_default() -> bool {
+	false
 }
 
 impl Asn1SignOp for Asn1RsaPrivateKey {
 	fn sing_init(&mut self,_key :&[u8],_initv :&[u8]) -> Result<(),Box<dyn Error>> {
+		self.signinited = true;
 		Ok(())
 	}
 
 	fn sign_exec(&mut self,data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
 		let retv :Vec<u8>;
+		if !self.signinited {
+			ssllib_new_error!{SslAsn1RsaError,"not inited sign"}
+		}
 		if self.elem.val.len() != 1 {
 			ssllib_new_error!{SslAsn1RsaError,"{} not valid len",self.elem.val.len()}
 		}
@@ -114,11 +141,15 @@ impl Asn1SignOp for Asn1RsaPrivateKey {
 
 impl Asn1VerifyOp for Asn1RsaPrivateKey {
 	fn verify_init(&mut self,_key :&[u8],_initv :&[u8]) -> Result<(),Box<dyn Error>> {
+		self.vfyinited = true;
 		Ok(())
 	}
 
 	fn verify_exec(&mut self, origdata :&[u8], signdata :&[u8]) -> Result<bool,Box<dyn Error>> {
 		let mut retv :bool = false;
+		if !self.vfyinited {
+			ssllib_new_error!{SslAsn1RsaError,"not inited vfy"}
+		}
 		if self.elem.val.len() != 1 {
 			ssllib_new_error!{SslAsn1RsaError,"{} != 1 len",self.elem.val.len()}
 		}
