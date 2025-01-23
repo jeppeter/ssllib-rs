@@ -23,7 +23,7 @@ use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
 
 use crate::x509::*;
 use crate::impls::*;
-use crate::digest::*;
+//use crate::digest::*;
 use crate::consts::*;
 //use crate::utils::*;
 
