@@ -332,7 +332,26 @@ fn pkcs12load_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 }
 
 
-#[extargs_map_function(pkcs12dec_handler,pkcs12vfy_handler,pkcs12load_handler)]
+fn netpkeydec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
+	let sarr :Vec<String>;
+
+	init_log(ns.clone())?;
+
+	sarr = ns.get_array("subnargs");
+	for f in sarr.iter() {
+		let code = read_file_into_der(f)?;
+		let mut netpkey :Asn1NetscapePkey = Asn1NetscapePkey::init_asn1();
+		let size = netpkey.decode_asn1(&code)?;
+		let mut outf = std::io::stdout();
+		let cstr = format!("Asn1NetscapePkey in {} size {}[0x{:x}]\n",f,size,size);
+		netpkey.print_asn1(&cstr,0,&mut outf)?;
+	}
+
+	Ok(())
+}
+
+
+#[extargs_map_function(pkcs12dec_handler,pkcs12vfy_handler,pkcs12load_handler,netpkeydec_handler)]
 pub fn load_pkcs12_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -344,6 +363,9 @@ pub fn load_pkcs12_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 		},
 		"pkcs12load<pkcs12load_handler>##file type to load pkcs12 digest|enc|dec type##" : {
 			"$": 2
+		},
+		"netpkeydec<netpkeydec_handler>##file ... to decode Asn1NetscapePkey##" : {
+			"$" : "+"
 		}
 	}
 	"#;

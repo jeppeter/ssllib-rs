@@ -199,19 +199,19 @@ impl Asn1Pkcs12 {
 		ssllib_new_error!{SslPkcs12Error,"no part for pkcs7"}
 	}
 
-	pub fn get_digest_op(&self,passin :&[u8]) -> Result<Arc<RefCell<dyn Asn1DigestOp>>,Box<dyn Error>> {
+	pub fn get_digest_op(&self,passin :&[u8]) -> Result<Option<Arc<RefCell<dyn Asn1DigestOp>>>,Box<dyn Error>> {
 		let (enctype,odata) = self._get_enctype(passin)?;
 		ssllib_buffer_trace!(odata.as_ptr(),odata.len(),"enctype {}",enctype);
 		ssllib_new_error!{SslPkcs12Error,"not supported digest"}
 	}
 
-	pub fn get_enc_op(&self,passin :&[u8]) -> Result<Arc<RefCell<dyn Asn1EncryptOp>>,Box<dyn Error>> {
+	pub fn get_enc_op(&self,passin :&[u8]) -> Result<Option<Arc<RefCell<dyn Asn1EncryptOp>>>,Box<dyn Error>> {
 		let (enctype,odata) = self._get_enctype(passin)?;
 		ssllib_buffer_trace!(odata.as_ptr(),odata.len(),"enctype {}",enctype);
 		ssllib_new_error!{SslPkcs12Error,"not supported digest"}
 	}
 
-	pub fn get_dec_op(&self,passin :&[u8]) -> Result<Arc<RefCell<dyn Asn1DecryptOp>>,Box<dyn Error>> {
+	pub fn get_dec_op(&self,passin :&[u8]) -> Result<Option<Arc<RefCell<dyn Asn1DecryptOp>>>,Box<dyn Error>> {
 		let (enctype,odata) = self._get_enctype(passin)?;
 		ssllib_buffer_trace!(odata.as_ptr(),odata.len(),"enctype {}",enctype);
 		ssllib_new_error!{SslPkcs12Error,"not supported digest"}
