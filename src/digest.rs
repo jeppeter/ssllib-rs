@@ -234,3 +234,10 @@ pub fn ssllib_get_digest_operator(name :&str) -> Option<Arc<RefCell<dyn Asn1Dige
 	expand_digest_operator!(name);
 }
 
+pub (crate) fn get_hmac_sha256_key(passv8 :&[u8], saltv8 :&[u8], itertimes : usize) -> Vec<u8> {
+	let mut omac = HmacSha256Digest::new().unwrap();
+	omac.init_digest(itertimes as u32,passv8).unwrap();
+	omac.digest_update(saltv8).unwrap();
+	return omac.digest_final().unwrap();
+}
+

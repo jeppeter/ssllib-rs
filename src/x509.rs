@@ -875,3 +875,51 @@ pub (crate) fn add_asn1set_with_x509(xs :&mut Vec<Asn1X509>, cert :&Asn1X509, du
 	xs.push(cert.clone());
 	Ok(())
 }
+
+pub fn get_algor_pbkdf2_private_data(x509algorbytes :&[u8],encdata :&[u8],passin :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
+	let mut algor :Asn1X509Algor = Asn1X509Algor::init_asn1();
+	let _ = algor.decode_asn1(x509algorbytes)?;
+	let types = algor.elem.val[0].algorithm.get_value();
+	if types == OID_PBES2 {
+		let params :&Asn1Any = algor.elem.val[0].parameters.val.as_ref().unwrap();
+		let decdata :Vec<u8> = params.content.clone();
+		let mut pbe2 : Asn1Pbe2ParamElem = Asn1Pbe2ParamElem::init_asn1();
+		let _ = pbe2.decode_asn1(&decdata)?;
+		let pbe2types = pbe2.keyfunc.elem.val[0].algorithm.get_value();
+		if pbe2types == OID_PBKDF2 {
+            let params :&Asn1Any = pbe2.keyfunc.elem.val[0].parameters.val.as_ref().unwrap();
+            let decdata :Vec<u8> = params.content.clone();
+            let mut pbkdf2 :Asn1Pbkdf2ParamElem = Asn1Pbkdf2ParamElem::init_asn1();
+            let _ = pbkdf2.decode_asn1(&decdata)?;
+            let aeskey :Vec<u8> = get_hmac_sha256_key(passin,&pbkdf2.salt.content,pbkdf2.iter.val as usize);
+            let types = pbe2.encryption.elem.val[0].algorithm.get_value();
+            let odecrypt = get_decryptor_by_oid(&types);
+            if odecrypt.is_none() {
+            	ssllib_new_error!{SslX509Error,"not supported types [{}]",types}
+            }
+            	let params :Asn1Any = pbe2.encryption.elem.val[0].parameters.val.as_ref().unwrap().clone();
+            	let ivkey :Vec<u8> = params.content.clone();
+            let decrypt = odecrypt.unwrap();
+            let _ = decrypt.borrow_mut().init_decrypt(&aeskey,&ivkey)?;
+            let mut decdata :Vec<u8> = decrypt.borrow_mut().decrypt_update(encdata)?;
+            decdata.extend(decrypt.borrow_mut().decrypt_final()?);
+            return Ok(decdata);
+        }
+        ssllib_new_error!{SslX509Error,"not support OID_PBES2 types [{}]",pbe2types}
+    }
+    ssllib_new_error!{SslX509Error,"can not support types [{}]", types}
+}
+
+
+pub (crate) fn get_encrypt_type_from_x509(x509sigbytes :&[u8],passin :&[u8]) -> Result<(String,Vec<u8>),Box<dyn Error>> {
+	let mut x509sig = Asn1X509Sig::init_asn1();
+	let _= x509sig.decode_asn1(x509sigbytes)?;
+	let algordata = x509sig.elem.val[0].algor.encode_asn1()?;
+	let encdata = x509sig.elem.val[0].digest.data.clone();
+	let decdata = get_algor_pbkdf2_private_data(&algordata,&encdata,passin)?;
+	let mut netpkey :Asn1NetscapePkey = Asn1NetscapePkey::init_asn1();
+	let _ = netpkey.decode_asn1(&decdata)?;
+	let types = netpkey.elem.val[0].algor.elem.val[0].algorithm.get_value();
+	let odata = netpkey.encode_asn1()?;
+	return Ok((types,odata));
+}

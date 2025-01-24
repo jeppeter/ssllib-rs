@@ -303,8 +303,36 @@ fn pkcs12vfy_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	Ok(())
 }
 
+fn pkcs12load_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
+	let sarr :Vec<String>;
+	let passin :String = ns.get_string("passin");
 
-#[extargs_map_function(pkcs12dec_handler,pkcs12vfy_handler)]
+	init_log(ns.clone())?;
+
+	sarr = ns.get_array("subnargs");
+	if sarr.len() < 2 {
+		extargs_new_error!{UtestPkcs12Error,"need file type digest|enc|dec"}
+	}
+	let code = read_file_into_der(&sarr[0])?;
+	let types = format!("{}", sarr[1]);
+	let mut pkcs12 :Asn1Pkcs12 = Asn1Pkcs12::init_asn1();
+	pkcs12.decode_asn1(&code)?;
+
+	if types == "digest" {
+		let _ = pkcs12.get_digest_op(passin.as_bytes())?;
+	} else if types == "enc" {
+		let _ = pkcs12.get_enc_op(passin.as_bytes())?;
+	} else if types == "dec" {
+		let _ = pkcs12.get_dec_op(passin.as_bytes())?;
+	} else {
+		extargs_new_error!{UtestPkcs12Error,"not support type [{}]",types}
+	}
+
+	Ok(())
+}
+
+
+#[extargs_map_function(pkcs12dec_handler,pkcs12vfy_handler,pkcs12load_handler)]
 pub fn load_pkcs12_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -313,6 +341,9 @@ pub fn load_pkcs12_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 		},
 		"pkcs12vfy<pkcs12vfy_handler>##file ... to verify pkcs12##" : {
 			"$" : "+"
+		},
+		"pkcs12load<pkcs12load_handler>##file type to load pkcs12 digest|enc|dec type##" : {
+			"$": 2
 		}
 	}
 	"#;
