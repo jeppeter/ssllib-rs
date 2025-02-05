@@ -138,6 +138,9 @@ impl Asn1Pkcs12 {
 		return Ok(self.elem.val[0].authsafes.elem.val[0].data.val.as_ref().unwrap().data.clone());
 	}
 
+	fn _get_digest(&self,dgsttype :&str,pktype :&str, data :&[u8]) -> Result<Arc<RefCell<dyn Asn1DigestOp>>,Box<dyn Error>> {
+	}
+
 
 	fn _get_enctype(&self,passin :&[u8]) -> Result<(String,String,Vec<u8>),Box<dyn Error>> {
 		let oid = self.get_authsafe_oid()?;
