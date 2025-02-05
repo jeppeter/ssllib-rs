@@ -91,8 +91,26 @@ fn crldec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>
 	Ok(())
 }
 
+fn x509sigdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
+	let sarr :Vec<String>;
 
-#[extargs_map_function(x509dec_handler,csrdec_handler,crldec_handler)]
+	init_log(ns.clone())?;
+	sarr = ns.get_array("subnargs");
+	for f in sarr.iter() {
+		let code = read_file_into_der(f)?;
+		let mut xname = Asn1X509Sig::init_asn1();
+		let _ = xname.decode_asn1(&code)?;
+		let mut f = std::io::stderr();
+		xname.print_asn1("Asn1X509Sig",0,&mut f)?;
+		let vcode = xname.encode_asn1()?;
+		debug_buffer_trace!(vcode.as_ptr(),vcode.len(),"encode Asn1X509Sig");
+	}
+
+	Ok(())
+}
+
+
+#[extargs_map_function(x509dec_handler,csrdec_handler,crldec_handler,x509sigdec_handler)]
 pub fn load_x509exec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -103,6 +121,9 @@ pub fn load_x509exec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>>
 			"$" : "+"
 		},
 		"crldec<crldec_handler>##file ... to decode crl##" : {
+			"$" : "+"
+		},
+		"x509sigdec<x509sigdec_handler>##file ... to decode Asn1X509Sig##" : {
 			"$" : "+"
 		}
 	}

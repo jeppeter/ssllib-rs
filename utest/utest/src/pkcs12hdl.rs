@@ -37,6 +37,7 @@ use asn1obj::complex::*;
 use asn1obj::base::*;
 use ssllib::pkcs12::*;
 use ssllib::pkcs7::*;
+use ssllib::pkcs8::*;
 use ssllib::x509::*;
 use ssllib::consts::*;
 use ssllib::digest::*;
@@ -351,7 +352,26 @@ fn netpkeydec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 }
 
 
-#[extargs_map_function(pkcs12dec_handler,pkcs12vfy_handler,pkcs12load_handler,netpkeydec_handler)]
+fn pkcs8dec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
+	let sarr :Vec<String>;
+
+	init_log(ns.clone())?;
+
+	sarr = ns.get_array("subnargs");
+	for f in sarr.iter() {
+		let code = read_file_into_der(f)?;
+		let mut netpkey :Asn1Pkcs8PrivKeyInfo = Asn1Pkcs8PrivKeyInfo::init_asn1();
+		let size = netpkey.decode_asn1(&code)?;
+		let mut outf = std::io::stdout();
+		let cstr = format!("Asn1Pkcs8PrivKeyInfo in {} size {}[0x{:x}]\n",f,size,size);
+		netpkey.print_asn1(&cstr,0,&mut outf)?;
+	}
+
+	Ok(())
+}
+
+
+#[extargs_map_function(pkcs12dec_handler,pkcs12vfy_handler,pkcs12load_handler,netpkeydec_handler,pkcs8dec_handler)]
 pub fn load_pkcs12_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -365,6 +385,9 @@ pub fn load_pkcs12_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 			"$": 2
 		},
 		"netpkeydec<netpkeydec_handler>##file ... to decode Asn1NetscapePkey##" : {
+			"$" : "+"
+		},
+		"pkcs8dec<pkcs8dec_handler>##file ... to decode Asn1Pkcs8PrivKeyInfo##" : {
 			"$" : "+"
 		}
 	}

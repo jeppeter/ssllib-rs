@@ -14,7 +14,7 @@ use std::io::{Write};
 #[allow(unused_imports)]
 use crate::{ssllib_new_error,ssllib_error_class,ssllib_log_trace,ssllib_buffer_trace,ssllib_format_buffer_log};
 use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
-use crate::consts::{OID_PKCS7_DATA,OID_PKCS7_ENCRYPTED_DATA,OID_PKCS8_SHROUDED_KEY_BAG};
+use crate::consts::{OID_PKCS7_DATA,OID_PKCS7_ENCRYPTED_DATA,OID_PKCS8_SHROUDED_KEY_BAG,OID_PKCS12_CERT_BAG};
 
 use crate::x509::*;
 use crate::pkcs7::*;
@@ -163,26 +163,44 @@ impl Asn1Pkcs12 {
 				ssllib_log_trace!(" ");
 				for certd in octdata.val.iter() {
 					let objs = certd.elem.val[0].selectelem.valid.val.get_value();
-					ssllib_log_trace!("certidx [{}] objs [{}]",certidx,objs);
+					
 					if objs == OID_PKCS8_SHROUDED_KEY_BAG {
 						ssllib_log_trace!(" ");
 						let x509sig :Asn1X509Sig = certd.elem.val[0].selectelem.shkeybag.val[0].clone();
 						let v8 = x509sig.encode_asn1()?;
-						let (enctype,odata) = get_encrypt_type_from_x509(&v8,passin)?;
-						return Ok((enctype,odata));
+						ssllib_buffer_trace!(v8.as_ptr(),v8.len(),"certidx [{}] x509",certidx);
+						let ores = get_encrypt_type_from_x509(&v8,passin);
+						if ores.is_ok() {
+							let (enctype,odata) = ores.unwrap();
+							return Ok((enctype,odata));							
+						} else {
+							ssllib_log_trace!("error {:?}",ores.err().unwrap());
+						}
+					} else if objs == OID_PKCS12_CERT_BAG {
+						ssllib_log_trace!(" ");
+						let x509sig :Asn1Pkcs12Bags = certd.elem.val[0].selectelem.bag.val[0].clone();
+						let v8 = x509sig.encode_asn1()?;
+						ssllib_buffer_trace!(v8.as_ptr(),v8.len(),"certidx [{}] x509",certidx);
+						let ores = get_encrypt_type_from_x509(&v8,passin);
+						if ores.is_ok() {
+							let (enctype,odata) = ores.unwrap();
+							return Ok((enctype,odata));							
+						} else {
+							ssllib_log_trace!("error {:?}",ores.err().unwrap());
+						}
+					} else  {
+						ssllib_log_trace!("certidx [{}] objs [{}]",certidx,objs);
 					}
 					certidx += 1;
 				}
 
 			} else if types ==  OID_PKCS7_DATA {
-				ssllib_log_trace!(" ");
 				let pk7data :&Asn1OctData = safes.safes.val[idx].elem.val[0].data.val.as_ref().unwrap();
 				let decdata = pk7data.data.clone();
 				let mut octdata :Asn1Seq<Asn1Pkcs12SafeBag> = Asn1Seq::init_asn1();
 				let _ = octdata.decode_asn1(&decdata)?;
 				let mut bagidx :usize = 0;
 				for bag in octdata.val.iter() {
-					ssllib_log_trace!(" ");
 					let objs = bag.elem.val[0].selectelem.valid.val.get_value();
 					ssllib_log_trace!("bag [{}] objs[{}]",bagidx,objs);
 					if objs == OID_PKCS8_SHROUDED_KEY_BAG {
