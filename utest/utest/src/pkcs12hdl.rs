@@ -370,8 +370,25 @@ fn pkcs8dec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImp
 	Ok(())
 }
 
+fn safebagdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
+	let sarr :Vec<String>;
 
-#[extargs_map_function(pkcs12dec_handler,pkcs12vfy_handler,pkcs12load_handler,netpkeydec_handler,pkcs8dec_handler)]
+	init_log(ns.clone())?;
+
+	sarr = ns.get_array("subnargs");
+	for f in sarr.iter() {
+		let code = read_file_into_der(f)?;
+		let mut asnobj :Asn1Pkcs12SafeBag = Asn1Pkcs12SafeBag::init_asn1();
+		let size = asnobj.decode_asn1(&code)?;
+		let mut outf = std::io::stdout();
+		let cstr = format!("Asn1Pkcs12SafeBag in {} size {}[0x{:x}]\n",f,size,size);
+		asnobj.print_asn1(&cstr,0,&mut outf)?;
+	}
+
+	Ok(())
+}
+
+#[extargs_map_function(pkcs12dec_handler,pkcs12vfy_handler,pkcs12load_handler,netpkeydec_handler,pkcs8dec_handler,safebagdec_handler)]
 pub fn load_pkcs12_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -388,6 +405,9 @@ pub fn load_pkcs12_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 			"$" : "+"
 		},
 		"pkcs8dec<pkcs8dec_handler>##file ... to decode Asn1Pkcs8PrivKeyInfo##" : {
+			"$" : "+"
+		},
+		"safebagdec<safebagdec_handler>##file ... to decode Asn1Pkcs12SafeBag##" : {
 			"$" : "+"
 		}
 	}

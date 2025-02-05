@@ -163,7 +163,8 @@ impl Asn1Pkcs12 {
 				ssllib_log_trace!(" ");
 				for certd in octdata.val.iter() {
 					let objs = certd.elem.val[0].selectelem.valid.val.get_value();
-					
+					let encd = certd.encode_asn1()?;
+					ssllib_buffer_trace!(encd.as_ptr(),encd.len(),"PKCS12_SAFEBAG");
 					if objs == OID_PKCS8_SHROUDED_KEY_BAG {
 						ssllib_log_trace!(" ");
 						let x509sig :Asn1X509Sig = certd.elem.val[0].selectelem.shkeybag.val[0].clone();
