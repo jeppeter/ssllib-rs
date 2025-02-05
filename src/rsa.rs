@@ -113,7 +113,7 @@ fn privkey_vfy_init_default() -> bool {
 }
 
 impl Asn1SignOp for Asn1RsaPrivateKey {
-	fn sing_init(&mut self,_key :&[u8],_initv :&[u8]) -> Result<(),Box<dyn Error>> {
+	fn sign_init(&mut self,_key :&[u8],_initv :&[u8]) -> Result<(),Box<dyn Error>> {
 		self.signinited = true;
 		Ok(())
 	}

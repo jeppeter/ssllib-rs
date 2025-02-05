@@ -14,14 +14,15 @@ use std::io::{Write};
 #[allow(unused_imports)]
 use crate::{ssllib_new_error,ssllib_error_class,ssllib_log_trace,ssllib_buffer_trace,ssllib_format_buffer_log};
 use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
-use crate::consts::{OID_PKCS7_DATA,OID_PKCS7_ENCRYPTED_DATA,OID_PKCS8_SHROUDED_KEY_BAG,OID_PKCS12_CERT_BAG};
+use crate::consts::{OID_PKCS7_DATA,OID_PKCS7_ENCRYPTED_DATA,OID_PKCS8_SHROUDED_KEY_BAG};
 
 use crate::x509::*;
 use crate::pkcs7::*;
+use crate::pkcs8::Asn1Pkcs8PrivKeyInfo;
 use crate::kdfutils::{get_pkcs12kdf_sha256};
 use crate::digest::{calc_hmac_sha256};
 use crate::utils::{check_equal_u8,expand_uni};
-use crate::consts::{OID_SHA256_DIGEST,PKCS12_MAC_ID,SHA256_DIGEST_SIZE};
+use crate::consts::{OID_SHA256_DIGEST,PKCS12_MAC_ID,SHA256_DIGEST_SIZE,PKCS8_PRIVATE_KEY_TYPE};
 use std::sync::Arc;
 use std::cell::RefCell;
 use crate::impls::{Asn1DigestOp,Asn1EncryptOp,Asn1DecryptOp};
@@ -138,7 +139,7 @@ impl Asn1Pkcs12 {
 	}
 
 
-	fn _get_enctype(&self,passin :&[u8]) -> Result<(String,Vec<u8>),Box<dyn Error>> {
+	fn _get_enctype(&self,passin :&[u8]) -> Result<(String,String,Vec<u8>),Box<dyn Error>> {
 		let oid = self.get_authsafe_oid()?;
 		if oid != OID_PKCS7_DATA {
 			ssllib_new_error!{SslPkcs12Error,"oid [{}] not supported",oid}
@@ -163,29 +164,22 @@ impl Asn1Pkcs12 {
 				ssllib_log_trace!(" ");
 				for certd in octdata.val.iter() {
 					let objs = certd.elem.val[0].selectelem.valid.val.get_value();
-					let encd = certd.encode_asn1()?;
-					ssllib_buffer_trace!(encd.as_ptr(),encd.len(),"PKCS12_SAFEBAG");
+					//ssllib_buffer_trace!(encd.as_ptr(),encd.len(),"PKCS12_SAFEBAG");
 					if objs == OID_PKCS8_SHROUDED_KEY_BAG {
 						ssllib_log_trace!(" ");
 						let x509sig :Asn1X509Sig = certd.elem.val[0].selectelem.shkeybag.val[0].clone();
-						let v8 = x509sig.encode_asn1()?;
-						ssllib_buffer_trace!(v8.as_ptr(),v8.len(),"certidx [{}] x509",certidx);
-						let ores = get_encrypt_type_from_x509(&v8,passin);
+						let algr :&Asn1X509Algor = x509sig.get_algor()?;
+						let v8 :Vec<u8> = x509sig.get_encrypt_data()?;
+						let algrdata = algr.encode_asn1()?;
+						let ddata = get_algor_pbkdf2_private_data(&algrdata,&v8,passin)?;
+						ssllib_buffer_trace!(ddata.as_ptr(),ddata.len(),"certidx [{}] x509",certidx);
+						let mut pkcs8obj :Asn1Pkcs8PrivKeyInfo = Asn1Pkcs8PrivKeyInfo::init_asn1();
+						pkcs8obj.decode_asn1(&ddata)?;
+						//let v8 = x509sig.encode_asn1()?;
+						let ores = pkcs8obj.get_private_key(passin);
 						if ores.is_ok() {
 							let (enctype,odata) = ores.unwrap();
-							return Ok((enctype,odata));							
-						} else {
-							ssllib_log_trace!("error {:?}",ores.err().unwrap());
-						}
-					} else if objs == OID_PKCS12_CERT_BAG {
-						ssllib_log_trace!(" ");
-						let x509sig :Asn1Pkcs12Bags = certd.elem.val[0].selectelem.bag.val[0].clone();
-						let v8 = x509sig.encode_asn1()?;
-						ssllib_buffer_trace!(v8.as_ptr(),v8.len(),"certidx [{}] x509",certidx);
-						let ores = get_encrypt_type_from_x509(&v8,passin);
-						if ores.is_ok() {
-							let (enctype,odata) = ores.unwrap();
-							return Ok((enctype,odata));							
+							return Ok((enctype,PKCS8_PRIVATE_KEY_TYPE.to_string(),odata));							
 						} else {
 							ssllib_log_trace!("error {:?}",ores.err().unwrap());
 						}
@@ -201,14 +195,27 @@ impl Asn1Pkcs12 {
 				let mut octdata :Asn1Seq<Asn1Pkcs12SafeBag> = Asn1Seq::init_asn1();
 				let _ = octdata.decode_asn1(&decdata)?;
 				let mut bagidx :usize = 0;
-				for bag in octdata.val.iter() {
-					let objs = bag.elem.val[0].selectelem.valid.val.get_value();
+				for certd in octdata.val.iter() {
+					let objs = certd.elem.val[0].selectelem.valid.val.get_value();
 					ssllib_log_trace!("bag [{}] objs[{}]",bagidx,objs);
 					if objs == OID_PKCS8_SHROUDED_KEY_BAG {
-						let x509sig :Asn1X509Sig = bag.elem.val[0].selectelem.shkeybag.val[0].clone();
-						let v8 = x509sig.encode_asn1()?;
-						let (enctype,odata) = get_encrypt_type_from_x509(&v8,passin)?;
-						return Ok((enctype,odata));
+						ssllib_log_trace!(" ");
+						let x509sig :Asn1X509Sig = certd.elem.val[0].selectelem.shkeybag.val[0].clone();
+						let algr :&Asn1X509Algor = x509sig.get_algor()?;
+						let v8 :Vec<u8> = x509sig.get_encrypt_data()?;
+						let algrdata = algr.encode_asn1()?;
+						let ddata = get_algor_pbkdf2_private_data(&algrdata,&v8,passin)?;
+						ssllib_buffer_trace!(ddata.as_ptr(),ddata.len(),"bagidx [{}] x509",bagidx);
+						let mut pkcs8obj :Asn1Pkcs8PrivKeyInfo = Asn1Pkcs8PrivKeyInfo::init_asn1();
+						pkcs8obj.decode_asn1(&ddata)?;
+						//let v8 = x509sig.encode_asn1()?;
+						let ores = pkcs8obj.get_private_key(passin);
+						if ores.is_ok() {
+							let (enctype,odata) = ores.unwrap();
+							return Ok((enctype,PKCS8_PRIVATE_KEY_TYPE.to_string(),odata));							
+						} else {
+							ssllib_log_trace!("error {:?}",ores.err().unwrap());
+						}
 					}
 					bagidx += 1;
 				}
@@ -219,20 +226,20 @@ impl Asn1Pkcs12 {
 	}
 
 	pub fn get_digest_op(&self,passin :&[u8]) -> Result<Option<Arc<RefCell<dyn Asn1DigestOp>>>,Box<dyn Error>> {
-		let (enctype,odata) = self._get_enctype(passin)?;
-		ssllib_buffer_trace!(odata.as_ptr(),odata.len(),"enctype {}",enctype);
+		let (enctype,objtype,odata) = self._get_enctype(passin)?;
+		ssllib_buffer_trace!(odata.as_ptr(),odata.len(),"enctype {} objtype {}",enctype,objtype);
 		ssllib_new_error!{SslPkcs12Error,"not supported digest"}
 	}
 
 	pub fn get_enc_op(&self,passin :&[u8]) -> Result<Option<Arc<RefCell<dyn Asn1EncryptOp>>>,Box<dyn Error>> {
-		let (enctype,odata) = self._get_enctype(passin)?;
-		ssllib_buffer_trace!(odata.as_ptr(),odata.len(),"enctype {}",enctype);
+		let (enctype,objtype,odata) = self._get_enctype(passin)?;
+		ssllib_buffer_trace!(odata.as_ptr(),odata.len(),"enctype {} objtype {}",enctype,objtype);
 		ssllib_new_error!{SslPkcs12Error,"not supported digest"}
 	}
 
 	pub fn get_dec_op(&self,passin :&[u8]) -> Result<Option<Arc<RefCell<dyn Asn1DecryptOp>>>,Box<dyn Error>> {
-		let (enctype,odata) = self._get_enctype(passin)?;
-		ssllib_buffer_trace!(odata.as_ptr(),odata.len(),"enctype {}",enctype);
+		let (enctype,objtype,odata) = self._get_enctype(passin)?;
+		ssllib_buffer_trace!(odata.as_ptr(),odata.len(),"enctype {} objtype {}",enctype,objtype);
 		ssllib_new_error!{SslPkcs12Error,"not supported digest"}
 	}
 

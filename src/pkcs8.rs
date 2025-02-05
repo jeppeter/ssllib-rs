@@ -12,7 +12,10 @@ use std::io::{Write};
 
 
 use crate::*;
+use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
 use crate::x509::*;
+use crate::ec::*;
+use crate::consts::*;
 
 ssllib_error_class!{SslPkcs8Error}
 
@@ -79,6 +82,46 @@ impl Asn1Pkcs8PrivKeyInfo {
 		let retv :Asn1X509Algor = self.elem.val[0].pkeyalg.clone();
 		self.elem.val[0].pkeyalg = algor.clone();
 		Ok(retv)
+	}
+
+	pub fn get_private_key(&self,_passin :&[u8]) -> Result<(String,Vec<u8>),Box<dyn Error>> {
+		/*now get the type*/
+		let mut obj :Asn1Object =  Asn1Object::init_asn1();
+		let _ = self.elem.check_safe_one("Asn1Pkcs8PrivKeyInfo")?;
+		let types = self.elem.val[0].pkeyalg.get_algorithm()?;
+		let rets :String;
+		let retdata :Vec<u8>;
+		if types == OID_EC_PUBLICKEY_ENCRYPTION {
+			let ooany :Option<Asn1Any> = self.elem.val[0].pkeyalg.get_param()?;
+			if ooany.is_none() {
+				ssllib_new_error!{SslPkcs8Error,"no param in Asn1Pkcs8PrivKeyInfo"}
+			}
+			let oany = ooany.unwrap();
+			let data = oany.encode_asn1()?;
+			obj.decode_asn1(&data)?;
+			let mut ecpriv :ECPrivateKeyAsn1 = ECPrivateKeyAsn1::init_asn1();
+			let mut necpriv :ECPrivateKeyAsn1 = ECPrivateKeyAsn1::init_asn1();
+			ecpriv.decode_asn1(&self.elem.val[0].pkey.data)?;
+			let ectype = obj.get_value();
+			ssllib_log_trace!("ectype set [{}]",ectype);
+			necpriv.set_ec_type_oid(&ectype)?;
+			let data = ecpriv.get_private_key()?;
+			let _ = necpriv.set_private_key(&data)?;
+			
+			let odata = ecpriv.get_public_key()?;
+			if odata.is_some() {
+				let data = odata.unwrap();
+				let _ = necpriv.set_public_key(&data)?;
+			}
+			
+
+			rets = format!("{}",types);
+			retdata = necpriv.encode_asn1()?;			
+		} else {
+			ssllib_new_error!{SslPkcs8Error,"not supported type {}",types}
+		}
+
+		Ok((rets,retdata))
 	}
 }
 

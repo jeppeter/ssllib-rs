@@ -730,6 +730,7 @@ impl Asn1X509SigElem {
 		Ok(retv)
 	}
 
+
 	pub fn get_cmd(&self,env :&ConfigValue) -> Result<ConfigValue,Box<dyn Error>> {
 		let mut config :ConfigValue = ConfigValue::new("{}")?;
 		let cv :String = self.algor.get_algorithm()?;
@@ -754,6 +755,14 @@ impl Asn1X509SigElem {
 		}
 		Ok(config)
 	}
+
+	pub fn get_algor(&self) -> Result<&Asn1X509Algor,Box<dyn Error>> {
+		Ok(&self.algor)
+	}
+
+	pub fn get_encrypt_data(&self) -> Result<Vec<u8>,Box<dyn Error>> {
+		Ok(self.digest.data.clone())
+	}
 }
 
 #[asn1_sequence()]
@@ -771,6 +780,16 @@ impl Asn1X509Sig {
 	pub fn get_cmd(&self,env :&ConfigValue) -> Result<ConfigValue,Box<dyn Error>> {
 		let _ = self.elem.check_safe_one("Asn1X509Sig")?;
 		return self.elem.val[0].get_cmd(env);
+	}
+
+	pub fn get_algor(&self) -> Result<&Asn1X509Algor,Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("Asn1X509Sig")?;
+		return self.elem.val[0].get_algor();
+	}
+
+	pub fn get_encrypt_data(&self) -> Result<Vec<u8>,Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("Asn1X509Sig")?;
+		return self.elem.val[0].get_encrypt_data();
 	}
 }
 
@@ -911,15 +930,15 @@ pub fn get_algor_pbkdf2_private_data(x509algorbytes :&[u8],encdata :&[u8],passin
 }
 
 
-pub (crate) fn get_encrypt_type_from_x509(x509sigbytes :&[u8],passin :&[u8]) -> Result<(String,Vec<u8>),Box<dyn Error>> {
-	let mut x509sig = Asn1X509Sig::init_asn1();
-	let _= x509sig.decode_asn1(x509sigbytes)?;
-	let algordata = x509sig.elem.val[0].algor.encode_asn1()?;
-	let encdata = x509sig.elem.val[0].digest.data.clone();
-	let decdata = get_algor_pbkdf2_private_data(&algordata,&encdata,passin)?;
-	let mut netpkey :Asn1NetscapePkey = Asn1NetscapePkey::init_asn1();
-	let _ = netpkey.decode_asn1(&decdata)?;
-	let types = netpkey.elem.val[0].algor.elem.val[0].algorithm.get_value();
-	let odata = netpkey.encode_asn1()?;
-	return Ok((types,odata));
-}
+// pub (crate) fn get_encrypt_type_from_pkcs8(x509sigbytes :&[u8],passin :&[u8]) -> Result<(String,Vec<u8>),Box<dyn Error>> {
+// 	let mut x509sig = Asn1X509Sig::init_asn1();
+// 	let _= x509sig.decode_asn1(x509sigbytes)?;
+// 	let algordata = x509sig.elem.val[0].algor.encode_asn1()?;
+// 	let encdata = x509sig.elem.val[0].digest.data.clone();
+// 	let decdata = get_algor_pbkdf2_private_data(&algordata,&encdata,passin)?;
+// 	let mut netpkey :Asn1NetscapePkey = Asn1NetscapePkey::init_asn1();
+// 	let _ = netpkey.decode_asn1(&decdata)?;
+// 	let types = netpkey.elem.val[0].algor.elem.val[0].algorithm.get_value();
+// 	let odata = netpkey.encode_asn1()?;
+// 	return Ok((types,odata));
+// }

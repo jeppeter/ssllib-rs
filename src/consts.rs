@@ -39,6 +39,9 @@ pub const OID_PKCS12_SAFE_BAG_X509_CERT :&str = "1.2.840.113549.1.9.22.1";
 pub const OID_SHA256_DIGEST :&str = "2.16.840.1.101.3.4.2.1";
 pub const OID_EC_PUBLICK_KEY :&str = "1.2.840.10045.2.1";
 
+pub const OID_FRIEDLY_NAME :&str = "1.2.840.113549.1.9.20";
+pub const OID_LOCAL_KEY_ID:&str = "1.2.840.113549.1.9.21";
+
 
 pub const OID_ECDSA_WITH_SHA256_PKEY :&str = "1.2.840.10045.4.3.2";
 
@@ -128,3 +131,5 @@ pub const PKCS7_ENCRYPTED_DATA_OID :&str = "1.2.840.113549.1.7.6";
 
 
 pub const SIGNING_TIME_OID:&str = "1.2.840.113549.1.9.5";
+
+pub const PKCS8_PRIVATE_KEY_TYPE :&str = "pkcs8privatekey";

@@ -11,6 +11,10 @@ use asn1obj::*;
 use crate::{ssllib_new_error,ssllib_error_class};
 use std::error::Error;
 use std::io::{Write};
+use ecsimple::keys::{ECPrivateKey,ECPublicKey};
+use ecsimple::signature::{ECSignature};
+use crate::impls::{Asn1SignOp,Asn1VerifyOp};
+
 
 ssllib_error_class!{SslEcError}
 
@@ -276,4 +280,73 @@ impl ECPrivateKeyAsn1 {
 	}
 }
 
+pub struct ECSign {
+	key :Vec<ECPrivateKey>,
+	inited :bool,
+}
 
+
+impl ECSign {
+	pub fn new() -> Self {
+		Self {
+			key :vec![],
+			inited : false,
+		}
+	}
+}
+
+impl Asn1SignOp for ECSign {
+	fn sign_init(&mut self,key :&[u8],_initv :&[u8]) -> Result<(),Box<dyn Error>> {
+		let privkey :ECPrivateKey = ECPrivateKey::from_der(key)?;
+		if self.key.len() > 0 {
+			self.key[0] = privkey;
+		} else {
+			self.key.push(privkey);
+		}
+		self.inited = true;
+		Ok(())
+	}
+	fn sign_exec(&mut self,data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
+		if !self.inited {
+			ssllib_new_error!{SslEcError,"not inited"}
+		}
+		let sig = self.key[0].sign_base(data)?;
+		let code = sig.encode_asn1()?;
+		Ok(code)
+	}
+}
+
+pub struct ECVerify {
+	key :Vec<ECPublicKey>,
+	inited :bool,
+}
+
+impl ECVerify {
+	pub fn new() -> Self {
+		Self {
+			key :vec![],
+			inited : false,
+		}
+	}
+}
+
+impl Asn1VerifyOp for ECVerify {
+	fn verify_init(&mut self,key :&[u8],_initv :&[u8]) -> Result<(),Box<dyn Error>> {
+		let pubkey :ECPublicKey = ECPublicKey::from_der(key)?;
+		if self.key.len() > 0 {
+			self.key[0] = pubkey;
+		} else {
+			self.key.push(pubkey);
+		}
+		self.inited = true;
+		Ok(())
+	}
+	fn verify_exec(&mut self, origdata :&[u8], signdata :&[u8]) -> Result<bool,Box<dyn Error>> {
+		if !self.inited {
+			ssllib_new_error!{SslEcError,"not inited"}
+		}
+		let sig :ECSignature = ECSignature::decode_asn1(signdata)?;
+		let retv = self.key[0].verify_base(&sig,origdata)?;
+		Ok(retv)
+	}
+}

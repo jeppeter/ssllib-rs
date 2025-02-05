@@ -10,7 +10,7 @@ pub trait Asn1DigestOp {
 }
 
 pub trait Asn1SignOp {
-	fn sing_init(&mut self,key :&[u8],initv :&[u8]) -> Result<(),Box<dyn Error>>;
+	fn sign_init(&mut self,key :&[u8],initv :&[u8]) -> Result<(),Box<dyn Error>>;
 	fn sign_exec(&mut self,data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>>;
 }
 

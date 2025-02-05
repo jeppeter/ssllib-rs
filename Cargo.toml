@@ -22,6 +22,7 @@ cbc = "0.1.2"
 #cfb-mode = "^0.8.1"
 asn1obj = { path = "../asn1obj/asn1obj"}
 asn1obj_codegen = { path = "../asn1obj/asn1obj_codegen"}
+ecsimple = {path = "../ecsimple"}
 cipher = "^0.4.0"
 
 
