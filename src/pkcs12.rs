@@ -14,7 +14,7 @@ use std::io::{Write};
 #[allow(unused_imports)]
 use crate::{ssllib_new_error,ssllib_error_class,ssllib_log_trace,ssllib_buffer_trace,ssllib_format_buffer_log};
 use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
-use crate::consts::{OID_PKCS7_DATA,OID_PKCS7_ENCRYPTED_DATA,OID_PKCS8_SHROUDED_KEY_BAG};
+use crate::consts::{OID_PKCS7_DATA,OID_PKCS7_ENCRYPTED_DATA,OID_PKCS8_SHROUDED_KEY_BAG,OID_SHA256_DIGEST,PKCS12_MAC_ID,SHA256_DIGEST_SIZE,PKCS8_PRIVATE_KEY_TYPE,OID_EC_PUBLICKEY_ENCRYPTION};
 
 use crate::x509::*;
 use crate::pkcs7::*;
@@ -22,10 +22,10 @@ use crate::pkcs8::Asn1Pkcs8PrivKeyInfo;
 use crate::kdfutils::{get_pkcs12kdf_sha256};
 use crate::digest::{calc_hmac_sha256};
 use crate::utils::{check_equal_u8,expand_uni};
-use crate::consts::{OID_SHA256_DIGEST,PKCS12_MAC_ID,SHA256_DIGEST_SIZE,PKCS8_PRIVATE_KEY_TYPE};
 use std::sync::Arc;
 use std::cell::RefCell;
-use crate::impls::{Asn1DigestOp,Asn1EncryptOp,Asn1DecryptOp};
+use crate::impls::{Asn1DigestOp,Asn1EncryptOp,Asn1DecryptOp,Asn1SignOp};
+use crate::ec::{ECSign};
 
 ssllib_error_class!{SslPkcs12Error}
 
@@ -138,7 +138,16 @@ impl Asn1Pkcs12 {
 		return Ok(self.elem.val[0].authsafes.elem.val[0].data.val.as_ref().unwrap().data.clone());
 	}
 
-	fn _get_digest(&self,dgsttype :&str,pktype :&str, data :&[u8]) -> Result<Arc<RefCell<dyn Asn1DigestOp>>,Box<dyn Error>> {
+	fn _get_sign(&self,signtype :&str,pktype :&str, data :&[u8]) -> Result<Arc<RefCell<dyn Asn1SignOp>>,Box<dyn Error>> {
+		if pktype == PKCS8_PRIVATE_KEY_TYPE {
+			if signtype == OID_EC_PUBLICKEY_ENCRYPTION {
+				let mut retv :ECSign = ECSign::new();
+				let initv :Vec<u8> = vec![];
+				retv.sign_init(data,&initv)?;
+				return Ok(Arc::new(RefCell::new(retv)));
+			}
+		}
+		ssllib_new_error!{SslPkcs12Error,"not support type [{}].[{}]",signtype,pktype}
 	}
 
 
