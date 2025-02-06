@@ -107,6 +107,8 @@ impl Asn1Pkcs8PrivKeyInfo {
 			necpriv.set_ec_type_oid(&ectype)?;
 			let data = ecpriv.get_private_key()?;
 			let _ = necpriv.set_private_key(&data)?;
+			/*we set for the version 1*/
+			necpriv.elem.val[0].version.val = 1;
 			
 			let odata = ecpriv.get_public_key()?;
 			if odata.is_some() {

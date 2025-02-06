@@ -24,7 +24,7 @@ use crate::digest::{calc_hmac_sha256};
 use crate::utils::{check_equal_u8,expand_uni};
 use std::sync::Arc;
 use std::cell::RefCell;
-use crate::impls::{Asn1DigestOp,Asn1EncryptOp,Asn1DecryptOp,Asn1SignOp};
+use crate::impls::{Asn1EncryptOp,Asn1DecryptOp,Asn1SignOp};
 use crate::ec::{ECSign};
 
 ssllib_error_class!{SslPkcs12Error}
@@ -138,17 +138,19 @@ impl Asn1Pkcs12 {
 		return Ok(self.elem.val[0].authsafes.elem.val[0].data.val.as_ref().unwrap().data.clone());
 	}
 
-	fn _get_sign(&self,signtype :&str,pktype :&str, data :&[u8]) -> Result<Arc<RefCell<dyn Asn1SignOp>>,Box<dyn Error>> {
+	fn _get_sign(&self,signtype :&str,pktype :&str, data :&[u8]) -> Result<Option<Arc<RefCell<dyn Asn1SignOp>>>,Box<dyn Error>> {
+		let mut retv :Option<Arc<RefCell<dyn Asn1SignOp>>> = None;
 		if pktype == PKCS8_PRIVATE_KEY_TYPE {
 			if signtype == OID_EC_PUBLICKEY_ENCRYPTION {
-				let mut retv :ECSign = ECSign::new();
+				let mut signv :ECSign = ECSign::new();
 				let initv :Vec<u8> = vec![];
-				retv.sign_init(data,&initv)?;
-				return Ok(Arc::new(RefCell::new(retv)));
+				signv.sign_init(data,&initv)?;
+				retv = Some(Arc::new(RefCell::new(signv)));
 			}
 		}
-		ssllib_new_error!{SslPkcs12Error,"not support type [{}].[{}]",signtype,pktype}
+		return Ok(retv);
 	}
+
 
 
 	fn _get_enctype(&self,passin :&[u8]) -> Result<(String,String,Vec<u8>),Box<dyn Error>> {
@@ -237,10 +239,10 @@ impl Asn1Pkcs12 {
 		ssllib_new_error!{SslPkcs12Error,"no part for pkcs7"}
 	}
 
-	pub fn get_digest_op(&self,passin :&[u8]) -> Result<Option<Arc<RefCell<dyn Asn1DigestOp>>>,Box<dyn Error>> {
+	pub fn get_sign_op(&self,passin :&[u8]) -> Result<Option<Arc<RefCell<dyn Asn1SignOp>>>,Box<dyn Error>> {
 		let (enctype,objtype,odata) = self._get_enctype(passin)?;
 		ssllib_buffer_trace!(odata.as_ptr(),odata.len(),"enctype {} objtype {}",enctype,objtype);
-		ssllib_new_error!{SslPkcs12Error,"not supported digest"}
+		return self._get_sign(&enctype,&objtype,&odata);
 	}
 
 	pub fn get_enc_op(&self,passin :&[u8]) -> Result<Option<Arc<RefCell<dyn Asn1EncryptOp>>>,Box<dyn Error>> {

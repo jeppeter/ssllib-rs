@@ -312,15 +312,15 @@ fn pkcs12load_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 
 	sarr = ns.get_array("subnargs");
 	if sarr.len() < 2 {
-		extargs_new_error!{UtestPkcs12Error,"need file type digest|enc|dec"}
+		extargs_new_error!{UtestPkcs12Error,"need file type sign|enc|dec"}
 	}
 	let code = read_file_into_der(&sarr[0])?;
 	let types = format!("{}", sarr[1]);
 	let mut pkcs12 :Asn1Pkcs12 = Asn1Pkcs12::init_asn1();
 	pkcs12.decode_asn1(&code)?;
 
-	if types == "digest" {
-		let _ = pkcs12.get_digest_op(passin.as_bytes())?;
+	if types == "sign" {
+		let _ = pkcs12.get_sign_op(passin.as_bytes())?;
 	} else if types == "enc" {
 		let _ = pkcs12.get_enc_op(passin.as_bytes())?;
 	} else if types == "dec" {
