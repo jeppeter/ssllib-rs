@@ -26,7 +26,7 @@ use crate::impls::*;
 //use crate::digest::*;
 use crate::consts::*;
 //use crate::utils::*;
-
+use crate::pkcs12::Asn1Pkcs12SafeBag;
 
 ssllib_error_class!{SslPkcs7Error}
 
@@ -844,6 +844,37 @@ impl Asn1Pkcs7Elem {
 			panic!("not supported type {}", selstr);
 		}
 		Ok(())
+	}
+
+	pub fn get_bags(&self,passin :&[u8]) -> Result<Asn1Seq<Asn1Pkcs12SafeBag>,Box<dyn Error>> {
+		let types = self.selector.val.get_value();
+		if types == OID_PKCS7_ENCRYPTED_DATA {
+			if self.encryptdata.val.is_none() {
+				ssllib_new_error!{SslPkcs7Error,"no encryptdata found"}
+			}
+			let pk7encdata :&Asn1Pkcs7Encrypt = self.encryptdata.val.as_ref().unwrap();
+			let _ = pk7encdata.elem.check_safe_one("Asn1Pkcs7Encrypt")?;
+			let _ = pk7encdata.elem.val[0].enc_data.elem.check_safe_one("Asn1Pkcs7EncContent")?;
+			let encdata = pk7encdata.elem.val[0].enc_data.elem.val[0].enc_data.val.data.clone();
+			let algordata = pk7encdata.elem.val[0].enc_data.elem.val[0].algorithm.encode_asn1()?;
+			ssllib_log_trace!(" ");
+			let decdata = get_algor_pbkdf2_private_data(&algordata,&encdata,passin)?;
+			ssllib_buffer_trace!(decdata.as_ptr(),decdata.len(),"decdata");
+			let mut octdata :Asn1Seq<Asn1Pkcs12SafeBag> = Asn1Seq::init_asn1();
+			ssllib_log_trace!(" ");
+			let _ = octdata.decode_asn1(&decdata)?;
+			return Ok(octdata);
+		} else if types == OID_PKCS7_DATA {
+			if self.data.val.is_none() {
+				ssllib_new_error!{SslPkcs7Error,"not data found"}
+			}
+			let pk7data :&Asn1OctData = self.data.val.as_ref().unwrap();
+			let decdata = pk7data.data.clone();
+			let mut octdata :Asn1Seq<Asn1Pkcs12SafeBag> = Asn1Seq::init_asn1();
+			let _ = octdata.decode_asn1(&decdata)?;
+			return Ok(octdata);
+		}
+		ssllib_new_error!{SslPkcs7Error,"not valid type {} to get bags ",types}
 	}
 }
 
