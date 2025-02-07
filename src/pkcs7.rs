@@ -846,7 +846,7 @@ impl Asn1Pkcs7Elem {
 		Ok(())
 	}
 
-	pub fn get_bags(&self,passin :&[u8]) -> Result<Asn1Seq<Asn1Pkcs12SafeBag>,Box<dyn Error>> {
+	pub fn get_safe_bags(&self,passin :&[u8]) -> Result<Asn1Seq<Asn1Pkcs12SafeBag>,Box<dyn Error>> {
 		let types = self.selector.val.get_value();
 		if types == OID_PKCS7_ENCRYPTED_DATA {
 			if self.encryptdata.val.is_none() {
@@ -955,6 +955,11 @@ impl Asn1Pkcs7 {
 	pub fn set_oany(&mut self, oany :&Asn1Any) -> Result<(),Box<dyn Error>> {
 		self._make_sure_elem()?;
 		return self.elem.val[0].set_oany(oany);
+	}
+
+	pub fn get_safe_bags(&self,passin :&[u8]) -> Result<Asn1Seq<Asn1Pkcs12SafeBag>,Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("Asn1Pkcs7")?;
+		return self.elem.val[0].get_safe_bags(passin);
 	}
 
 }

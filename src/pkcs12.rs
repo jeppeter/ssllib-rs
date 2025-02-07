@@ -14,7 +14,7 @@ use std::io::{Write};
 #[allow(unused_imports)]
 use crate::{ssllib_new_error,ssllib_error_class,ssllib_log_trace,ssllib_buffer_trace,ssllib_format_buffer_log};
 use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
-use crate::consts::{OID_PKCS7_DATA,OID_PKCS7_ENCRYPTED_DATA,OID_PKCS8_SHROUDED_KEY_BAG,OID_SHA256_DIGEST,PKCS12_MAC_ID,SHA256_DIGEST_SIZE,PKCS8_PRIVATE_KEY_TYPE,OID_EC_PUBLICKEY_ENCRYPTION};
+use crate::consts::{OID_PKCS7_DATA,OID_PKCS7_ENCRYPTED_DATA,OID_PKCS8_SHROUDED_KEY_BAG,OID_SHA256_DIGEST,PKCS12_MAC_ID,SHA256_DIGEST_SIZE,PKCS8_PRIVATE_KEY_TYPE,OID_EC_PUBLICKEY_ENCRYPTION,OID_SAFE_CONTENT_BAG,OID_PKCS12_CERT_BAG};
 
 use crate::x509::*;
 use crate::pkcs7::*;
@@ -100,6 +100,23 @@ impl Asn1Pkcs12Elem {
 		Ok(retval)
 	}
 
+	fn _get_key_certs_with_bags(&self,passin :&[u8],bags :&Asn1Seq<Asn1Pkcs12SafeBag>) -> Result<(Vec<Asn1X509>,Vec<Asn1X509>),Box<dyn Error>> {
+		let mut bagidx :usize = 0;
+		let mut keycert :Vec<Asn1X509> = vec![];
+		let mut certs :Vec<Asn1X509> = vec![];
+		for certd in bags.val.iter() {
+			let _ = certd.elem.check_safe_one("Asn1Pkcs12Bags")?;
+			let objs = certd.elem.val[0].selectelem.valid.val.get_value();
+			ssllib_log_trace!("bag [{}] objs[{}]",bagidx,objs);
+			if objs == OID_PKCS12_CERT_BAG {
+
+			} else if objs == OID_SAFE_CONTENT_BAG {
+				/**/
+			}
+		}
+		return Ok((keycert,certs));
+	}
+
 	fn _get_key_certs(&self,passin :&[u8]) -> Result<(Vec<Asn1X509>,Vec<Asn1X509>),Box<dyn Error>> {
 		let mut keycert :Vec<Asn1X509> = vec![];
 		let mut certs :Vec<Asn1X509> = vec![];
@@ -110,8 +127,18 @@ impl Asn1Pkcs12Elem {
 		let data = self.get_authsafe_data()?;
 		let mut safes :Asn1AuthSafes = Asn1AuthSafes::init_asn1();
 		safes.decode_asn1(&data)?;
-		for idx in 0..safes.safes.val.len() {            
-			let types = safes.safes.val[idx].elem.val[0].selector.val.get_value();
+		for idx in 0..safes.safes.val.len() {
+			let _ = safes.safes.val[idx].elem.check_safe_one("Asn1Pkcs7")?;
+			let octdata = safes.safes.val[idx].elem.val[0].get_safe_bags(passin)?;
+			let (nkey,ncerts) = self._get_key_certs_with_bags(passin,&octdata)?;
+			if nkey.len() != 0 {
+				if keycert.len() > 0 {
+					keycert[0] = nkey[0].clone();
+				} else {
+					keycert.push(nkey[0].clone());
+				}
+			}
+			certs.extend(ncerts);
 		}
 
 		return Ok((keycert,certs));
@@ -174,7 +201,7 @@ impl Asn1Pkcs12Elem {
 		safes.decode_asn1(&data)?;
 		for idx in 0..safes.safes.val.len() {            
 			let _ = safes.safes.val[idx].elem.check_safe_one("Asn1Pkcs7")?;
-			let octdata = safes.safes.val[idx].elem.val[0].get_bags(passin)?;
+			let octdata = safes.safes.val[idx].elem.val[0].get_safe_bags(passin)?;
 			let mut bagidx :usize = 0;
 			for certd in octdata.val.iter() {
 				let _ = certd.elem.check_safe_one("Asn1Pkcs12Bags")?;
@@ -190,136 +217,166 @@ impl Asn1Pkcs12Elem {
 					ssllib_buffer_trace!(ddata.as_ptr(),ddata.len(),"bagidx [{}] x509",bagidx);
 					let mut pkcs8obj :Asn1Pkcs8PrivKeyInfo = Asn1Pkcs8PrivKeyInfo::init_asn1();
 					pkcs8obj.decode_asn1(&ddata)?;
-						//let v8 = x509sig.encode_asn1()?;
-						let ores = pkcs8obj.get_private_key(passin);
-						if ores.is_ok() {
-							let (enctype,odata) = ores.unwrap();
-							return Ok((enctype,PKCS8_PRIVATE_KEY_TYPE.to_string(),odata));
-						} else {
-							ssllib_log_trace!("error {:?}",ores.err().unwrap());
-						}
+					let ores = pkcs8obj.get_private_key(passin);
+					if ores.is_ok() {
+						let (enctype,odata) = ores.unwrap();
+						return Ok((enctype,PKCS8_PRIVATE_KEY_TYPE.to_string(),odata));
+					} else {
+						ssllib_log_trace!("error {:?}",ores.err().unwrap());
 					}
-					bagidx += 1;
+				}
+				bagidx += 1;
+			}
+		}
+
+		ssllib_new_error!{SslPkcs12Error,"no part for pkcs7"}
+	}
+
+
+	pub fn get_sign_op(&self,passin :&[u8]) -> Result<Option<Arc<RefCell<dyn Asn1SignOp>>>,Box<dyn Error>> {
+		let (enctype,objtype,odata) = self._get_enctype(passin)?;
+		ssllib_buffer_trace!(odata.as_ptr(),odata.len(),"enctype {} objtype {}",enctype,objtype);
+		return self._get_sign(&enctype,&objtype,&odata);
+	}
+
+	pub fn get_enc_op(&self,passin :&[u8]) -> Result<Option<Arc<RefCell<dyn Asn1EncryptOp>>>,Box<dyn Error>> {
+		let (enctype,objtype,odata) = self._get_enctype(passin)?;
+		ssllib_buffer_trace!(odata.as_ptr(),odata.len(),"enctype {} objtype {}",enctype,objtype);
+		ssllib_new_error!{SslPkcs12Error,"not supported digest"}
+	}
+
+	pub fn get_dec_op(&self,passin :&[u8]) -> Result<Option<Arc<RefCell<dyn Asn1DecryptOp>>>,Box<dyn Error>> {
+		let (enctype,objtype,odata) = self._get_enctype(passin)?;
+		ssllib_buffer_trace!(odata.as_ptr(),odata.len(),"enctype {} objtype {}",enctype,objtype);
+		ssllib_new_error!{SslPkcs12Error,"not supported digest"}
+	}
+
+
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1Pkcs12 {
+	pub elem : Asn1Seq<Asn1Pkcs12Elem>,
+}
+
+impl Asn1Pkcs12 {
+	#[allow(unused_comparisons)]
+	pub fn verify_digest(&self,passin :&[u8]) -> Result<bool,Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("Asn1Pkcs12")?;
+		return self.elem.val[0].verify_digest(passin);
+	}
+
+	pub fn get_authsafe_oid(&self) -> Result<String,Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("Asn1Pkcs12")?;
+		return self.elem.val[0].get_authsafe_oid();
+	}
+
+	pub fn get_authsafe_data(&self) -> Result<Vec<u8>,Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("Asn1Pkcs12")?;
+		return self.elem.val[0].get_authsafe_data();
+	}
+
+
+
+
+	pub fn get_sign_op(&self,passin :&[u8]) -> Result<Option<Arc<RefCell<dyn Asn1SignOp>>>,Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("Asn1Pkcs12")?;
+		return self.elem.val[0].get_sign_op(passin);
+	}
+
+	pub fn get_enc_op(&self,passin :&[u8]) -> Result<Option<Arc<RefCell<dyn Asn1EncryptOp>>>,Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("Asn1Pkcs12")?;
+		return self.elem.val[0].get_enc_op(passin);
+	}
+
+	pub fn get_dec_op(&self,passin :&[u8]) -> Result<Option<Arc<RefCell<dyn Asn1DecryptOp>>>,Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("Asn1Pkcs12")?;
+		return self.elem.val[0].get_dec_op(passin);
+	}
+
+	pub fn get_key_certs(&self,passin :&[u8]) -> Result<(Vec<Asn1X509>,Vec<Asn1X509>),Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("Asn1Pkcs12")?;
+		return self.elem.val[0].get_key_certs(passin);
+	}
+}
+
+#[asn1_obj_selector(selector=val,any=default,x509cert="1.2.840.113549.1.9.22.1")]
+#[derive(Clone)]
+pub struct Asn1Pkcs12BagsSelector {
+	pub val : Asn1Object,
+}
+
+
+#[asn1_choice(selector=valid)]
+#[derive(Clone)]
+pub struct Asn1Pkcs12BagsElem {
+	pub valid : Asn1Pkcs12BagsSelector,
+	pub x509cert : Asn1ImpSet<Asn1OctData,0>,
+	pub any :Asn1Any,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1Pkcs12Bags {
+	pub elem :Asn1Seq<Asn1Pkcs12BagsElem>,
+}
+
+#[asn1_obj_selector(selector=val,any=default,shkeybag="1.2.840.113549.1.12.10.1.2",bag=["1.2.840.113549.1.12.10.1.3"],safes="1.2.840.113549.1.12.10.1.6")]
+#[derive(Clone)]
+pub struct Asn1Pkcs12SafeBagSelector {
+	pub val : Asn1Object,
+}
+
+#[asn1_choice(selector=valid)]
+#[derive(Clone)]
+pub struct Asn1Pkcs12SafeBagSelectElem {
+	pub valid : Asn1Pkcs12SafeBagSelector,
+	pub shkeybag : Asn1ImpSet<Asn1X509Sig,0>,
+	pub bag : Asn1ImpSet<Asn1Pkcs12Bags,0>,
+	pub safes :Asn1ImpSet<Asn1Pkcs12SafeBag,0>,
+	pub any :Asn1Any,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1Pkcs12SafeBagElem {
+	pub selectelem : Asn1Pkcs12SafeBagSelectElem,
+	pub attrib : Asn1Opt<Asn1Set<Asn1X509Attribute>>,
+}
+
+impl Asn1Pkcs12SafeBagElem {
+	pub fn get_attrib(&self,oid :&str) -> Result<Option<Asn1Any>,Box<dyn Error>> {
+		let mut retv :Option<Asn1Any> = None;
+		if self.attrib.val.is_some() {
+			let c :&Asn1Set<Asn1X509Attribute> = self.attrib.val.as_ref().unwrap();
+			for d in c.val.iter() {
+				if d.elem.val.len() > 0 {
+					let otype = d.elem.val[0].object.get_value();
+					if otype == oid {
+						retv = Some(d.elem.val[0].set.clone());
+						break;
+					}
 				}
 			}
-
-			ssllib_new_error!{SslPkcs12Error,"no part for pkcs7"}
 		}
+		return Ok(retv);
+	}
+}
 
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1Pkcs12SafeBag {
+	pub elem : Asn1Seq<Asn1Pkcs12SafeBagElem>,
+}
 
-			pub fn get_sign_op(&self,passin :&[u8]) -> Result<Option<Arc<RefCell<dyn Asn1SignOp>>>,Box<dyn Error>> {
-				let (enctype,objtype,odata) = self._get_enctype(passin)?;
-				ssllib_buffer_trace!(odata.as_ptr(),odata.len(),"enctype {} objtype {}",enctype,objtype);
-				return self._get_sign(&enctype,&objtype,&odata);
-			}
-
-			pub fn get_enc_op(&self,passin :&[u8]) -> Result<Option<Arc<RefCell<dyn Asn1EncryptOp>>>,Box<dyn Error>> {
-				let (enctype,objtype,odata) = self._get_enctype(passin)?;
-				ssllib_buffer_trace!(odata.as_ptr(),odata.len(),"enctype {} objtype {}",enctype,objtype);
-				ssllib_new_error!{SslPkcs12Error,"not supported digest"}
-			}
-
-			pub fn get_dec_op(&self,passin :&[u8]) -> Result<Option<Arc<RefCell<dyn Asn1DecryptOp>>>,Box<dyn Error>> {
-				let (enctype,objtype,odata) = self._get_enctype(passin)?;
-				ssllib_buffer_trace!(odata.as_ptr(),odata.len(),"enctype {} objtype {}",enctype,objtype);
-				ssllib_new_error!{SslPkcs12Error,"not supported digest"}
-			}
-
-
+impl Asn1Pkcs12SafeBag {
+	pub fn get_attrib(&self,oid :&str) -> Result<Option<Asn1Any>,Box<dyn Error>> {
+		let ores = self.elem.check_safe_one("Asn1Pkcs12SafeBag");
+		if ores.is_err() {
+			return Ok(None);
 		}
+		return self.elem.val[0].get_attrib(oid);
+	}
+}
 
-		#[asn1_sequence()]
-		#[derive(Clone)]
-		pub struct Asn1Pkcs12 {
-			pub elem : Asn1Seq<Asn1Pkcs12Elem>,
-		}
-
-		impl Asn1Pkcs12 {
-			#[allow(unused_comparisons)]
-			pub fn verify_digest(&self,passin :&[u8]) -> Result<bool,Box<dyn Error>> {
-				let _ = self.elem.check_safe_one("Asn1Pkcs12")?;
-				return self.elem.val[0].verify_digest(passin);
-			}
-
-			pub fn get_authsafe_oid(&self) -> Result<String,Box<dyn Error>> {
-				let _ = self.elem.check_safe_one("Asn1Pkcs12")?;
-				return self.elem.val[0].get_authsafe_oid();
-			}
-
-			pub fn get_authsafe_data(&self) -> Result<Vec<u8>,Box<dyn Error>> {
-				let _ = self.elem.check_safe_one("Asn1Pkcs12")?;
-				return self.elem.val[0].get_authsafe_data();
-			}
-
-
-
-
-			pub fn get_sign_op(&self,passin :&[u8]) -> Result<Option<Arc<RefCell<dyn Asn1SignOp>>>,Box<dyn Error>> {
-				let _ = self.elem.check_safe_one("Asn1Pkcs12")?;
-				return self.elem.val[0].get_sign_op(passin);
-			}
-
-			pub fn get_enc_op(&self,passin :&[u8]) -> Result<Option<Arc<RefCell<dyn Asn1EncryptOp>>>,Box<dyn Error>> {
-				let _ = self.elem.check_safe_one("Asn1Pkcs12")?;
-				return self.elem.val[0].get_enc_op(passin);
-			}
-
-			pub fn get_dec_op(&self,passin :&[u8]) -> Result<Option<Arc<RefCell<dyn Asn1DecryptOp>>>,Box<dyn Error>> {
-				let _ = self.elem.check_safe_one("Asn1Pkcs12")?;
-				return self.elem.val[0].get_dec_op(passin);
-			}
-
-			pub fn get_key_certs(&self,passin :&[u8]) -> Result<(Vec<Asn1X509>,Vec<Asn1X509>),Box<dyn Error>> {
-				let _ = self.elem.check_safe_one("Asn1Pkcs12")?;
-				return self.elem.val[0].get_key_certs(passin);
-			}
-		}
-
-		#[asn1_obj_selector(selector=val,any=default,x509cert="1.2.840.113549.1.9.22.1")]
-		#[derive(Clone)]
-		pub struct Asn1Pkcs12BagsSelector {
-			pub val : Asn1Object,
-		}
-
-
-		#[asn1_choice(selector=valid)]
-		#[derive(Clone)]
-		pub struct Asn1Pkcs12BagsElem {
-			pub valid : Asn1Pkcs12BagsSelector,
-			pub x509cert : Asn1ImpSet<Asn1OctData,0>,
-			pub any :Asn1Any,
-		}
-
-		#[asn1_sequence()]
-		#[derive(Clone)]
-		pub struct Asn1Pkcs12Bags {
-			pub elem :Asn1Seq<Asn1Pkcs12BagsElem>,
-		}
-
-		#[asn1_obj_selector(selector=val,any=default,shkeybag="1.2.840.113549.1.12.10.1.2",bag=["1.2.840.113549.1.12.10.1.3"])]
-		#[derive(Clone)]
-		pub struct Asn1Pkcs12SafeBagSelector {
-			pub val : Asn1Object,
-		}
-
-		#[asn1_choice(selector=valid)]
-		#[derive(Clone)]
-		pub struct Asn1Pkcs12SafeBagSelectElem {
-			pub valid : Asn1Pkcs12SafeBagSelector,
-			pub shkeybag : Asn1ImpSet<Asn1X509Sig,0>,
-			pub bag : Asn1ImpSet<Asn1Pkcs12Bags,0>,
-			pub any :Asn1Any,
-		}
-
-		#[asn1_sequence()]
-		#[derive(Clone)]
-		pub struct Asn1Pkcs12SafeBagElem {
-			pub selectelem : Asn1Pkcs12SafeBagSelectElem,
-			pub attrib : Asn1Opt<Asn1Set<Asn1X509Attribute>>,
-		}
-
-		#[asn1_sequence()]
-		#[derive(Clone)]
-		pub struct Asn1Pkcs12SafeBag {
-			pub elem : Asn1Seq<Asn1Pkcs12SafeBagElem>,
-		}
