@@ -257,6 +257,23 @@ impl Asn1Pkcs12 {
 		ssllib_new_error!{SslPkcs12Error,"not supported digest"}
 	}
 
+
+	pub fn get_key_certs(&self,passin :&[u8]) -> Result<(Vec<Asn1X509>,Vec<Asn1X509>),Box<dyn Error>> {
+		let mut keycert :Vec<Asn1X509> = vec![];
+		let mut certs :Vec<Asn1X509> = vec![];
+		let oid = self.get_authsafe_oid()?;
+		if oid != OID_PKCS7_DATA {
+			ssllib_new_error!{SslPkcs12Error,"oid [{}] not supported",oid}
+		}
+		let data = self.get_authsafe_data()?;
+		let mut safes :Asn1AuthSafes = Asn1AuthSafes::init_asn1();
+		safes.decode_asn1(&data)?;
+		for idx in 0..safes.safes.val.len() {            
+			let types = safes.safes.val[idx].elem.val[0].selector.val.get_value();
+		}
+
+		return Ok((keycert,certs));
+	}
 }
 
 #[asn1_obj_selector(selector=val,any=default,x509cert="1.2.840.113549.1.9.22.1")]

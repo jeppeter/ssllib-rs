@@ -388,7 +388,36 @@ fn safebagdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 	Ok(())
 }
 
-#[extargs_map_function(pkcs12dec_handler,pkcs12vfy_handler,pkcs12load_handler,netpkeydec_handler,pkcs8dec_handler,safebagdec_handler)]
+fn pkcs12certs_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
+	let sarr :Vec<String>;
+	let passin :String = ns.get_string("passin");
+
+	init_log(ns.clone())?;
+
+	sarr = ns.get_array("subnargs");
+	for f in sarr.iter() {
+		let code = read_file_into_der(f)?;
+		let mut asnobj :Asn1Pkcs12 = Asn1Pkcs12::init_asn1();
+		let _ = asnobj.decode_asn1(&code)?;
+		let mut outf = std::io::stdout();
+		let mut cstr :String;
+		let (keycert,certs) = asnobj.get_key_certs(passin.as_bytes())?;
+		if keycert.len() > 0 {
+			cstr = format!("keycert in {} Asn1X509\n",f);
+			keycert[0].print_asn1(&cstr,0,&mut outf)?;
+		}
+
+		for i in 0..certs.len() {
+			cstr = format!("[{}].[{}] cert\n",f,i);
+			certs[0].print_asn1(&cstr,0,&mut outf)?;
+		}
+	}
+
+	Ok(())
+}
+
+
+#[extargs_map_function(pkcs12dec_handler,pkcs12vfy_handler,pkcs12load_handler,netpkeydec_handler,pkcs8dec_handler,safebagdec_handler,pkcs12certs_handler)]
 pub fn load_pkcs12_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -408,6 +437,9 @@ pub fn load_pkcs12_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 			"$" : "+"
 		},
 		"safebagdec<safebagdec_handler>##file ... to decode Asn1Pkcs12SafeBag##" : {
+			"$" : "+"
+		},
+		"pkcs12certs<pkcs12certs_handler>##file ... to get certs in pkcs12 file##" : {
 			"$" : "+"
 		}
 	}
