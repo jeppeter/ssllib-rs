@@ -58,49 +58,33 @@ pub struct Asn1Pkcs12Elem {
 	pub mac : Asn1Opt<Asn1Pkcs12MacData>,
 }
 
-#[asn1_sequence()]
-#[derive(Clone)]
-pub struct Asn1Pkcs12 {
-	pub elem : Asn1Seq<Asn1Pkcs12Elem>,
-}
+impl Asn1Pkcs12Elem {
 
-impl Asn1Pkcs12 {
 	#[allow(unused_comparisons)]
-	pub fn verify_digest(&self,passwd:&str) -> Result<bool,Box<dyn Error>> {
+	pub fn verify_digest(&self,passin :&[u8]) -> Result<bool,Box<dyn Error>> {
 		let mut retval :bool = false;
-		if self.elem.val.len() < 1 {
-			ssllib_new_error!{SslPkcs12Error,"elem {} < 1",self.elem.val.len()}
-		}
-		if self.elem.val[0].mac.val.is_none() {
+		if self.mac.val.is_none() {
 			ssllib_new_error!{SslPkcs12Error,"mac none"}
 		}
-		let macdata :&Asn1Pkcs12MacData = self.elem.val[0].mac.val.as_ref().unwrap();
-		if macdata.elem.val.len() < 1 {
-			ssllib_new_error!{SslPkcs12Error,"macdata elem {} <１",macdata.elem.val.len()}
-		}
+		let macdata :&Asn1Pkcs12MacData = self.mac.val.as_ref().unwrap();
+		let _ = macdata.elem.check_safe_one("Asn1Pkcs12MacData")?;
 		let dinfo :Asn1X509Sig = macdata.elem.val[0].dinfo.clone();
-		if dinfo.elem.val.len() < 1 {
-			ssllib_new_error!{SslPkcs12Error,"dinfo elem {} < 1", dinfo.elem.val.len()}
-		}
-		if dinfo.elem.val[0].algor.elem.val.len() < 0 {
-			ssllib_new_error!{SslPkcs12Error,"dinfo.algor elem {} < 1", dinfo.elem.val[0].algor.elem.val.len()}	
-		}
+		let _ = dinfo.elem.check_safe_one("Asn1X509Sig")?;
+		let _ = dinfo.elem.val[0].algor.elem.check_safe_one("Asn1X509Algor")?;
 		if dinfo.elem.val[0].algor.elem.val[0].algorithm.get_value() == OID_SHA256_DIGEST {
 			let digest :Vec<u8> = dinfo.elem.val[0].digest.data.clone();
 			let salt :Vec<u8> = macdata.elem.val[0].salt.data.clone();
 			let iternum = macdata.elem.val[0].iternum.val;
-			let hmac = get_pkcs12kdf_sha256(passwd.as_bytes(),&salt,PKCS12_MAC_ID,iternum as usize,SHA256_DIGEST_SIZE);
-			if self.elem.val[0].authsafes.elem.val.len() < 0 {
-				ssllib_new_error!{SslPkcs12Error,"authsafes {} < 0",self.elem.val[0].authsafes.elem.val.len()}
-			}
-			if self.elem.val[0].authsafes.elem.val[0].data.val.is_none() {
+			let hmac = get_pkcs12kdf_sha256(passin,&salt,PKCS12_MAC_ID,iternum as usize,SHA256_DIGEST_SIZE);
+			let _ = self.authsafes.elem.check_safe_one("Asn1Pkcs12SafeBag")?;
+			if self.authsafes.elem.val[0].data.val.is_none() {
 				ssllib_new_error!{SslPkcs12Error,"authsafes.data none"}	
 			}
-			let chkd :&Asn1OctData = self.elem.val[0].authsafes.elem.val[0].data.val.as_ref().unwrap();
+			let chkd :&Asn1OctData = self.authsafes.elem.val[0].data.val.as_ref().unwrap();
 			let chkdata = chkd.data.clone();
 			let calcdigest = calc_hmac_sha256(&hmac,&chkdata);
 			if !check_equal_u8(&calcdigest,&digest) {
-				let unipass = expand_uni(passwd.as_bytes());
+				let unipass = expand_uni(passin);
 				let hmac = get_pkcs12kdf_sha256(&unipass,&salt,PKCS12_MAC_ID,iternum as usize,SHA256_DIGEST_SIZE);
 				let calcdigest = calc_hmac_sha256(&hmac,&chkdata);
 				if check_equal_u8(&calcdigest,&digest) {
@@ -115,27 +99,126 @@ impl Asn1Pkcs12 {
 		Ok(retval)
 	}
 
-	pub fn get_authsafe_oid(&self) -> Result<String,Box<dyn Error>> {
-		if self.elem.val.len() == 0 {
-			ssllib_new_error!{SslPkcs12Error,"no elems"}
+	fn _get_key_certs(&self,passin :&[u8]) -> Result<(Vec<Asn1X509>,Vec<Asn1X509>),Box<dyn Error>> {
+		let mut keycert :Vec<Asn1X509> = vec![];
+		let mut certs :Vec<Asn1X509> = vec![];
+		let oid = self.get_authsafe_oid()?;
+		if oid != OID_PKCS7_DATA {
+			ssllib_new_error!{SslPkcs12Error,"oid [{}] not supported",oid}
 		}
-		if self.elem.val[0].authsafes.elem.val.len() == 0 {
+		let data = self.get_authsafe_data()?;
+		let mut safes :Asn1AuthSafes = Asn1AuthSafes::init_asn1();
+		safes.decode_asn1(&data)?;
+		for idx in 0..safes.safes.val.len() {            
+			let types = safes.safes.val[idx].elem.val[0].selector.val.get_value();
+		}
+
+		return Ok((keycert,certs));
+	}
+
+
+	pub fn get_key_certs(&self,passin :&[u8]) -> Result<(Vec<Asn1X509>,Vec<Asn1X509>),Box<dyn Error>> {
+		if passin.len() == 0 {
+			if self.mac.val.is_some() {
+				let vfy = self.verify_digest(passin)?;
+				if !vfy {
+					ssllib_new_error!{SslPkcs12Error,"not verify digest"}
+				}
+			}
+		}
+
+		return self._get_key_certs(passin);
+	}
+
+	pub fn get_authsafe_oid(&self) -> Result<String,Box<dyn Error>> {
+		if self.authsafes.elem.val.len() == 0 {
 			ssllib_new_error!{SslPkcs12Error,"no authsafes"}	
 		}
-		Ok(self.elem.val[0].authsafes.elem.val[0].selector.val.get_value())
+		Ok(self.authsafes.elem.val[0].selector.val.get_value())
 	}
 
 	pub fn get_authsafe_data(&self) -> Result<Vec<u8>,Box<dyn Error>> {
-		if self.elem.val.len() == 0 {
-			ssllib_new_error!{SslPkcs12Error,"no elems"}
-		}
-		if self.elem.val[0].authsafes.elem.val.len() == 0 {
+		if self.authsafes.elem.val.len() == 0 {
 			ssllib_new_error!{SslPkcs12Error,"no authsafes"}	
 		}
-		if self.elem.val[0].authsafes.elem.val[0].data.val.is_none() {
+		if self.authsafes.elem.val[0].data.val.is_none() {
 			ssllib_new_error!{SslPkcs12Error,"data authsafes none"}		
 		}
-		return Ok(self.elem.val[0].authsafes.elem.val[0].data.val.as_ref().unwrap().data.clone());
+		return Ok(self.authsafes.elem.val[0].data.val.as_ref().unwrap().data.clone());
+	}
+
+
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1Pkcs12 {
+	pub elem : Asn1Seq<Asn1Pkcs12Elem>,
+}
+
+impl Asn1Pkcs12 {
+	#[allow(unused_comparisons)]
+	pub fn verify_digest(&self,passin :&[u8]) -> Result<bool,Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("Asn1Pkcs12")?;
+		return self.elem.val[0].verify_digest(passin);
+
+
+		// let mut retval :bool = false;
+		// if self.elem.val.len() < 1 {
+		// 	ssllib_new_error!{SslPkcs12Error,"elem {} < 1",self.elem.val.len()}
+		// }
+		// if self.elem.val[0].mac.val.is_none() {
+		// 	ssllib_new_error!{SslPkcs12Error,"mac none"}
+		// }
+		// let macdata :&Asn1Pkcs12MacData = self.elem.val[0].mac.val.as_ref().unwrap();
+		// if macdata.elem.val.len() < 1 {
+		// 	ssllib_new_error!{SslPkcs12Error,"macdata elem {} <１",macdata.elem.val.len()}
+		// }
+		// let dinfo :Asn1X509Sig = macdata.elem.val[0].dinfo.clone();
+		// if dinfo.elem.val.len() < 1 {
+		// 	ssllib_new_error!{SslPkcs12Error,"dinfo elem {} < 1", dinfo.elem.val.len()}
+		// }
+		// if dinfo.elem.val[0].algor.elem.val.len() < 0 {
+		// 	ssllib_new_error!{SslPkcs12Error,"dinfo.algor elem {} < 1", dinfo.elem.val[0].algor.elem.val.len()}	
+		// }
+		// if dinfo.elem.val[0].algor.elem.val[0].algorithm.get_value() == OID_SHA256_DIGEST {
+		// 	let digest :Vec<u8> = dinfo.elem.val[0].digest.data.clone();
+		// 	let salt :Vec<u8> = macdata.elem.val[0].salt.data.clone();
+		// 	let iternum = macdata.elem.val[0].iternum.val;
+		// 	let hmac = get_pkcs12kdf_sha256(passwd.as_bytes(),&salt,PKCS12_MAC_ID,iternum as usize,SHA256_DIGEST_SIZE);
+		// 	if self.elem.val[0].authsafes.elem.val.len() < 0 {
+		// 		ssllib_new_error!{SslPkcs12Error,"authsafes {} < 0",self.elem.val[0].authsafes.elem.val.len()}
+		// 	}
+		// 	if self.elem.val[0].authsafes.elem.val[0].data.val.is_none() {
+		// 		ssllib_new_error!{SslPkcs12Error,"authsafes.data none"}	
+		// 	}
+		// 	let chkd :&Asn1OctData = self.elem.val[0].authsafes.elem.val[0].data.val.as_ref().unwrap();
+		// 	let chkdata = chkd.data.clone();
+		// 	let calcdigest = calc_hmac_sha256(&hmac,&chkdata);
+		// 	if !check_equal_u8(&calcdigest,&digest) {
+		// 		let unipass = expand_uni(passwd.as_bytes());
+		// 		let hmac = get_pkcs12kdf_sha256(&unipass,&salt,PKCS12_MAC_ID,iternum as usize,SHA256_DIGEST_SIZE);
+		// 		let calcdigest = calc_hmac_sha256(&hmac,&chkdata);
+		// 		if check_equal_u8(&calcdigest,&digest) {
+		// 			retval = true;
+		// 		}
+		// 	} else {
+		// 		retval = true;
+		// 	}
+		// } else {
+		// 	ssllib_new_error!{SslPkcs12Error,"algorithm {} not supported", dinfo.elem.val[0].algor.elem.val[0].algorithm.get_value()}
+		// }
+		// Ok(retval)
+	}
+
+	pub fn get_authsafe_oid(&self) -> Result<String,Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("Asn1Pkcs12")?;
+		return self.elem.val[0].get_authsafe_oid();
+	}
+
+	pub fn get_authsafe_data(&self) -> Result<Vec<u8>,Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("Asn1Pkcs12")?;
+		return self.elem.val[0].get_authsafe_data();
 	}
 
 	fn _get_sign(&self,signtype :&str,pktype :&str, data :&[u8]) -> Result<Option<Arc<RefCell<dyn Asn1SignOp>>>,Box<dyn Error>> {
@@ -257,22 +340,10 @@ impl Asn1Pkcs12 {
 		ssllib_new_error!{SslPkcs12Error,"not supported digest"}
 	}
 
-
 	pub fn get_key_certs(&self,passin :&[u8]) -> Result<(Vec<Asn1X509>,Vec<Asn1X509>),Box<dyn Error>> {
-		let mut keycert :Vec<Asn1X509> = vec![];
-		let mut certs :Vec<Asn1X509> = vec![];
-		let oid = self.get_authsafe_oid()?;
-		if oid != OID_PKCS7_DATA {
-			ssllib_new_error!{SslPkcs12Error,"oid [{}] not supported",oid}
-		}
-		let data = self.get_authsafe_data()?;
-		let mut safes :Asn1AuthSafes = Asn1AuthSafes::init_asn1();
-		safes.decode_asn1(&data)?;
-		for idx in 0..safes.safes.val.len() {            
-			let types = safes.safes.val[idx].elem.val[0].selector.val.get_value();
-		}
+		let _ = self.elem.check_safe_one("Asn1Pkcs12")?;
 
-		return Ok((keycert,certs));
+		return self.elem.val[0].get_key_certs(passin);
 	}
 }
 

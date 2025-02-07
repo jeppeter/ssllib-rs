@@ -288,7 +288,7 @@ fn pkcs12vfy_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 		let code = read_file_into_der(f)?;
 		let mut pkcs12 :Asn1Pkcs12 = Asn1Pkcs12::init_asn1();
 		let _ = pkcs12.decode_asn1(&code)?;
-		let retval = pkcs12.verify_digest(&passin)?;
+		let retval = pkcs12.verify_digest(passin.as_bytes())?;
 		if retval {
 			println!("{} verify Ok", f);
 	        let types = pkcs12.get_authsafe_oid()?;
