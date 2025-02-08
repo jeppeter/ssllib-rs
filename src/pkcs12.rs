@@ -323,7 +323,7 @@ pub struct Asn1Pkcs12Bags {
 	pub elem :Asn1Seq<Asn1Pkcs12BagsElem>,
 }
 
-#[asn1_obj_selector(selector=val,any=default,shkeybag="1.2.840.113549.1.12.10.1.2",bag=["1.2.840.113549.1.12.10.1.3"],safes="1.2.840.113549.1.12.10.1.6")]
+#[asn1_obj_selector(selector=val,other=default,keybag="1.2.840.113549.1.12.10.1.1",shkeybag="1.2.840.113549.1.12.10.1.2",bag=["1.2.840.113549.1.12.10.1.3","1.2.840.113549.1.12.10.1.4","1.2.840.113549.1.12.10.1.5"],safes="1.2.840.113549.1.12.10.1.6")]
 #[derive(Clone)]
 pub struct Asn1Pkcs12SafeBagSelector {
 	pub val : Asn1Object,
@@ -334,6 +334,7 @@ pub struct Asn1Pkcs12SafeBagSelector {
 pub struct Asn1Pkcs12SafeBagSelectElem {
 	#[asn1_gen(jsonalias="type")]
 	pub valid : Asn1Pkcs12SafeBagSelector,
+	pub keybag :Asn1ImpSet<Asn1Pkcs8PrivKeyInfo,0>,
 	pub shkeybag : Asn1ImpSet<Asn1X509Sig,0>,
 	pub bag : Asn1ImpSet<Asn1Pkcs12Bags,0>,
 	pub safes :Asn1ImpSet<Asn1Seq<Asn1Pkcs12SafeBag>,0>,
@@ -357,7 +358,10 @@ impl Asn1Pkcs12SafeBagElem {
 				if d.elem.val.len() > 0 {
 					let otype = d.elem.val[0].object.get_value();
 					if otype == oid {
-						retv = Some(d.elem.val[0].set.clone());
+						if d.elem.val[0].set.val.len() > 0 {
+							retv = Some(d.elem.val[0].set.val[0].clone());
+						}
+						
 						break;
 					}
 				}

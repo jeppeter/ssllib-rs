@@ -127,7 +127,8 @@ impl Asn1Pkcs7SignerInfoElem {
 		attr.elem.val.push(Asn1X509AttributeElem::init_asn1());
 		let _ = attr.elem.val[0].object.set_value(oid)?;
 		let mut impset :Asn1ImpSet<Asn1X509Attribute,0> = Asn1ImpSet::init_asn1();
-		attr.elem.val[0].set = oany.clone();
+		attr.elem.val[0].set.val = vec![];
+		attr.elem.val[0].set.val.push(oany.clone());
 		if self.auth_attr.val.is_none() {
 			impset.val.push(attr);
 			self.auth_attr.val = Some(impset);

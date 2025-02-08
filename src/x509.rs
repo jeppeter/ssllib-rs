@@ -154,7 +154,7 @@ impl  PartialEq for Asn1X509Name {
 #[derive(Clone)]
 pub struct Asn1X509AttributeElem {
 	pub object :Asn1Object,
-	pub set :Asn1Any,
+	pub set :Asn1Set<Asn1Any>,
 }
 
 //#[asn1_sequence(debug=enable)]
@@ -172,7 +172,8 @@ impl Asn1X509Attribute {
 		}
 		if self.elem.val.len() != 0 {
 			if self.elem.val[0].object.eq(objval) {
-				self.elem.val[0].set = setval.clone();
+				self.elem.val[0].set.val = vec![];
+				self.elem.val[0].set.val.push(setval.clone());
 				retv= true;
 			}
 		}
