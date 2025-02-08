@@ -862,7 +862,7 @@ pub struct Asn1EdiPartyName {
 	pub elem :Asn1Seq<Asn1EdiPartyNameElem>,
 }
 
-#[asn1_int_choice(debug=0,selector=stype,othername=0,rfc822name=1,dnsname=2,directoryname=4,uri=6,ipaddress=7,registerid=8)]
+#[asn1_int_choice(selector=stype,othername=0,rfc822name=1,dnsname=2,directoryname=4,uri=6,ipaddress=7,registerid=8)]
 #[derive(Clone)]
 pub struct Asn1GeneralName {
 	pub stype :i32,
