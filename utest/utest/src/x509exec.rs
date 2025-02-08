@@ -130,7 +130,6 @@ fn x509auxenc_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 		let code = bag.encode_asn1()?;
 		write_file_bytes(&output,&code)?;
 	}
-	Ok(())
 
 	Ok(())
 }
@@ -138,7 +137,7 @@ fn x509auxenc_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 fn x509auxdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
 	let sarr :Vec<String> = ns.get_array("subnargs");
 	if sarr.len() < 1 {
-		extargs_new_error!{JsonLoadError,"need binfile"}
+		extargs_new_error!{X509ExecError,"need binfile"}
 	}
 
 	for f in sarr.iter() {
@@ -153,7 +152,6 @@ fn x509auxdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 		let _ = bag.print_asn1(&cstr,0,&mut outf)?;
 		println!("{} out\n{}", f,s);
 	}
-
 	Ok(())
 }
 
