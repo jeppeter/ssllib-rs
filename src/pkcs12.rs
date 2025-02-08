@@ -122,6 +122,7 @@ impl Asn1Pkcs12Elem {
 			} else if objs == OID_SAFE_CONTENT_BAG {
 				/**/
 			}
+			bagidx += 1;
 		}
 		return Ok((keycert,certs));
 	}
