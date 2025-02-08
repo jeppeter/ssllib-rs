@@ -14,7 +14,7 @@ use std::io::{Write};
 #[allow(unused_imports)]
 use crate::{ssllib_new_error,ssllib_error_class,ssllib_log_trace,ssllib_buffer_trace,ssllib_format_buffer_log};
 use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
-use crate::consts::{OID_PKCS7_DATA,OID_PKCS7_ENCRYPTED_DATA,OID_PKCS8_SHROUDED_KEY_BAG,OID_SHA256_DIGEST,PKCS12_MAC_ID,SHA256_DIGEST_SIZE,PKCS8_PRIVATE_KEY_TYPE,OID_EC_PUBLICKEY_ENCRYPTION,OID_SAFE_CONTENT_BAG,OID_PKCS12_CERT_BAG};
+use crate::consts::{OID_PKCS7_DATA,OID_PKCS7_ENCRYPTED_DATA,OID_PKCS8_SHROUDED_KEY_BAG,OID_SHA256_DIGEST,PKCS12_MAC_ID,SHA256_DIGEST_SIZE,PKCS8_PRIVATE_KEY_TYPE,OID_EC_PUBLICKEY_ENCRYPTION,OID_SAFE_CONTENT_BAG,OID_PKCS12_CERT_BAG,OID_KEY_BAG,OID_PKCS12_CRL_BAG};
 
 use crate::x509::*;
 use crate::pkcs7::*;
@@ -106,10 +106,10 @@ impl Asn1Pkcs12Elem {
 		let mut certs :Vec<Asn1X509> = vec![];
 		for certd in bags.val.iter() {
 			let _ = certd.elem.check_safe_one("Asn1Pkcs12Bags")?;
-			let objs = certd.elem.val[0].selectelem.valid.val.get_value();
+			let objs = certd.get_type_oid()?;
 			ssllib_log_trace!("bag [{}] objs[{}]",bagidx,objs);
 			if objs == OID_PKCS12_CERT_BAG {
-
+				
 			} else if objs == OID_SAFE_CONTENT_BAG {
 				/**/
 			}
@@ -224,6 +224,19 @@ impl Asn1Pkcs12Elem {
 					} else {
 						ssllib_log_trace!("error {:?}",ores.err().unwrap());
 					}
+				} else if objs == OID_KEY_BAG {
+					if certd.elem.val[0].selectelem.keybag.val.len() > 0 {
+						let  pkcs8obj :&Asn1Pkcs8PrivKeyInfo = &certd.elem.val[0].selectelem.keybag.val[0];	
+						let ores = pkcs8obj.get_private_key(passin);
+						if ores.is_ok() {
+							let (enctype,odata) = ores.unwrap();
+							return Ok((enctype,PKCS8_PRIVATE_KEY_TYPE.to_string(),odata));
+						} else {
+							ssllib_log_trace!("error {:?}",ores.err().unwrap());
+						}
+
+					}
+					
 				}
 				bagidx += 1;
 			}
@@ -369,6 +382,23 @@ impl Asn1Pkcs12SafeBagElem {
 		}
 		return Ok(retv);
 	}
+
+	pub fn get_type_oid(&self) -> Result<String,Box<dyn Error>> {
+		Ok(self.selectelem.valid.val.get_value())
+	}
+
+	pub fn get_bag_oid(&self) -> Result<String,Box<dyn Error>> {
+		let types = self.get_type_oid()?;
+		if types != OID_PKCS12_CERT_BAG && types != OID_PKCS12_CRL_BAG && types != OID_SAFE_CONTENT_BAG {
+			ssllib_new_error!{SslPkcs12Error,"not valid oid {}",types}
+		}
+
+		if self.selectelem.bag.val.len() == 0  || self.selectelem.bag.val[0].elem.val.len() < 1 {
+			ssllib_new_error!{SslPkcs12Error,"no bag"}
+		}
+		Ok(self.selectelem.bag.val[0].elem.val[0].valid.val.get_value())
+
+	}
 }
 
 #[asn1_sequence()]
@@ -384,6 +414,15 @@ impl Asn1Pkcs12SafeBag {
 			return Ok(None);
 		}
 		return self.elem.val[0].get_attrib(oid);
+	}
+	pub fn get_type_oid(&self) -> Result<String,Box<dyn Error>> {
+		self.elem.check_safe_one("Asn1Pkcs12Bag")?;
+		return self.elem.val[0].get_type_oid();
+	}
+
+	pub fn get_bag_oid(&self) -> Result<String,Box<dyn Error>> {
+		self.elem.check_safe_one("Asn1Pkcs12Bag")?;
+		return self.elem.val[0].get_bag_oid();
 	}
 }
 
