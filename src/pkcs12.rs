@@ -14,7 +14,7 @@ use std::io::{Write};
 #[allow(unused_imports)]
 use crate::{ssllib_new_error,ssllib_error_class,ssllib_log_trace,ssllib_buffer_trace,ssllib_format_buffer_log};
 use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
-use crate::consts::{OID_PKCS7_DATA,OID_PKCS7_ENCRYPTED_DATA,OID_PKCS8_SHROUDED_KEY_BAG,OID_SHA256_DIGEST,PKCS12_MAC_ID,SHA256_DIGEST_SIZE,PKCS8_PRIVATE_KEY_TYPE,OID_EC_PUBLICKEY_ENCRYPTION,OID_SAFE_CONTENT_BAG,OID_PKCS12_CERT_BAG,OID_KEY_BAG,OID_PKCS12_CRL_BAG};
+use crate::consts::*;
 
 use crate::x509::*;
 use crate::pkcs7::*;
@@ -109,7 +109,16 @@ impl Asn1Pkcs12Elem {
 			let objs = certd.get_type_oid()?;
 			ssllib_log_trace!("bag [{}] objs[{}]",bagidx,objs);
 			if objs == OID_PKCS12_CERT_BAG {
-				
+				let ores = certd.get_bag_oid();
+				if ores.is_ok() {
+					let bagoid = ores.unwrap();
+					if bagoid == OID_X509_CERTIFICATE {
+						let ores = certd.get_x509_cert();
+						if ores.is_ok() {
+
+						}
+					}
+				}
 			} else if objs == OID_SAFE_CONTENT_BAG {
 				/**/
 			}
@@ -314,7 +323,7 @@ impl Asn1Pkcs12 {
 	}
 }
 
-#[asn1_obj_selector(selector=val,other=default,x509cert="1.2.840.113549.1.9.22.1")]
+#[asn1_obj_selector(selector=val,other=default,x509cert="1.2.840.113549.1.9.22.1",sdsicert="1.2.840.113549.1.9.22.2",x509crl="1.2.840.113549.1.9.23.1")]
 #[derive(Clone)]
 pub struct Asn1Pkcs12BagsSelector {
 	pub val : Asn1Object,
@@ -327,6 +336,8 @@ pub struct Asn1Pkcs12BagsElem {
 	#[asn1_gen(jsonalias="type")]
 	pub valid : Asn1Pkcs12BagsSelector,
 	pub x509cert : Asn1ImpSet<Asn1OctData,0>,
+	pub x509crl :Asn1ImpSet<Asn1OctData,0>,
+	pub sdsicert :Asn1ImpSet<Asn1IA5String,0>,
 	pub other :Asn1ImpSet<Asn1Any,0>,
 }
 
@@ -397,7 +408,21 @@ impl Asn1Pkcs12SafeBagElem {
 			ssllib_new_error!{SslPkcs12Error,"no bag"}
 		}
 		Ok(self.selectelem.bag.val[0].elem.val[0].valid.val.get_value())
+	}
 
+	pub fn get_x509_cert(&self) -> Result<Asn1X509,Box<dyn Error>> {
+		let bagoid = self.get_bag_oid()?;
+		if bagoid != OID_X509_CERTIFICATE {
+			ssllib_new_error!{SslPkcs12Error,"not valid OID_X509_CERTIFICATE {}",bagoid}
+		}
+		let mut retv :Asn1X509 = Asn1X509::init_asn1();
+		if self.selectelem.bag.val[0].elem.val[0].x509cert.val.len() < 1 {
+			ssllib_new_error!{SslPkcs12Error,"no x509cert"}	
+		}
+
+		let data = self.selectelem.bag.val[0].elem.val[0].x509cert.val[0].data.clone();
+		retv.decode_asn1(&data)?;
+		Ok(retv)
 	}
 }
 
@@ -423,6 +448,11 @@ impl Asn1Pkcs12SafeBag {
 	pub fn get_bag_oid(&self) -> Result<String,Box<dyn Error>> {
 		self.elem.check_safe_one("Asn1Pkcs12Bag")?;
 		return self.elem.val[0].get_bag_oid();
+	}
+
+	pub fn get_x509_cert(&self) -> Result<Asn1X509,Box<dyn Error>> {
+		self.elem.check_safe_one("Asn1Pkcs12Bag")?;
+		return self.elem.val[0].get_x509_cert();
 	}
 }
 

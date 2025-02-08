@@ -295,6 +295,22 @@ impl Asn1X509Algor {
 
 }
 
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1X509AuxCertElem {
+	pub trust : Asn1Opt<Asn1Set<Asn1Object>>,
+	pub rejet : Asn1Opt<Asn1ImpSet<Asn1Set<Asn1Object>,0>>,
+	pub alias :Asn1Opt<Asn1PrintableString>,
+	pub keyid :Asn1Opt<Asn1OctData>,
+	pub other :Asn1Opt<Asn1ImpSet<Asn1Set<Asn1X509Algor>,1>>,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1X509AuxCert {
+	pub elem :Asn1Seq<Asn1X509AuxCertElem>,	
+}
+
 //#[asn1_sequence(debug=enable)]
 #[asn1_sequence()]
 #[derive(Clone)]

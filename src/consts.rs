@@ -44,6 +44,10 @@ pub const OID_FRIEDLY_NAME :&str = "1.2.840.113549.1.9.20";
 pub const OID_LOCAL_KEY_ID:&str = "1.2.840.113549.1.9.21";
 
 
+pub const OID_X509_CERTIFICATE :&str =  "1.2.840.113549.1.9.22.1";
+pub const OID_X509_SDSI_CERTIFICATE :&str = "1.2.840.113549.1.9.22.2";
+pub const OID_X509_CRL :&str = "1.2.840.113549.1.9.23.1";
+
 pub const OID_ECDSA_WITH_SHA256_PKEY :&str = "1.2.840.10045.4.3.2";
 
 pub const OID_AES_128_CBC :&str = "2.16.840.1.101.3.4.1.2";
