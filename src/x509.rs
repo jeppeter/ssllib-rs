@@ -396,6 +396,7 @@ pub struct Asn1X509Elem {
 #[derive(Clone)]
 pub struct Asn1X509 {
 	pub elem : Asn1Seq<Asn1X509Elem>,
+	pub aux :Asn1X509AuxCert,
 }
 
 impl Asn1X509 {
