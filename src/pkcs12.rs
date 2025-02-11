@@ -107,6 +107,8 @@ impl Asn1Pkcs12Elem {
 		for certd in bags.val.iter() {
 			let _ = certd.elem.check_safe_one("Asn1Pkcs12Bags")?;
 			let objs = certd.get_type_oid()?;
+			let ofriendly = certd.get_attrib(OID_FRIEDLY_NAME)?;
+			let olkid = certd.get_attrib(OID_LOCAL_KEY_ID)?;
 			ssllib_log_trace!("bag [{}] objs[{}]",bagidx,objs);
 			if objs == OID_PKCS12_CERT_BAG {
 				let ores = certd.get_bag_oid();
@@ -115,7 +117,10 @@ impl Asn1Pkcs12Elem {
 					if bagoid == OID_X509_CERTIFICATE {
 						let ores = certd.get_x509_cert();
 						if ores.is_ok() {
-
+							let mut curx509 :Asn1X509 = ores.unwrap();
+							if ofriendly.is_some() {
+								
+							}
 						}
 					}
 				}
@@ -385,8 +390,7 @@ impl Asn1Pkcs12SafeBagElem {
 					if otype == oid {
 						if d.elem.val[0].set.val.len() > 0 {
 							retv = Some(d.elem.val[0].set.val[0].clone());
-						}
-						
+						}						
 						break;
 					}
 				}

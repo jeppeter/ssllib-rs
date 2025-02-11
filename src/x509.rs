@@ -305,10 +305,105 @@ pub struct Asn1X509AuxCertElem {
 	pub other :Asn1Opt<Asn1Exp<Asn1Seq<Asn1X509Algor>,1>>,
 }
 
+impl Asn1X509AuxCertElem {
+	pub fn append_trust(&mut self,objs :&str) -> Result<(),Box<dyn Error>> {
+		let mut inobj :Asn1Object = Asn1Object::init_asn1();
+		let _ = inobj.set_value(objs)?;
+		if self.trust.val.is_some() {
+			let cp :&mut Asn1Seq<Asn1Object> = self.trust.val.as_mut().unwrap();
+			cp.val.push(inobj);
+		} else {
+			let mut seq :Asn1Seq<Asn1Object> = Asn1Seq::init_asn1();
+			seq.val.push(inobj);
+			self.trust.val = Some(seq);
+		}
+		Ok(())
+	}
+
+	pub fn append_reject(&mut self, objs :&str) -> Result<(),Box<dyn Error>> {
+		let mut inobj :Asn1Object = Asn1Object::init_asn1();
+		let _ = inobj.set_value(objs)?;
+		if self.reject.val.is_some() {
+			let cp :&mut Asn1Exp<Asn1Seq<Asn1Object>,0> = self.reject.val.as_mut().unwrap();
+			assert!(cp.val.val.len() == 1);
+			cp.val.val.push(inobj);
+		} else {
+			let mut seq :Asn1Seq<Asn1Object> = Asn1Seq::init_asn1();
+			seq.val.push(inobj);
+			let mut exp :Asn1Exp<Asn1Seq<Asn1Object>,0> = Asn1Exp::init_asn1();
+			exp.val = seq;
+			self.reject.val = Some(exp);
+		}
+		Ok(())
+	}
+
+	pub fn set_alias(&mut self, alias :&str) -> Result<(),Box<dyn Error>> {
+		let mut prn :Asn1PrintableString = Asn1PrintableString::init_asn1();
+		prn.val = format!("{}",alias);
+		self.alias.val = Some(prn);
+		Ok(())
+	}
+
+	pub fn set_keyid(&mut self, keyid :&[u8]) -> Result<(),Box<dyn Error>> {
+		if self.keyid.val.is_some() {
+			let k :&mut Asn1OctData = self.keyid.val.as_mut().unwrap();
+			k.data = keyid.to_vec().clone();
+		} else {
+			let mut od :Asn1OctData = Asn1OctData::init_asn1();
+			od.data = keyid.to_vec().clone();
+			self.keyid.val = Some(od);
+		}
+		Ok(())
+	}
+
+	pub fn append_other(&mut self, x :&Asn1X509Algor) -> Result<(),Box<dyn Error>> {
+		if self.other.val.is_some() {
+			let cp :&mut Asn1Exp<Asn1Seq<Asn1X509Algor>,1> = self.other.val.as_mut().unwrap();
+			assert!(cp.val.val.len() == 1);
+			cp.val.val.push(x.clone());
+		} else {
+			let mut seq :Asn1Seq<Asn1X509Algor> = Asn1Seq::init_asn1();
+			seq.val.push(x.clone());
+			let mut exp :Asn1Exp<Asn1Seq<Asn1X509Algor>,1> = Asn1Exp::init_asn1();
+			exp.val = seq;
+			self.other.val = Some(exp);
+		}
+		Ok(())
+	}
+
+}
+
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct Asn1X509AuxCert {
 	pub elem :Asn1Seq<Asn1X509AuxCertElem>,	
+}
+
+impl Asn1X509AuxCert {
+	pub fn append_trust(&mut self,objs :&str) -> Result<(),Box<dyn Error>> {
+		self.elem.make_safe_one("Asn1X509AuxCert")?;
+		return self.elem.val[0].append_trust(objs);
+	}
+
+	pub fn append_reject(&mut self, objs :&str) -> Result<(),Box<dyn Error>> {
+		self.elem.make_safe_one("Asn1X509AuxCert")?;
+		return self.elem.val[0].append_reject(objs);
+	}
+
+	pub fn set_alias(&mut self, alias :&str) -> Result<(),Box<dyn Error>> {
+		self.elem.make_safe_one("Asn1X509AuxCert")?;
+		return self.elem.val[0].set_alias(alias);
+	}
+
+	pub fn set_keyid(&mut self, keyid :&[u8]) -> Result<(),Box<dyn Error>> {
+		self.elem.make_safe_one("Asn1X509AuxCert")?;
+		return self.elem.val[0].set_keyid(keyid);		
+	}
+
+	pub fn append_other(&mut self, x :&Asn1X509Algor) -> Result<(),Box<dyn Error>> {
+		self.elem.make_safe_one("Asn1X509AuxCert")?;
+		return self.elem.val[0].append_other(x);
+	}
 }
 
 //#[asn1_sequence(debug=enable)]
@@ -430,6 +525,47 @@ impl Asn1X509 {
 		}
 		retv
 	}
+
+	pub fn append_trust(&mut self,objs :&str) -> Result<(),Box<dyn Error>> {
+		if self.aux.is_none() {
+			self.aux.val = Some(Asn1X509AuxCert::init_asn1());			
+		}
+		let naux :&mut Asn1X509AuxCert = self.aux.val.as_mut().unwrap();
+		return naux.append_trust(objs);
+	}
+
+	pub fn append_reject(&mut self, objs :&str) -> Result<(),Box<dyn Error>> {
+		if self.aux.is_none() {
+			self.aux.val = Some(Asn1X509AuxCert::init_asn1());			
+		}
+		let naux :&mut Asn1X509AuxCert = self.aux.val.as_mut().unwrap();
+		return naux.append_reject(objs);
+	}
+
+	pub fn set_alias(&mut self, alias :&str) -> Result<(),Box<dyn Error>> {
+		if self.aux.is_none() {
+			self.aux.val = Some(Asn1X509AuxCert::init_asn1());			
+		}
+		let naux :&mut Asn1X509AuxCert = self.aux.val.as_mut().unwrap();
+		return naux.set_alias(alias);
+	}
+
+	pub fn set_keyid(&mut self, keyid :&[u8]) -> Result<(),Box<dyn Error>> {
+		if self.aux.is_none() {
+			self.aux.val = Some(Asn1X509AuxCert::init_asn1());			
+		}
+		let naux :&mut Asn1X509AuxCert = self.aux.val.as_mut().unwrap();
+		return naux.set_keyid(keyid);
+	}
+
+	pub fn append_other(&mut self, x :&Asn1X509Algor) -> Result<(),Box<dyn Error>> {
+		if self.aux.is_none() {
+			self.aux.val = Some(Asn1X509AuxCert::init_asn1());			
+		}
+		let naux :&mut Asn1X509AuxCert = self.aux.val.as_mut().unwrap();
+		return naux.append_other(x);
+	}
+
 }
 
 #[asn1_sequence()]
@@ -924,27 +1060,27 @@ pub fn get_algor_pbkdf2_private_data(x509algorbytes :&[u8],encdata :&[u8],passin
 		let _ = pbe2.decode_asn1(&decdata)?;
 		let pbe2types = pbe2.keyfunc.elem.val[0].algorithm.get_value();
 		if pbe2types == OID_PBKDF2 {
-            let params :&Asn1Any = pbe2.keyfunc.elem.val[0].parameters.val.as_ref().unwrap();
-            let decdata :Vec<u8> = params.content.clone();
-            let mut pbkdf2 :Asn1Pbkdf2ParamElem = Asn1Pbkdf2ParamElem::init_asn1();
-            let _ = pbkdf2.decode_asn1(&decdata)?;
-            let aeskey :Vec<u8> = get_hmac_sha256_key(passin,&pbkdf2.salt.content,pbkdf2.iter.val as usize);
-            let types = pbe2.encryption.elem.val[0].algorithm.get_value();
-            let odecrypt = get_decryptor_by_oid(&types);
-            if odecrypt.is_none() {
-            	ssllib_new_error!{SslX509Error,"not supported types [{}]",types}
-            }
-            	let params :Asn1Any = pbe2.encryption.elem.val[0].parameters.val.as_ref().unwrap().clone();
-            	let ivkey :Vec<u8> = params.content.clone();
-            let decrypt = odecrypt.unwrap();
-            let _ = decrypt.borrow_mut().init_decrypt(&aeskey,&ivkey)?;
-            let mut decdata :Vec<u8> = decrypt.borrow_mut().decrypt_update(encdata)?;
-            decdata.extend(decrypt.borrow_mut().decrypt_final()?);
-            return Ok(decdata);
-        }
-        ssllib_new_error!{SslX509Error,"not support OID_PBES2 types [{}]",pbe2types}
-    }
-    ssllib_new_error!{SslX509Error,"can not support types [{}]", types}
+			let params :&Asn1Any = pbe2.keyfunc.elem.val[0].parameters.val.as_ref().unwrap();
+			let decdata :Vec<u8> = params.content.clone();
+			let mut pbkdf2 :Asn1Pbkdf2ParamElem = Asn1Pbkdf2ParamElem::init_asn1();
+			let _ = pbkdf2.decode_asn1(&decdata)?;
+			let aeskey :Vec<u8> = get_hmac_sha256_key(passin,&pbkdf2.salt.content,pbkdf2.iter.val as usize);
+			let types = pbe2.encryption.elem.val[0].algorithm.get_value();
+			let odecrypt = get_decryptor_by_oid(&types);
+			if odecrypt.is_none() {
+				ssllib_new_error!{SslX509Error,"not supported types [{}]",types}
+			}
+			let params :Asn1Any = pbe2.encryption.elem.val[0].parameters.val.as_ref().unwrap().clone();
+			let ivkey :Vec<u8> = params.content.clone();
+			let decrypt = odecrypt.unwrap();
+			let _ = decrypt.borrow_mut().init_decrypt(&aeskey,&ivkey)?;
+			let mut decdata :Vec<u8> = decrypt.borrow_mut().decrypt_update(encdata)?;
+			decdata.extend(decrypt.borrow_mut().decrypt_final()?);
+			return Ok(decdata);
+		}
+		ssllib_new_error!{SslX509Error,"not support OID_PBES2 types [{}]",pbe2types}
+	}
+	ssllib_new_error!{SslX509Error,"can not support types [{}]", types}
 }
 
 
