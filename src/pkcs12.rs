@@ -119,8 +119,22 @@ impl Asn1Pkcs12Elem {
 						if ores.is_ok() {
 							let mut curx509 :Asn1X509 = ores.unwrap();
 							if ofriendly.is_some() {
-								
+								let friendly :Asn1Any = ofriendly.unwrap();
+								let mut obj :Asn1Object = Asn1Object::init_asn1();
+								let code = friendly.encode_asn1()?;
+								obj.decode_asn1(&code)?;
+								let os = obj.get_value();
+								curx509.set_alias(&os)?;
 							}
+
+							if olkid.is_some() {
+								let lkid :Asn1Any = olkid.unwrap();
+								let mut odata :Asn1OctData = Asn1OctData::init_asn1();
+								let code = lkid.encode_asn1()?;
+								odata.decode_asn1(&code)?;
+								curx509.set_keyid(&odata.data)?;
+							}
+							certs.push(curx509);
 						}
 					}
 				}

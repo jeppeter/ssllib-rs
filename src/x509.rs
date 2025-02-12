@@ -527,43 +527,23 @@ impl Asn1X509 {
 	}
 
 	pub fn append_trust(&mut self,objs :&str) -> Result<(),Box<dyn Error>> {
-		if self.aux.is_none() {
-			self.aux.val = Some(Asn1X509AuxCert::init_asn1());			
-		}
-		let naux :&mut Asn1X509AuxCert = self.aux.val.as_mut().unwrap();
-		return naux.append_trust(objs);
+		return self.aux.append_trust(objs);
 	}
 
 	pub fn append_reject(&mut self, objs :&str) -> Result<(),Box<dyn Error>> {
-		if self.aux.is_none() {
-			self.aux.val = Some(Asn1X509AuxCert::init_asn1());			
-		}
-		let naux :&mut Asn1X509AuxCert = self.aux.val.as_mut().unwrap();
-		return naux.append_reject(objs);
+		return self.aux.append_reject(objs);
 	}
 
 	pub fn set_alias(&mut self, alias :&str) -> Result<(),Box<dyn Error>> {
-		if self.aux.is_none() {
-			self.aux.val = Some(Asn1X509AuxCert::init_asn1());			
-		}
-		let naux :&mut Asn1X509AuxCert = self.aux.val.as_mut().unwrap();
-		return naux.set_alias(alias);
+		return self.aux.set_alias(alias);
 	}
 
 	pub fn set_keyid(&mut self, keyid :&[u8]) -> Result<(),Box<dyn Error>> {
-		if self.aux.is_none() {
-			self.aux.val = Some(Asn1X509AuxCert::init_asn1());			
-		}
-		let naux :&mut Asn1X509AuxCert = self.aux.val.as_mut().unwrap();
-		return naux.set_keyid(keyid);
+		return self.aux.set_keyid(keyid);
 	}
 
 	pub fn append_other(&mut self, x :&Asn1X509Algor) -> Result<(),Box<dyn Error>> {
-		if self.aux.is_none() {
-			self.aux.val = Some(Asn1X509AuxCert::init_asn1());			
-		}
-		let naux :&mut Asn1X509AuxCert = self.aux.val.as_mut().unwrap();
-		return naux.append_other(x);
+		return self.aux.append_other(x);
 	}
 
 }
