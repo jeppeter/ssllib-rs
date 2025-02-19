@@ -140,6 +140,14 @@ impl Asn1Pkcs12Elem {
 				}
 			} else if objs == OID_SAFE_CONTENT_BAG {
 				/**/
+				let safebag = certd.get_vec_safe_bag()?;
+				let (nkey,ncerts) = self._get_key_certs_with_bags(passin,&safebag)?;
+				for v in ncerts.iter() {
+					certs.push(v.clone());
+				}
+				if nkey.len() > 0 && keycert.len() == 0 {
+					keycert.push(nkey[0].clone());
+				}
 			}
 			bagidx += 1;
 		}
@@ -443,6 +451,21 @@ impl Asn1Pkcs12SafeBagElem {
 		retv.decode_asn1(&data)?;
 		Ok(retv)
 	}
+
+	pub fn get_vec_safe_bag(&self) -> Result<Asn1Seq<Asn1Pkcs12SafeBag>,Box<dyn Error>> {
+		let bagoid = self.get_bag_oid()?;
+		if bagoid != OID_SAFE_CONTENT_BAG {
+			ssllib_new_error!{SslPkcs12Error,"not valid OID_SAFE_CONTENT_BAG {}",bagoid}	
+		}
+		if self.selectelem.safes.val.len() < 1 {
+			ssllib_new_error!{SslPkcs12Error,"safes.len() < 1"}
+		}
+		if self.selectelem.safes.val[0].val.len() < 1 {
+			ssllib_new_error!{SslPkcs12Error,"safes.Asn1Seq.len() < 1"}	
+		}
+		let retv = self.selectelem.safes.val[0].clone();
+		Ok(retv)
+	}
 }
 
 #[asn1_sequence()]
@@ -472,6 +495,11 @@ impl Asn1Pkcs12SafeBag {
 	pub fn get_x509_cert(&self) -> Result<Asn1X509,Box<dyn Error>> {
 		self.elem.check_safe_one("Asn1Pkcs12Bag")?;
 		return self.elem.val[0].get_x509_cert();
+	}
+
+	pub fn get_vec_safe_bag(&self) -> Result<Asn1Seq<Asn1Pkcs12SafeBag>,Box<dyn Error>> {
+		self.elem.check_safe_one("Asn1Pkcs12Bag")?;
+		return self.elem.val[0].get_vec_safe_bag();
 	}
 }
 
