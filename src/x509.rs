@@ -491,7 +491,7 @@ pub struct Asn1X509Elem {
 #[derive(Clone)]
 pub struct Asn1X509 {
 	pub elem : Asn1Seq<Asn1X509Elem>,
-	pub aux :Asn1X509AuxCert,
+	pub aux : Asn1Opt<Asn1X509AuxCert>,
 }
 
 impl Asn1X509 {
@@ -527,23 +527,38 @@ impl Asn1X509 {
 	}
 
 	pub fn append_trust(&mut self,objs :&str) -> Result<(),Box<dyn Error>> {
-		return self.aux.append_trust(objs);
+		if self.aux.val.is_none() {
+			self.aux.val = Some(Asn1X509AuxCert::init_asn1());
+		}
+		return self.aux.val.as_mut().unwrap().append_trust(objs);
 	}
 
 	pub fn append_reject(&mut self, objs :&str) -> Result<(),Box<dyn Error>> {
-		return self.aux.append_reject(objs);
+		if self.aux.val.is_none() {
+			self.aux.val = Some(Asn1X509AuxCert::init_asn1());
+		}
+		return self.aux.val.as_mut().unwrap().append_reject(objs);
 	}
 
 	pub fn set_alias(&mut self, alias :&str) -> Result<(),Box<dyn Error>> {
-		return self.aux.set_alias(alias);
+		if self.aux.val.is_none() {
+			self.aux.val = Some(Asn1X509AuxCert::init_asn1());
+		}
+		return self.aux.val.as_mut().unwrap().set_alias(alias);
 	}
-
+	
 	pub fn set_keyid(&mut self, keyid :&[u8]) -> Result<(),Box<dyn Error>> {
-		return self.aux.set_keyid(keyid);
+		if self.aux.val.is_none() {
+			self.aux.val = Some(Asn1X509AuxCert::init_asn1());
+		}
+		return self.aux.val.as_mut().unwrap().set_keyid(keyid);
 	}
 
 	pub fn append_other(&mut self, x :&Asn1X509Algor) -> Result<(),Box<dyn Error>> {
-		return self.aux.append_other(x);
+		if self.aux.val.is_none() {
+			self.aux.val = Some(Asn1X509AuxCert::init_asn1());
+		}
+		return self.aux.val.as_mut().unwrap().append_other(x);
 	}
 
 }
