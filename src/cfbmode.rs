@@ -3,6 +3,7 @@ use crate::logger::*;
 use cipher::{BlockEncryptMut,BlockCipher,Block,InnerIvInit,Iv,AlgorithmName,crypto_common::{InnerUser,IvSizeUser}};
 use std::fmt;
 use std::error::Error;
+use zeroize::Zeroize;
 
 
 ssllib_error_class!{CfbModeError}
@@ -229,7 +230,8 @@ where
     }
 }
 
-#[cfg(feature = "zeroize")]
+//#[cfg_attr(docsrs)]
+//#[cfg(feature = "zeroize")]
 #[cfg_attr(docsrs, doc(cfg(feature = "zeroize")))]
 impl<C: BlockEncryptMut + BlockCipher,const BITSIZE:u8> Drop for CfbBitsBufEncryptor<C,BITSIZE> {
     fn drop(&mut self) {
@@ -237,9 +239,9 @@ impl<C: BlockEncryptMut + BlockCipher,const BITSIZE:u8> Drop for CfbBitsBufEncry
     }
 }
 
-#[cfg(feature = "zeroize")]
-#[cfg_attr(docsrs, doc(cfg(feature = "zeroize")))]
-impl<C: BlockEncryptMut + BlockCipher + ZeroizeOnDrop,const BITSIZE:u8> ZeroizeOnDrop for CfbBitsBufEncryptor<C,BITSIZE> {}
+//#[cfg(feature = "zeroize")]
+//#[cfg_attr(docsrs, doc(cfg(feature = "zeroize")))]
+//impl<C: BlockEncryptMut + BlockCipher + ZeroizeOnDrop,const BITSIZE:u8> ZeroizeOnDrop for CfbBitsBufEncryptor<C,BITSIZE> {}
 
 
 
@@ -409,7 +411,7 @@ where
     }
 }
 
-#[cfg(feature = "zeroize")]
+//#[cfg(feature = "zeroize")]
 #[cfg_attr(docsrs, doc(cfg(feature = "zeroize")))]
 impl<C: BlockEncryptMut + BlockCipher,const BITSIZE:u8> Drop for CfbBitsBufDecryptor<C,BITSIZE> {
     fn drop(&mut self) {
@@ -417,6 +419,6 @@ impl<C: BlockEncryptMut + BlockCipher,const BITSIZE:u8> Drop for CfbBitsBufDecry
     }
 }
 
-#[cfg(feature = "zeroize")]
-#[cfg_attr(docsrs, doc(cfg(feature = "zeroize")))]
-impl<C: BlockEncryptMut + BlockCipher + ZeroizeOnDrop,const BITSIZE:u8> ZeroizeOnDrop for CfbBitsBufDecryptor<C,BITSIZE> {}
+//#[cfg(feature = "zeroize")]
+//#[cfg_attr(docsrs, doc(cfg(feature = "zeroize")))]
+//impl<C: BlockEncryptMut + BlockCipher + ZeroizeOnDrop,const BITSIZE:u8> ZeroizeOnDrop for CfbBitsBufDecryptor<C,BITSIZE> {}

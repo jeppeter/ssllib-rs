@@ -33,6 +33,7 @@ use ssllib::config::*;
 //use ssllib::pkcs8::*;
 use ssllib::x509::*;
 use ssllib::rsa::*;
+//use ssllib::pkcs8::*;
 //use ssllib::ec::*;
 use asn1obj::asn1impl::*;
 //use ssllib::randop::*;
@@ -161,222 +162,9 @@ fn rsaprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 	Ok(())
 }
 
-#[cfg(feature="oldmode")]
-fn ecprivdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
-	let sarr :Vec<String>;
-	let passin :String = ns.get_string("passin");
-	let mut sout = std::io::stdout();
-
-	init_log(ns.clone())?;
-
-	sarr = ns.get_array("subnargs");
-	for f in sarr.iter() {
-		let data = read_file_into_der(f)?;
-		let mut envcfg :ConfigValue = ConfigValue::new("{}")?;
-		let _ = envcfg.set_str(KEY_JSON_PASSIN,&passin)?;
-		let mut sig :Asn1X509Sig = Asn1X509Sig::init_asn1();
-		let _ = sig.decode_asn1(&data)?;
-		let _ = sig.print_asn1("Asn1X509Sig",0,&mut sout)?;
-		let cfg = sig.get_cmd(&envcfg)?;		
-		let types = cfg.get_str(KEY_JSON_TYPE)?;
-		if types == KEY_JSON_PBES2 {
-			let ores = cfg.get_config(KEY_JSON_PBES2)?;
-			if ores.is_none() {
-				extargs_new_error!{PrivKeyError,"no [{}] found", KEY_JSON_PBES2}
-			}
-			let pbes2 = ores.unwrap();
-			let types2 = pbes2.get_str(KEY_JSON_TYPE)?;
-			if types2 == KEY_JSON_PBKDF2  {
-				let decdata = pbes2.get_u8_array(KEY_JSON_DECDATA)?;
-				let mut p8priv :Asn1Pkcs8PrivKeyInfo = Asn1Pkcs8PrivKeyInfo::init_asn1();
-				debug_buffer_trace!(decdata.as_ptr(),decdata.len(),"decdata");
-				let _ = p8priv.decode_asn1(&decdata)?;
-				let _ = p8priv.print_asn1("Asn1Pkcs8PrivKeyInfo",0,&mut sout)?;
-				let data :Vec<u8> = p8priv.get_pkey()?;
-				let algor :Asn1X509Algor = p8priv.get_algor()?;
-				let algstr :String = algor.get_algorithm()?;
-				if algstr == OID_EC_PUBLICK_KEY {
-					let mut ecprivkey :EC_PRIVATEKEY = EC_PRIVATEKEY::init_asn1();
-					let _ = ecprivkey.decode_asn1(&data)?;
-					let oany :Option<Asn1Any> = algor.get_param()?;
-					if oany.is_some() {
-						let cany :Asn1Any = oany.as_ref().unwrap().clone();
-						let mut ecobj :Asn1Object = Asn1Object::init_asn1();
-						let objdata :Vec<u8> = cany.encode_asn1()?;
-						let _ = ecobj.decode_asn1(&objdata)?;
-						let s :String = format!("object {}\n",ecobj.get_value());
-						let _ = sout.write(s.as_bytes())?;
-
-					}
-					ecprivkey.print_asn1("EC_PRIVATEKEY",0,&mut sout)?;
-				} else {
-					extargs_new_error!{PrivKeyError,"[{}] not valid key", algstr}
-				}
-			} else {
-				extargs_new_error!{PrivKeyError,"not support type[{}]",types2}	
-			}
-		} else {
-			extargs_new_error!{PrivKeyError,"not support type[{}]",types}
-		}
-	}
-
-	Ok(())
-}
-
-#[cfg(feature="oldmode")]
-fn ecprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
-	let mut typestr :String = format!("k256");
-	let sarr :Vec<String>;
-	let mut randfile :Option<String> = None;
-	let passout :String;
-	let mut ecobj :Asn1Object = Asn1Object::init_asn1();
-
-	init_log(ns.clone())?;
-	sarr = ns.get_array("subnargs");
-	if sarr.len() > 0 {
-		typestr = format!("{}",sarr[0]);
-	}
-	passout = ns.get_string("passout");
-
-	if sarr.len() > 1 {
-		randfile = Some(format!("{}",sarr[1]));
-	}
-	let mut randop :RandOps = RandOps::new(randfile)?;
-	let mut privkey :EC_PRIVATEKEY = EC_PRIVATEKEY::init_asn1();
 
 
-	if typestr == EC_K256_TYPE {
-		let signing_key = k256::ecdsa::SigningKey::random(&mut randop); 
-		let sk=signing_key.to_bytes();
-
-		let verify_key = k256::ecdsa::VerifyingKey::from(&signing_key); 
-		let vk=verify_key.to_bytes();
-		debug_buffer_trace!(sk.as_ptr(),sk.len(),"private key");
-		debug_buffer_trace!(vk.as_ptr(),vk.len(),"public key");
-		let _ = privkey.set_private_key(&sk)?;
-		let _ = privkey.set_public_key(&vk)?;
-		let _ = ecobj.set_value(OID_SECP256K1)?;
-	} else if typestr == EC_P384_TYPE {
-		let signing_key = p384::ecdsa::SigningKey::random(&mut randop); 
-		let sk=signing_key.to_bytes();
-
-		let verify_key = p384::ecdsa::VerifyingKey::from(&signing_key); 
-		let ep = verify_key.to_encoded_point(false);
-		let vk= ep.to_bytes();
-
-		debug_buffer_trace!(sk.as_ptr(),sk.len(),"private key");
-		debug_buffer_trace!(vk.as_ptr(),vk.len(),"public key");
-		let _ = privkey.set_private_key(&sk)?;
-		let _ = privkey.set_public_key(&vk)?;
-		let _ = ecobj.set_value(OID_SECP384R1)?;
-	} else {
-		extargs_new_error!{PrivKeyError,"not supported type [{}]",typestr}
-	}
-
-	let mut pk8priv :Asn1Pkcs8PrivKeyInfo = Asn1Pkcs8PrivKeyInfo::init_asn1();
-	let mut algor :Asn1X509Algor = Asn1X509Algor::init_asn1();
-	let _ = algor.set_algorithm(OID_EC_PUBLICK_KEY)?;
-	let mut oany :Asn1Any = Asn1Any::init_asn1();
-	let cdata = ecobj.encode_asn1()?;
-	let _ = oany.decode_asn1(&cdata)?;
-	let _ = algor.set_param(Some(oany.clone()))?;
-	let _ = pk8priv.set_algorithm(&algor)?;
-	let ecdata = privkey.encode_asn1()?;
-	let _ = pk8priv.set_pkey(&ecdata)?;
-	let sdata = pk8priv.encode_asn1()?;
-	let mut ncfg :ConfigValue = ConfigValue::new("{}")?;
-	let _ = ncfg.set_str(KEY_JSON_TYPE,KEY_JSON_PBKDF2)?;
-	let _ = ncfg.set_u8_array(KEY_JSON_DECDATA,&sdata)?;
-	let ciphername = ns.get_string("ciphername");
-	let _= ncfg.set_str(KEY_JSON_ENCTYPE,&ciphername)?;
-	let mut bcfg :ConfigValue = ConfigValue::new("{}")?;
-	let _ = bcfg.set_str(KEY_JSON_DIGESTTYPE,KEY_HMAC_WITH_SHA256);
-	let _ = bcfg.set_i64(KEY_JSON_TIMES,2048)?;
-	let _ = bcfg.set_str(KEY_JSON_PASSIN,&passout);
-	if sarr.len() > 1 {
-		let _ = ncfg.set_str(KEY_JSON_RANDFILE,&sarr[1]);
-		let _ = bcfg.set_str(KEY_JSON_RANDFILE,&sarr[1]);
-	}
-
-	let _ = ncfg.set_config(KEY_JSON_PBKDF2,&bcfg)?;
-	let _ = ncfg.set_str(KEY_JSON_PASSIN,&passout)?;
-	let mut cfg :ConfigValue = ConfigValue::new("{}")?;
-	let _ = cfg.set_str(KEY_JSON_TYPE,KEY_JSON_PBES2)?;
-	let _ = cfg.set_config(KEY_JSON_PBES2,&ncfg)?;
-	let mut sigv :Asn1X509Sig = Asn1X509Sig::init_asn1();
-	let _ = sigv.set_cmd(&cfg)?;
-	let data = sigv.encode_asn1()?;
-	let outfile = ns.get_string("output");
-	if outfile.len() > 0 {
-		let _ = write_file_bytes(&outfile,&data)?;
-	} else {
-		debug_buffer_trace!(data.as_ptr(),data.len(),"outbuf");
-	}
-
-	return Ok(());
-	/*
-	
-	debug_buffer_trace!(sdata.as_ptr(),sdata.len(),"sdata");
-	let mut ncfg :ConfigValue= ConfigValue::new("{}")?;
-	let _ = ncfg.set_str(KEY_JSON_TYPE,KEY_JSON_PBKDF2)?;
-	let _ = ncfg.set_u8_array(KEY_JSON_DECDATA,&sdata)?;
-	ciphername = ns.get_string("ciphername");
-	let _ = ncfg.set_str(KEY_JSON_ENCTYPE,&ciphername)?;
-	let mut bcfg :ConfigValue = ConfigValue::new("{}")?;
-	let _ = bcfg.set_str(KEY_JSON_DIGESTTYPE,KEY_HMAC_WITH_SHA256);
-	let _ = bcfg.set_i64(KEY_JSON_TIMES,2048)?;
-	let _ = bcfg.set_str(KEY_JSON_PASSIN,&passout)?;
-
-	if sarr.len() > 1 {
-		let _ = ncfg.set_str(KEY_JSON_RANDFILE,&sarr[1])?;
-		let _ = bcfg.set_str(KEY_JSON_RANDFILE,&sarr[1])?;
-	}
-	let _ = ncfg.set_config(KEY_JSON_PBKDF2,&bcfg)?;
-	let _ = ncfg.set_str(KEY_JSON_PASSIN,&passout)?;
-	cfg = ConfigValue::new("{}")?;
-	let _ = cfg.set_str(KEY_JSON_TYPE,KEY_JSON_PBES2)?;
-	let _ = cfg.set_config(KEY_JSON_PBES2,&ncfg)?;
-	let mut sigv :Asn1X509Sig = Asn1X509Sig::init_asn1();
-	let _ = sigv.set_cmd(&cfg)?;
-	let data = sigv.encode_asn1()?;
-	let outfile = ns.get_string("output");
-	if outfile.len() > 0 {
-		let _ = write_file_bytes(&outfile,&data)?;
-	} else {
-		debug_buffer_trace!(data.as_ptr(),data.len(),"outbuf");
-	}
-
-
-	return Ok(());
-	*/
-}
-
-
-#[cfg(not(feature="oldmode"))]
-fn ecprivdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
-	let _passin :String = ns.get_string("passin");
-	let mut _sout = std::io::stdout();
-
-	init_log(ns.clone())?;
-
-
-	Ok(())
-}
-
-#[cfg(not(feature="oldmode"))]
-fn ecprivgen_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
-	//let mut typestr :String = format!("k256");
-	//let sarr :Vec<String>;
-	//let mut randfile :Option<String> = None;
-	//let passout :String;
-	//let mut ecobj :Asn1Object = Asn1Object::init_asn1();
-
-	init_log(ns.clone())?;
-	Ok(())
-}
-
-
-#[extargs_map_function(rsaprivdec_handler,rsaprivgen_handler,ecprivdec_handler,ecprivgen_handler)]
+#[extargs_map_function(rsaprivdec_handler,rsaprivgen_handler)]
 pub fn load_privkey_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -385,12 +173,6 @@ pub fn load_privkey_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> 
 		},
 		"rsaprivgen<rsaprivgen_handler>##bits [randfile] to generate bits##" : {
 			"$" : "+"
-		},
-		"ecprivdec<ecprivdec_handler>##fname ... to decode ec private key##" : {
-			"$" : "+"
-		},
-		"ecprivgen<ecprivgen_handler>##[typename] to generate ec param k256 p384 p521##" : {
-			"$" : "*"
 		}
 	}
 	"#;

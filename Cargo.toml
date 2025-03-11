@@ -23,7 +23,7 @@ asn1obj = { path = "../asn1obj/asn1obj"}
 asn1obj_codegen = { path = "../asn1obj/asn1obj_codegen"}
 ecsimple = {path = "../ecsimple"}
 cipher = "^0.4.0"
-
+zeroize = "^1.8.1"
 
 
 [dependencies.num-bigint]
