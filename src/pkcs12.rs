@@ -178,6 +178,19 @@ impl Asn1Pkcs12Elem {
 			certs.extend(ncerts);
 		}
 
+		ssllib_log_trace!("keycert {} certs {}",keycert.len(),certs.len());
+		if keycert.len() == 0 {
+			ssllib_log_trace!(" ");
+			let ores = self._get_privkey_idx(passin,&certs);
+			if ores.is_ok() {
+				let oidx = ores.unwrap();
+				if oidx.is_some() {
+					let idx :usize = oidx.unwrap();
+					keycert.push(certs.remove(idx));
+				}
+			}
+		}
+
 		return Ok((keycert,certs));
 	}
 
@@ -280,6 +293,29 @@ impl Asn1Pkcs12Elem {
 		}
 
 		ssllib_new_error!{SslPkcs12Error,"no part for pkcs7"}
+	}
+
+	fn _get_privkey_idx(&self,passin :&[u8],certs :&[Asn1X509]) -> Result<Option<usize>,Box<dyn Error>> {
+		let mut retv :Option<usize> = None;
+		let ores = self._get_enctype(passin);
+		if ores.is_err() {
+			let err = ores.err().unwrap();
+			ssllib_log_trace!("{:?}",err);
+			return Err(err);
+		}
+
+		let (signtype,pktype,privdata) = ores.unwrap();
+		for i in 0..certs.len() {
+			let ores = certs[i].match_priv_data(&signtype,&pktype,&privdata);
+			if ores.is_ok() {
+				let matched = ores.unwrap();
+				if matched {
+					retv = Some(i);
+					break;
+				}
+			}
+		}
+		return Ok(retv);
 	}
 
 

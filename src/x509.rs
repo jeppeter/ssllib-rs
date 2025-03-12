@@ -24,6 +24,7 @@ use crate::encde::*;
 #[allow(unused_imports)]
 use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
 use crate::config::ConfigValue;
+use ecsimple::keys::{ECPrivateKey,ECPublicKey};
 
 ssllib_error_class!{SslX509Error}
 
@@ -438,11 +439,39 @@ pub struct Asn1X509CinfElem {
 	pub extensions : Asn1Opt<Asn1ImpSet<Asn1Seq<Asn1X509Extension>,3>>,
 }
 
+impl Asn1X509CinfElem {
+	pub fn match_priv_data(&self,signtype :&str,pktype :&str,privdata:&[u8]) -> Result<bool, Box<dyn Error>> {
+		let mut retv :bool = false;
+		if pktype == PKCS8_PRIVATE_KEY_TYPE {
+			if signtype ==  OID_EC_PUBLICKEY_ENCRYPTION {
+				let _ = self.key.elem.check_safe_one("Asn1X509Pubkey")?;
+				let ddata = self.key.encode_asn1()?;
+				ssllib_buffer_trace!(ddata.as_ptr(),ddata.len(),"encode key");
+				let ecpub :ECPublicKey = ECPublicKey::from_der(&ddata)?;
+				let privkey :ECPrivateKey = ECPrivateKey::from_der(privdata)?;
+				let cmppub :ECPublicKey = privkey.export_pubkey();
+				if cmppub == ecpub {
+					retv = true;
+				}
+
+			}
+		}
+		return Ok(retv);
+	}
+}
+
 //#[asn1_sequence(debug=enable)]
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct Asn1X509Cinf {
 	pub elem : Asn1Seq<Asn1X509CinfElem>,
+}
+
+impl Asn1X509Cinf {
+	pub fn match_priv_data(&self,signtype :&str,pktype :&str,privdata:&[u8]) -> Result<bool, Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("Asn1X509Cinf")?;
+		return self.elem.val[0].match_priv_data(signtype,pktype,privdata);
+	}
 }
 
 //#[asn1_sequence(debug=enable)]
@@ -485,6 +514,19 @@ pub struct Asn1X509Elem {
 	pub signature : Asn1BitDataFlag,
 }
 
+impl Asn1X509Elem {
+	pub fn match_priv_data(&self,signtype :&str,pktype :&str,privdata:&[u8]) -> Result<bool, Box<dyn Error>> {
+		if pktype == PKCS8_PRIVATE_KEY_TYPE {
+			if signtype == OID_EC_PUBLICKEY_ENCRYPTION {				
+				/*now check for the certinfo*/
+				let _ = self.cert_info.elem.check_safe_one("Asn1X509Cinf")?;
+				return self.cert_info.elem.val[0].match_priv_data(signtype,pktype,privdata);
+			}
+		}
+		return Ok(false);
+	}
+}
+
 
 //#[asn1_sequence(debug=enable)]
 #[asn1_sequence()]
@@ -495,6 +537,11 @@ pub struct Asn1X509 {
 }
 
 impl Asn1X509 {
+	pub fn match_priv_data(&self,signtype :&str,pktype :&str,privdata:&[u8]) -> Result<bool, Box<dyn Error>> {
+		let  _ = self.elem.check_safe_one("Asn1X509")?;
+		return self.elem.val[0].match_priv_data(signtype,pktype,privdata);
+	}
+
 	pub fn is_self_signed(&self) -> bool {
 		self.elem.sure_safe_one("Asn1X509").unwrap();
 		let cert_info :&Asn1X509Cinf = &self.elem.val[0].cert_info;
