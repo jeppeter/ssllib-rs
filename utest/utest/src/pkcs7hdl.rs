@@ -42,6 +42,7 @@ use asn1obj::complex::*;
 use super::fileop::*;
 use super::spc::form_sidc_from_pefile;
 use super::dgstlib::dgst_get_value;
+use super::spc::{SpcPeImageData};
 //use super::pelib::{pe_get_digest};
 #[allow(unused_imports)]
 use chrono::{Utc,DateTime,Datelike,Timelike};
@@ -283,7 +284,6 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	pkcs7obj.set_content_pk7(&pk7)?;
 
 	/*now to give the idc value*/
-	/*
 	let mut sidc :SpcPeImageData = SpcPeImageData::init_asn1();
 	sidc.add_flags(0,"<<<Obsolete>>>")?;
 	let pk7code = sidc.encode_asn1()?;
@@ -291,9 +291,8 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	oany.decode_asn1(&pk7code)?;
 	let mut pk7 :Asn1Pkcs7 = Asn1Pkcs7::init_asn1();
 	pk7.set_type(SPC_INDIRECT_DATA_OBJID)?;
-	pk7.set_onay(&oany)?;
+	pk7.set_oany(&oany)?;
 	pkcs7obj.set_content_pk7(&pk7)?;
-	*/
 
 	let _ = pkcs7obj.print_asn1("Asn1Pkcs7",0,&mut outf)?;
 
