@@ -193,6 +193,11 @@ impl Asn1Pkcs7SignerInfoElem {
 		Ok(retv)
 	}
 
+	pub fn set_enc_digest(&mut self,odata :&[u8]) -> Result<(),Box<dyn Error>> {
+		self.enc_digest.data = odata.to_vec().clone();
+		Ok(())
+	}
+
 }
 
 //#[asn1_sequence(debug=enable)]
@@ -262,6 +267,11 @@ impl Asn1Pkcs7SignerInfo {
 		}
 
 		Ok(retv)
+	}
+
+	pub fn set_enc_digest(&mut self,odata :&[u8]) -> Result<(),Box<dyn Error>> {
+		self.elem.make_safe_one("Asn1Pkcs7SignerInfo")?;
+		return self.elem.val[0].set_enc_digest(odata);
 	}
 }
 
