@@ -217,8 +217,8 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	let mut obj :Asn1Object = Asn1Object::init_asn1();
 	let _ = obj.set_value(SPC_INDIRECT_DATA_OBJID)?;
 	oid = PKCS9_CONTENT_TYPE_OID.to_string();
-	oany.tag = 0x31;
-	oany.content = obj.encode_asn1()?;
+	let code = obj.encode_asn1()?;
+	oany.decode_asn1(&code)?;
 
 	let _ = si.append_auth_attr(&oid,&oany)?;
 
@@ -272,7 +272,11 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 
 	for i in 0..certs.len() {
 		if !certs[i].equal_asn1(&cert) {
-			pkcs7obj.add_cert(&certs[i])?;
+			let mut ncert = certs[i].clone();
+			if ncert.aux.val.is_some() {
+				ncert.aux.val = None;
+			}
+			pkcs7obj.add_cert(&ncert)?;
 		}
 	}
 

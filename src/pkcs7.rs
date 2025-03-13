@@ -161,10 +161,9 @@ impl Asn1Pkcs7SignerInfoElem {
 	}
 
 	pub fn add_time_str_attr(&mut self, dt :&str) -> Result<(),Box<dyn Error>> {
-		let mut atime :Asn1Set<Asn1Time> = Asn1Set::init_asn1();
-		atime.val.push(Asn1Time::init_asn1());
-		atime.val[0].set_value_str(dt)?;
-		atime.val[0].set_utag(ASN1_UTCTIME_FLAG)?;
+		let mut atime :Asn1Time = Asn1Time::init_asn1();
+		atime.set_value_str(dt)?;
+		atime.set_utag(ASN1_UTCTIME_FLAG)?;
 		let code = atime.encode_asn1()?;
 		let mut oany :Asn1Any = Asn1Any::init_asn1();
 		oany.decode_asn1(&code)?;
