@@ -39,7 +39,7 @@ use ssllib::x509::*;
 use ssllib::consts::*;
 use asn1obj::asn1impl::*;
 use asn1obj::base::*;
-use asn1obj::complex::*;
+//use asn1obj::complex::*;
 use super::fileop::*;
 use super::spc::form_sidc_from_pefile;
 use super::dgstlib::dgst_get_value;
@@ -241,13 +241,13 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 
 
 	oid = SPC_STATEMENT_TYPE_OBJID.to_string();
+	let ccode :Vec<u8>;
 	if ns.get_bool("pkcs7comm") {
-		oany.tag = 0x31;
-		oany.content = vec![0x30,0x0c,0x06,0x0a,0x2b,0x06,0x01,0x04,0x01,0x82,0x37,0x02,0x01,0x16];
+		ccode = vec![0x30,0x0c,0x06,0x0a,0x2b,0x06,0x01,0x04,0x01,0x82,0x37,0x02,0x01,0x16];
 	} else {
-		oany.tag = 0x31;
-		oany.content = vec![0x30,0x0c,0x06,0x0a,0x2b,0x06,0x01,0x04,0x01,0x82,0x37,0x02,0x01,0x15];
+		ccode = vec![0x30,0x0c,0x06,0x0a,0x2b,0x06,0x01,0x04,0x01,0x82,0x37,0x02,0x01,0x15];
 	}
+	oany.decode_asn1(&ccode)?;
 	let _ = si.append_auth_attr(&oid,&oany)?;
 	oany.tag = 0x31;
 
@@ -282,9 +282,8 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 
 	let dgstcode = dgst_get_value(&dgstname,0,&initv,&(oany.content))?;
 	debug_buffer_trace!(dgstcode.as_ptr(),dgstcode.len(),"dgstcode");
-	let  mut setdgst :Asn1Set<Asn1OctData> = Asn1Set::init_asn1();
-	setdgst.val.push(Asn1OctData::init_asn1());
-	setdgst.val[0].data = dgstcode.clone();
+	let  mut setdgst :Asn1OctData = Asn1OctData::init_asn1();
+	setdgst.data = dgstcode.clone();
 	let mut odgst :Asn1Any = Asn1Any::init_asn1();
 	let ocode = setdgst.encode_asn1()?;
 	odgst.decode_asn1(&ocode)?;
