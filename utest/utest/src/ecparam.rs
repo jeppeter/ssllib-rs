@@ -32,6 +32,10 @@ use super::fileop::*;
 #[allow(unused_imports)]
 use std::io::Write;
 use rand_core::OsRng; 
+use ssllib::pkcs8::*;
+use ssllib::x509::*;
+use ssllib::consts::*;
+use asn1obj::base::*;
 
 
 extargs_error_class!{EcParamError}
@@ -317,7 +321,50 @@ fn ecprivatekeydec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn Ar
 	Ok(())
 }
 
-#[extargs_map_function(eck256sign_handler,eck256vfy_handler,eck256gen_handler,ecp384sign_handler,ecp384vfy_handler,ecp384gen_handler,ecx9pentdec_handler,ecchartwodec_handler,ecfieldiddec_handler,eccurvedec_handler,ecparamsdec_handler,ecpkparamsdec_handler,ecprivatekeydec_handler)]
+fn pkcs8toecpriv_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
+	let sarr :Vec<String>;
+
+	init_log(ns.clone())?;
+	sarr = ns.get_array("subnargs");
+	if sarr.len() < 1 {
+		extargs_new_error!{EcParamError,"need pkcs8file"}
+	}
+	let pkcs8file = format!("{}",sarr[0]);
+	let pkcs8code = read_file_bytes(&pkcs8file)?;
+	let mut pkinfo :Asn1Pkcs8PrivKeyInfo = Asn1Pkcs8PrivKeyInfo::init_asn1();
+	pkinfo.decode_asn1(&pkcs8code)?;
+	let mut ecpriv :ECPrivateKeyAsn1 = ECPrivateKeyAsn1::init_asn1();
+	let pkaglor :Asn1X509Algor = pkinfo.get_algor()?;
+	let algo = pkaglor.get_algorithm()?;
+	if algo != OID_EC_PUBLICKEY_ENCRYPTION {
+		extargs_new_error!{EcParamError,"algo {} not {} ",algo, OID_EC_PUBLICKEY_ENCRYPTION}
+	}
+	let keydata = pkinfo.get_pkey()?;
+	ecpriv.decode_asn1(&keydata)?;
+	let mut oidtype :Asn1Object = Asn1Object::init_asn1();
+	let oany :Option<Asn1Any> = pkaglor.get_param()?;
+	if oany.is_none() {
+		extargs_new_error!{EcParamError,"param null"}
+	}
+	let aany = oany.unwrap();
+	let code = aany.encode_asn1()?;
+	oidtype.decode_asn1(&code)?;
+	let oidstr = oidtype.get_value();
+	ecpriv.set_ec_type_oid(&oidstr)?;
+	let outfile = ns.get_string("output");
+	let outcode = ecpriv.encode_asn1()?;
+	if outfile.len() > 0 {
+		write_file_bytes(&outfile,&outcode)?;
+	} else {
+		debug_buffer_trace!(outcode.as_ptr(),outcode.len(),"outcode");
+
+	}
+
+	Ok(())
+}
+
+
+#[extargs_map_function(eck256sign_handler,eck256vfy_handler,eck256gen_handler,ecp384sign_handler,ecp384vfy_handler,ecp384gen_handler,ecx9pentdec_handler,ecchartwodec_handler,ecfieldiddec_handler,eccurvedec_handler,ecparamsdec_handler,ecpkparamsdec_handler,ecprivatekeydec_handler,pkcs8toecpriv_handler)]
 pub fn load_ecparam_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -359,6 +406,9 @@ pub fn load_ecparam_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> 
 		},
 		"ecprivatekeydec<ecprivatekeydec_handler>##binfile ... to decode EC_PRIVATEKEY##" : {
 			"$" : "+"
+		},
+		"pkcs8toecpriv<pkcs8toecpriv_handler>##pkcs8bin to write output##" : {
+			"$" : 1
 		}
 	}
 	"#;
