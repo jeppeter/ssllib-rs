@@ -33,6 +33,7 @@ use super::loglib::*;
 use super::pemlib::*;
 use super::*;
 use ssllib::pkcs7::*;
+use ssllib::pkcs12::*;
 use ssllib::utils::*;
 use ssllib::x509::*;
 use ssllib::consts::*;
@@ -42,7 +43,6 @@ use asn1obj::complex::*;
 use super::fileop::*;
 use super::spc::form_sidc_from_pefile;
 use super::dgstlib::dgst_get_value;
-use super::spc::{SpcPeImageData};
 //use super::pelib::{pe_get_digest};
 #[allow(unused_imports)]
 use chrono::{Utc,DateTime,Datelike,Timelike};
@@ -170,6 +170,7 @@ const PKCS9_MESSAGE_DIGEST_TYPE_OID :&str = "1.2.840.113549.1.9.4";
 
 fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
 	let sarr :Vec<String>;
+	let passin :String;
 
 	init_log(ns.clone())?;
 
@@ -179,11 +180,16 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 		extargs_new_error!{Pkcs7Error,"need x509file pkeyname dgstname pefile"}
 	}
 
-	let x509file = format!("{}",sarr[0]);
+	passin = ns.get_string("passin");
+
+	let pkcs12file = format!("{}",sarr[0]);
 	let pkeyname = format!("{}",sarr[1]);
 	let dgstname = format!("{}",sarr[2]);
 	let pefile = format!("{}",sarr[3]);
 	let ooidpkey = ssllib_get_pkey_oid(&pkeyname);
+	let pkcs12code = read_file_into_der(&pkcs12file)?;
+	let mut pkcs12obj :Asn1Pkcs12 = Asn1Pkcs12::init_asn1();
+	pkcs12obj.decode_asn1(&pkcs12code)?;
 	if ooidpkey.is_none() {
 		extargs_new_error!{Pkcs7Error,"no pkey oid for {}",pkeyname}
 	}
@@ -194,9 +200,15 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	}
 	let oidpkey = ooidpkey.unwrap();
 	let oiddgst = ooiddgst.unwrap();
-	let x509code = read_file_into_der(&x509file)?;
-	let mut cert :Asn1X509 = Asn1X509::init_asn1();
-	let _ = cert.decode_asn1(&x509code)?;
+	let (keycert,certs) = pkcs12obj.get_key_certs(passin.as_bytes())?;
+	//let x509code = read_file_into_der(&x509file)?;
+	if keycert.len() < 1 {
+		extargs_new_error!{Pkcs7Error,"can not get keycert"}
+	}
+	let mut cert :Asn1X509 = keycert[0].clone();
+	if cert.aux.val.is_some() {
+		cert.aux.val = None;
+	}
 	let mut si = Asn1Pkcs7SignerInfo::new_signer_info_from_cert(&cert,&oidpkey,&oiddgst)?;
 	let mut oany :Asn1Any = Asn1Any::init_asn1();
 	let mut outf = std::io::stdout();
@@ -258,6 +270,12 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	pkcs7obj.set_content_new_pkcs7(PKCS7_TYPE_DATA)?;
 	pkcs7obj.add_cert(&cert)?;
 
+	for i in 0..certs.len() {
+		if !certs[i].equal_asn1(&cert) {
+			pkcs7obj.add_cert(&certs[i])?;
+		}
+	}
+
 	let dgstcode = dgst_get_value(&dgstname,0,&initv,&(oany.content))?;
 	debug_buffer_trace!(dgstcode.as_ptr(),dgstcode.len(),"dgstcode");
 	let  mut setdgst :Asn1Set<Asn1OctData> = Asn1Set::init_asn1();
@@ -284,6 +302,7 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	pkcs7obj.set_content_pk7(&pk7)?;
 
 	/*now to give the idc value*/
+	/*
 	let mut sidc :SpcPeImageData = SpcPeImageData::init_asn1();
 	sidc.add_flags(0,"<<<Obsolete>>>")?;
 	let pk7code = sidc.encode_asn1()?;
@@ -293,6 +312,7 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	pk7.set_type(SPC_INDIRECT_DATA_OBJID)?;
 	pk7.set_oany(&oany)?;
 	pkcs7obj.set_content_pk7(&pk7)?;
+	*/
 
 	let _ = pkcs7obj.print_asn1("Asn1Pkcs7",0,&mut outf)?;
 
