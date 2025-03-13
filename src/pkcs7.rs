@@ -180,6 +180,19 @@ impl Asn1Pkcs7SignerInfoElem {
 		return self.append_auth_attr(SIGNING_TIME_OID,&oany);
 	}
 
+	pub fn export_auth_attr(&self) -> Result<Asn1Set<Asn1X509Attribute>,Box<dyn Error>> {
+		let mut retv :Asn1Set<Asn1X509Attribute> = Asn1Set::init_asn1();
+
+		if self.auth_attr.val.is_some() {
+			let refv :&Asn1ImpSet<Asn1X509Attribute,0> = self.auth_attr.val.as_ref().unwrap();
+			for i in 0..refv.val.len() {
+				retv.val.push(refv.val[i].clone());
+			}
+		}
+
+		Ok(retv)
+	}
+
 }
 
 //#[asn1_sequence(debug=enable)]
@@ -237,6 +250,18 @@ impl Asn1Pkcs7SignerInfo {
 	pub fn add_time_str_attr_local(&mut self,dt :&str) -> Result<(),Box<dyn Error>> {
 		self._make_sure_elem()?;
 		return self.elem.val[0].add_time_str_attr_local(dt);
+	}
+
+	pub fn export_auth_attr(&self) -> Result<Asn1Set<Asn1X509Attribute>,Box<dyn Error>> {
+		let mut retv :Asn1Set<Asn1X509Attribute> = Asn1Set::init_asn1();
+		for i in 0..self.elem.val.len() {
+			let curval = self.elem.val[i].export_auth_attr()?;
+			for j in 0..curval.val.len() {
+				retv.val.push(curval.val[j].clone());
+			}
+		}
+
+		Ok(retv)
 	}
 }
 

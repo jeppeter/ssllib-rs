@@ -39,7 +39,8 @@ use ssllib::x509::*;
 use ssllib::consts::*;
 use asn1obj::asn1impl::*;
 use asn1obj::base::*;
-//use asn1obj::complex::*;
+use asn1obj::complex::*;
+use ssllib::digest::ssllib_get_digest_operator;
 use super::fileop::*;
 use super::spc::form_sidc_from_pefile;
 use super::dgstlib::dgst_get_value;
@@ -84,6 +85,26 @@ fn pkcs7signerinfodec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn
 
 	Ok(())
 }
+
+fn pkcs7attrexp_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
+	let sarr :Vec<String>;
+
+	init_log(ns.clone())?;
+
+	sarr = ns.get_array("subnargs");
+	for f in sarr.iter() {
+		let code = read_file_into_der(f)?;
+		let mut pkcs7siginfo :Asn1Pkcs7SignerInfo = Asn1Pkcs7SignerInfo::init_asn1();
+		let _ = pkcs7siginfo.decode_asn1(&code)?;
+		let attrs :Asn1Set<Asn1X509Attribute> = pkcs7siginfo.export_auth_attr()?;
+		//let mut outf = std::io::stdout();
+		let code = attrs.encode_asn1()?;
+		debug_buffer_trace!(code.as_ptr(),code.len(),"export [{}]",f);
+	}
+
+	Ok(())
+}
+
 
 fn pkcs7appsignature_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
 	let sarr :Vec<String>;
@@ -288,6 +309,26 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	let ocode = setdgst.encode_asn1()?;
 	odgst.decode_asn1(&ocode)?;
 	si.append_auth_attr(PKCS9_MESSAGE_DIGEST_TYPE_OID,&odgst)?;
+	let expc  = si.export_auth_attr()?;
+	let updc = expc.encode_asn1()?;
+	debug_buffer_trace!(updc.as_ptr(),updc.len(),"update code");
+	let odigop = ssllib_get_digest_operator(&dgstname);
+	if odigop.is_none() {
+		extargs_new_error!{Pkcs7Error,"no [{}] digest" ,dgstname}
+	}
+	let digop = odigop.unwrap();
+	let v :Vec<u8> = vec![];
+	digop.borrow_mut().init_digest(0,&v)?;
+	digop.borrow_mut().digest_update(&updc)?;
+	let digcode = digop.borrow_mut().digest_final()?;
+	debug_buffer_trace!(digcode.as_ptr(),digcode.len(),"to set enc_digest");
+
+
+
+	/*now we should give the value for handle*/
+
+	/*now we should give the value*/
+
 
 	let _ = pkcs7obj.add_signer(&si)?;
 
@@ -325,7 +366,7 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 }
 
 
-#[extargs_map_function(pkcs7dec_handler,pkcs7signerinfodec_handler,pkcs7appsignature_handler,pkcs7signerinfoaddauthattr_handler,pkcs7sign_handler)]
+#[extargs_map_function(pkcs7dec_handler,pkcs7signerinfodec_handler,pkcs7appsignature_handler,pkcs7signerinfoaddauthattr_handler,pkcs7sign_handler,pkcs7attrexp_handler)]
 pub fn load_pkcs7_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -348,6 +389,9 @@ pub fn load_pkcs7_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 			"$" : 3
 		},
 		"pkcs7sign<pkcs7sign_handler>##x509file pkeyname dgstname pefile##" : {
+			"$" : "+"
+		},
+		"pkcs7attrexp<pkcs7attrexp_handler>##pkcs7signer to export auth attr##" : {
 			"$" : "+"
 		}
 	}
