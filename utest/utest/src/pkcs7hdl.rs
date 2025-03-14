@@ -321,7 +321,7 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	digop.borrow_mut().init_digest(0,&v)?;
 	digop.borrow_mut().digest_update(&updc)?;
 	let digcode = digop.borrow_mut().digest_final()?;
-	debug_buffer_trace!(digcode.as_ptr(),digcode.len(),"to set enc_digest");
+	debug_buffer_trace!(digcode.as_ptr(),digcode.len(),"to set enc_digest dgstname {}",dgstname);
 	let osignop = pkcs12obj.get_sign_op(passin.as_bytes())?;
 	if osignop.is_none() {
 		extargs_new_error!{Pkcs7Error,"no sign op"}
