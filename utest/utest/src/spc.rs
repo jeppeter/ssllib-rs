@@ -11,6 +11,7 @@ use std::io::Write;
 use extargsparse_worker::{extargs_new_error,extargs_error_class};
 use super::pelib::pe_get_digest;
 use ssllib::utils::ssllib_get_digest_oid;
+use ssllib::x509::Asn1X509Extension;
 
 
 extargs_error_class!{SpcError}
@@ -339,4 +340,15 @@ pub fn form_sidc_from_pefile(dgstname :&str,pefile :&str,times :u32, initv :&[u8
 	coany.decode_asn1(&nullcode)?;
 	sidc.set_digest(&oidname,Some(coany),&dgstcode)?;
 	return Ok(sidc);
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct TimeStampReq {
+	version :Asn1Integer,
+	messageimprint :MessageImprint,
+	reqpolicy :Asn1Object,
+	nonce :Asn1Integer,
+	certreq :Asn1Boolean,
+	extensions :Asn1Opt<Asn1ImpSet<Asn1X509Extension,0>>,
 }
