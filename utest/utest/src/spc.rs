@@ -358,3 +358,31 @@ pub struct TimeStampReqElem {
 pub struct TimeStampReq {
 	pub elem :Asn1Seq<TimeStampReqElem>,
 }
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct TimeStampRequestBlobElem {
+	#[asn1_gen(jsonalias="type")]
+	pub stype :Asn1Object,
+	pub signature :Asn1OctData,	
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct TimeStampRequestBlob {
+	pub elem :Asn1Seq<TimeStampRequestBlobElem>,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct TimeStampRequestElem {
+	#[asn1_gen(jsonalias="type")]
+	pub stype :Asn1Object,
+	pub blob :TimeStampRequestBlob,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct TimeStampRequest {
+	pub elem :TimeStampRequestElem,
+}

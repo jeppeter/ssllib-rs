@@ -153,7 +153,31 @@ fn tsreqdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImp
 }
 
 
-#[extargs_map_function(spcpeimgdec_handler,spcpeimgenc_handler,sidcdec_handler,sidcform_handler,tsreqdec_handler)]
+fn tsrequestdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
+	let sarr :Vec<String>;
+
+	sarr = ns.get_array("subnargs");
+	if sarr.len() < 1 {
+		extargs_new_error!{SpcHdlError,"need one file"}
+	}
+
+	for f in sarr.iter() {
+		let data = read_file_into_der(f)?;
+		let mut tsreq :TimeStampRequest = TimeStampRequest::init_asn1();
+		tsreq.decode_asn1(&data)?;
+		let mut outf = std::io::stdout();
+		let mut jval :serde_json::Value = serde_json::from_str("{}")?;
+		tsreq.encode_json("",&mut jval)?;
+		let s = serde_json::to_string_pretty(&jval)?;
+		println!("{}\n{}",f,s);
+		let s = format!("{} file\n",f);
+		tsreq.print_asn1(&s,0,&mut outf)?;
+	}
+	Ok(())
+}
+
+
+#[extargs_map_function(spcpeimgdec_handler,spcpeimgenc_handler,sidcdec_handler,sidcform_handler,tsreqdec_handler,tsrequestdec_handler)]
 pub fn load_spc_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -170,6 +194,9 @@ pub fn load_spc_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 			"$" : "+"
 		},
 		"tsreqdec<tsreqdec_handler>##binfile ... to decode into json file for TimeStampReq##" : {
+			"$" : "+"
+		},
+		"tsrequestdec<tsrequestdec_handler>##binfile ... to decode into json file for TimeStampRequest##" : {
 			"$" : "+"
 		}
 	}
