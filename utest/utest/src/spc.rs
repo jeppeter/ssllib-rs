@@ -344,11 +344,17 @@ pub fn form_sidc_from_pefile(dgstname :&str,pefile :&str,times :u32, initv :&[u8
 
 #[asn1_sequence()]
 #[derive(Clone)]
-pub struct TimeStampReq {
+pub struct TimeStampReqElem {
 	version :Asn1Integer,
 	messageimprint :MessageImprint,
 	reqpolicy :Asn1Object,
 	nonce :Asn1Integer,
 	certreq :Asn1Boolean,
 	extensions :Asn1Opt<Asn1ImpSet<Asn1X509Extension,0>>,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct TimeStampReq {
+	pub elem :Asn1Seq<TimeStampReqElem>,
 }
