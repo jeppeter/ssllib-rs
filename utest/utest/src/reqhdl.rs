@@ -56,7 +56,7 @@ fn curl_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>
 
 
 
-#[extargs_map_function()]
+#[extargs_map_function(curl_handler)]
 pub fn load_req_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
