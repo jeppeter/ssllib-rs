@@ -53,6 +53,7 @@ mod encdehdl;
 mod spc;
 mod spchdl;
 mod pehdl;
+mod reqhdl;
 
 
 #[extargs_map_function()]

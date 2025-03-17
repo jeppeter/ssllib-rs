@@ -24,6 +24,7 @@ hex="^0.4.3"
 rand_core="^0.6.3"
 rust-ini = "^0.18.0"
 pe-parser = "^0.6.0"
+reqwest = "^0.12.14"
 
 
 [target.'cfg(windows)'.dependencies.winapi]
