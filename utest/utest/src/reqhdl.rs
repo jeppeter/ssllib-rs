@@ -39,6 +39,7 @@ extargs_error_class!{ReqHdlError}
 
 fn curl_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
 	let sarr :Vec<String>;
+	let method :String;
 	//let mut lastidx :usize;
 
 
@@ -46,6 +47,8 @@ fn curl_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>
 
 	sarr = ns.get_array("subnargs");
 	let url = format!("{}",sarr[0]);
+	method = ns.get_string("method");
+	let mut client = reqwest::Client::new();
 
 
 	Ok(())
