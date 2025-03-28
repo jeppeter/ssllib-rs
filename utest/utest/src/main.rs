@@ -52,6 +52,7 @@ mod dgstlib;
 mod encdehdl;
 mod spc;
 mod spchdl;
+mod req;
 mod reqhdl;
 mod pehdl;
 
