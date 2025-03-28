@@ -33,20 +33,19 @@ use super::{debug_error,debug_buffer_trace,format_str_log,format_buffer_log};
 use std::str::FromStr;
 use std::io::Read;
 use super::loglib::*;
-use super::pemlib::*;
-use asn1obj::asn1impl::*;
 #[allow(unused_imports)]
 use chrono::{Utc,DateTime,Datelike,Timelike};
 
-use super::strop::{parse_u64,out_buffer_data};
 use super::fileop::{read_file_bytes};
-use reqwest::{Client, header::{HeaderMap,HeaderName,HeaderValue}};
+use reqwest::blocking::{Client,  Response};
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+
 
 extargs_error_class!{ReqHdlError}
 
 
 
-async fn reqpost_data(url :&str,ns :NameSpaceEx, data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
+fn reqpost_data(url :&str,ns :NameSpaceEx, data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
 	let mut bld = Client::builder();
 	let timeout = ns.get_int("timeout");
 	if timeout != 0 {
@@ -54,11 +53,11 @@ async fn reqpost_data(url :&str,ns :NameSpaceEx, data :&[u8]) -> Result<Vec<u8>,
 	}
 
 	let client = bld.build()?;
-	let mut reqbld = client.post(url);
+	let mut reqbld :reqwest::blocking::RequestBuilder = client.post(url);
 	let mut hdrmap :HeaderMap = HeaderMap::new();
 	let mut hdrname :HeaderName;
 	let mut hdrval :HeaderValue;
-	let mut resp : reqwest::Response;
+	let mut resp : Response;
 	hdrname = HeaderName::from_str("Content-Type")?;
 	hdrval = HeaderValue::from_str("application/timestamp-query")?;
 	hdrmap.insert(hdrname.clone(),hdrval.clone());
@@ -77,7 +76,7 @@ async fn reqpost_data(url :&str,ns :NameSpaceEx, data :&[u8]) -> Result<Vec<u8>,
 	hdrmap.insert(hdrname.clone(),hdrval.clone());
 
 	reqbld = reqbld.headers(hdrmap);
-	reqbld = reqbld.body(data);
+	reqbld = reqbld.body(data.to_vec().clone());
 
 	loop {
 		let ores = reqbld.try_clone();
@@ -86,7 +85,7 @@ async fn reqpost_data(url :&str,ns :NameSpaceEx, data :&[u8]) -> Result<Vec<u8>,
 			continue;
 		}
 		let cbld = ores.unwrap();
-		let ores = cbld.send().await;
+		let ores = cbld.send();
 		if ores.is_err() {
 			let e = ores.err().unwrap();
 			debug_error!("clone {:?}", e);
@@ -98,7 +97,7 @@ async fn reqpost_data(url :&str,ns :NameSpaceEx, data :&[u8]) -> Result<Vec<u8>,
 
 	let totalsize = resp.content_length().unwrap();
 	let mut retv :Vec<u8> = vec![];
-	let mut cbuf = [0,2096];
+	let mut cbuf = [0;2096];
 	while retv.len() < totalsize as usize {
 		let rcnt = resp.read(&mut cbuf)?;
 		for i in 0..rcnt {
@@ -112,6 +111,8 @@ async fn reqpost_data(url :&str,ns :NameSpaceEx, data :&[u8]) -> Result<Vec<u8>,
 fn reqpost_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
 	let sarr :Vec<String>;
 
+	init_log(ns.clone())?;
+
 	sarr = ns.get_array("subnargs");
 	if sarr.len() < 1 {
 		extargs_new_error!{ReqHdlError,"need url"}
@@ -121,7 +122,7 @@ fn reqpost_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl
 	let outdata = read_file_bytes(&infile)?;
 	let url = format!("{}",sarr[0]);
 
-	let indata = reqpost_data(&url,ns.clone(),&outdata).await?;
+	let indata = reqpost_data(&url,ns.clone(),&outdata)?;
 
 	debug_buffer_trace!(indata.as_ptr(),indata.len(),"for [{}]", url);
 
