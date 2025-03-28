@@ -12,6 +12,7 @@ use extargsparse_worker::{extargs_new_error,extargs_error_class};
 use super::pelib::pe_get_digest;
 use ssllib::utils::ssllib_get_digest_oid;
 use ssllib::x509::Asn1X509Extension;
+use ssllib::pkcs7::Asn1Pkcs7;
 
 
 extargs_error_class!{SpcError}
@@ -385,4 +386,32 @@ pub struct TimeStampRequestElem {
 #[derive(Clone)]
 pub struct TimeStampRequest {
 	pub elem :TimeStampRequestElem,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct PKIStatusInfoElem {
+	pub status :Asn1Integer,
+	pub statusString :Asn1Opt<Asn1Seq<Asn1String>>,
+	pub failInfo :Asn1Opt<Asn1BitDataFlag>,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct PKIStatusInfo {
+	pub elem :Asn1Seq<PKIStatusInfoElem>,
+}
+
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct TimeStampRespElem {
+	pub status :PKIStatusInfo,
+	pub token :Asn1Opt<Asn1Pkcs7>,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct TimeStampResp {
+	pub elem :Asn1Seq<TimeStampRespElem>,
 }

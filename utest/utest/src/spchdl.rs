@@ -177,7 +177,48 @@ fn tsrequestdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSe
 }
 
 
-#[extargs_map_function(spcpeimgdec_handler,spcpeimgenc_handler,sidcdec_handler,sidcform_handler,tsreqdec_handler,tsrequestdec_handler)]
+fn tsrespdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
+	let sarr :Vec<String>;
+
+	sarr = ns.get_array("subnargs");
+	if sarr.len() < 1 {
+		extargs_new_error!{SpcHdlError,"need one file"}
+	}
+
+	for f in sarr.iter() {
+		debug_trace!("debug {}",f);
+		let data = read_file_into_der(f)?;
+		let mut tsresp :TimeStampResp = TimeStampResp::init_asn1();
+		tsresp.decode_asn1(&data)?;
+		let mut outf = std::io::stdout();
+		let s = format!("{} file\n",f);
+		tsresp.print_asn1(&s,0,&mut outf)?;
+	}
+	Ok(())
+}
+
+
+fn pkinfodec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
+	let sarr :Vec<String>;
+
+	sarr = ns.get_array("subnargs");
+	if sarr.len() < 1 {
+		extargs_new_error!{SpcHdlError,"need one file"}
+	}
+
+	for f in sarr.iter() {
+		let data = read_file_into_der(f)?;
+		let mut tsresp :PKIStatusInfo = PKIStatusInfo::init_asn1();
+		tsresp.decode_asn1(&data)?;
+		let mut outf = std::io::stdout();
+		let s = format!("{} file\n",f);
+		tsresp.print_asn1(&s,0,&mut outf)?;
+	}
+	Ok(())
+}
+
+
+#[extargs_map_function(spcpeimgdec_handler,spcpeimgenc_handler,sidcdec_handler,sidcform_handler,tsreqdec_handler,tsrequestdec_handler,tsrespdec_handler,pkinfodec_handler)]
 pub fn load_spc_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -197,6 +238,12 @@ pub fn load_spc_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 			"$" : "+"
 		},
 		"tsrequestdec<tsrequestdec_handler>##binfile ... to decode into json file for TimeStampRequest##" : {
+			"$" : "+"
+		},
+		"tsrespdec<tsrespdec_handler>##binfile ... to decode TimeStampResp##" : {
+			"$" : "+"
+		},
+		"pkinfodec<pkinfodec_handler>##binfile ... to decode PKIStatusInfo##" : {
 			"$" : "+"
 		}
 	}
