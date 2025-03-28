@@ -52,6 +52,7 @@ mod dgstlib;
 mod encdehdl;
 mod spc;
 mod spchdl;
+//mod reqhdl;
 mod pehdl;
 
 
@@ -81,6 +82,7 @@ fn main() -> Result<(),Box<dyn Error>> {
 	gennamehdl::load_genname_handler(parser.clone())?;
 	spchdl::load_spc_handler(parser.clone())?;
 	pehdl::load_pe_handler(parser.clone())?;
+	//reqhdl::load_req_handler(parser.clone())?;
 	let ores = parser.parse_commandline_ex(None,None,None,None);
 	if ores.is_err() {
 		let e = ores.err().unwrap();
