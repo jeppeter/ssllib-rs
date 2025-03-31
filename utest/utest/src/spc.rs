@@ -17,6 +17,8 @@ use ssllib::pkcs7::Asn1Pkcs7;
 
 extargs_error_class!{SpcError}
 
+pub const SPC_RFC3161_OBJID  :&str =           "1.3.6.1.4.1.311.3.3.1";
+
 #[asn1_int_choice(selector=itype,unicode=0,ascii=1)]
 #[derive(Clone)]
 pub struct SpcStringElem {
@@ -465,10 +467,23 @@ pub struct PKIStatusInfoElem {
 	pub failInfo :Asn1Opt<Asn1BitDataFlag>,
 }
 
+impl PKIStatusInfoElem {
+	pub fn get_status(&self) -> Result<i32, Box<dyn Error>> {
+		Ok(self.status.val as i32)
+	}
+}
+
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct PKIStatusInfo {
 	pub elem :Asn1Seq<PKIStatusInfoElem>,
+}
+
+impl PKIStatusInfo {
+	pub fn get_status(&self) -> Result<i32, Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("PKIStatusInfoElem")?;
+		return self.elem.val[0].get_status();
+	}
 }
 
 
@@ -479,8 +494,34 @@ pub struct TimeStampRespElem {
 	pub token :Asn1Opt<Asn1Pkcs7>,
 }
 
+impl TimeStampRespElem {
+	pub fn get_status(&self) -> Result<i32, Box<dyn Error>> {
+		return self.status.get_status();
+	}
+
+	pub fn get_token_code(&self) -> Result<Vec<u8>,Box<dyn Error>> {
+		if self.token.val.is_none() {
+			extargs_new_error!{SpcError,"no token"}
+		}
+		let refv :&Asn1Pkcs7 = self.token.val.as_ref().unwrap();
+		return refv.encode_asn1();
+	}
+}
+
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct TimeStampResp {
 	pub elem :Asn1Seq<TimeStampRespElem>,
+}
+
+impl TimeStampResp {
+	pub fn get_status(&self) -> Result<i32,Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("TimeStampRespElem")?;
+		return self.elem.val[0].get_status();
+	}
+
+	pub fn get_token_code(&self) -> Result<Vec<u8>,Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("TimeStampRespElem")?;
+		return self.elem.val[0].get_token_code();		
+	}
 }

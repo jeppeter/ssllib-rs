@@ -140,6 +140,20 @@ impl Asn1Pkcs7SignerInfoElem {
 		Ok(())
 	}
 
+	pub fn append_unauth_attr(&mut self,oid :&str,code :&[u8]) -> Result<(),Box<dyn Error>> {
+		let  attr :Asn1X509Attribute = Asn1X509Attribute::new_create_attr(oid,code)?;
+		let mut impset :Asn1ImpSet<Asn1X509Attribute,1> = Asn1ImpSet::init_asn1();		
+		if self.unauth_attr.val.is_none() {
+			impset.val.push(attr);
+			self.unauth_attr.val = Some(impset);
+		} else {
+			impset = self.unauth_attr.val.as_ref().unwrap().clone();
+			impset.val.push(attr);
+			self.unauth_attr.val = Some(impset);
+		}
+		Ok(())
+	}
+
 	pub fn add_time_attr(&mut self,dt :&DateTime<Utc>) -> Result<(),Box<dyn Error>> {
 		let mut atime :Asn1Set<Asn1Time> = Asn1Set::init_asn1();
 		atime.val.push(Asn1Time::init_asn1());
@@ -238,6 +252,12 @@ impl Asn1Pkcs7SignerInfo {
 		let _ = self.elem.val[0].append_auth_attr(oid,oany)?;
 		Ok(())
 	}
+
+	pub fn append_unauth_attr(&mut self,oid :&str,code :&[u8]) -> Result<(),Box<dyn Error>> {
+		self._make_sure_elem()?;
+		return self.elem.val[0].append_unauth_attr(oid,code);
+	}
+
 	pub fn add_time_attr(&mut self,dt :&DateTime<Utc>) -> Result<(),Box<dyn Error>> {
 		self._make_sure_elem()?;
 		return self.elem.val[0].add_time_attr(dt);

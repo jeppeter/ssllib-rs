@@ -44,7 +44,7 @@ use ssllib::digest::ssllib_get_digest_operator;
 use super::fileop::*;
 use super::spc::form_sidc_from_pefile;
 use super::dgstlib::dgst_get_value;
-use super::spc::{TimeStampReq};
+use super::spc::{TimeStampReq,TimeStampResp,SPC_RFC3161_OBJID};
 use super::req::{reqpost_data};
 //use super::pelib::{pe_get_digest};
 #[allow(unused_imports)]
@@ -356,6 +356,15 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	let incode = tsreq.encode_asn1()?;
 	let outcode = reqpost_data(&url,ns.clone(),&incode)?;
 	debug_buffer_trace!(outcode.as_ptr(),outcode.len(),"outcode");
+	let mut reply :TimeStampResp = TimeStampResp::init_asn1();
+	let _ = reply.decode_asn1(&outcode)?;
+	let ists = reply.get_status()?;
+	if ists != 0 {
+		extargs_new_error!{Pkcs7Error,"status {} != 0", ists}
+	}
+
+	let code = reply.get_token_code()?;
+	si.append_unauth_attr(SPC_RFC3161_OBJID,&code)?;
 
 
 

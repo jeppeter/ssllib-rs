@@ -158,6 +158,19 @@ pub struct Asn1X509AttributeElem {
 	pub set :Asn1Set<Asn1Any>,
 }
 
+impl Asn1X509AttributeElem {
+	pub fn set_attr(&mut self, objval :&str, code :&[u8]) -> Result<(),Box<dyn Error>> {
+		self.object.set_value(objval)?;
+		let mut oany :Asn1Any = Asn1Any::init_asn1();
+		oany.decode_asn1(code)?;
+		if self.set.val.len() < 1 {
+			self.set.val.push(oany);
+		} else {
+			self.set.val[0] = oany.clone();
+		}
+		Ok(())
+	}
+}
 //#[asn1_sequence(debug=enable)]
 #[asn1_sequence()]
 #[derive(Clone)]
@@ -178,6 +191,13 @@ impl Asn1X509Attribute {
 				retv= true;
 			}
 		}
+		Ok(retv)
+	}
+
+	pub fn new_create_attr(objval :&str,code :&[u8]) -> Result<Asn1X509Attribute, Box<dyn Error>> {
+		let mut retv :Asn1X509Attribute = Asn1X509Attribute::init_asn1();
+		retv.elem.make_safe_one("Asn1X509AttributeElem")?;
+		retv.elem.val[0].set_attr(objval,code)?;
 		Ok(retv)
 	}
 }
