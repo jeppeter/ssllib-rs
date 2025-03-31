@@ -210,6 +210,31 @@ pub struct MessageImprint {
 	pub elem :Asn1Seq<MessageImprintElem>,
 }
 
+impl MessageImprintElem {
+	pub fn set_digest_param(&mut self, digoid :&str, param :&Asn1Any) -> Result<(),Box<dyn Error>> {
+		let _  = self.digestAlgorithm.set_value(digoid,Some(param.clone()))?;
+		Ok(())
+	}
+
+	pub fn set_digest(&mut self,digcode :&[u8]) -> Result<(),Box<dyn Error>> {
+		self.digest.data = digcode.to_vec().clone();
+		Ok(())
+	}
+}
+
+
+impl MessageImprint {
+	pub fn set_digest_param(&mut self, digoid :&str, param :&Asn1Any) -> Result<(),Box<dyn Error>> {
+		self.elem.make_safe_one("MessageImprintElem")?;
+		return self.elem.val[0].set_digest_param(digoid,param);
+	}
+
+	pub fn set_digest(&mut self,digcode :&[u8]) -> Result<(),Box<dyn Error>> {
+		self.elem.make_safe_one("MessageImprintElem")?;
+		return self.elem.val[0].set_digest(digcode);
+	}
+}
+
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct TimeStampAccuracyElem {
@@ -348,8 +373,8 @@ pub fn form_sidc_from_pefile(dgstname :&str,pefile :&str,times :u32, initv :&[u8
 pub struct TimeStampReqElem {
 	version :Asn1Integer,
 	messageimprint :MessageImprint,
-	reqpolicy :Asn1Object,
-	nonce :Asn1Integer,
+	reqpolicy :Asn1Opt<Asn1Object>,
+	nonce :Asn1Opt<Asn1Integer>,
 	certreq :Asn1Boolean,
 	extensions :Asn1Opt<Asn1ImpSet<Asn1X509Extension,0>>,
 }
@@ -358,6 +383,50 @@ pub struct TimeStampReqElem {
 #[derive(Clone)]
 pub struct TimeStampReq {
 	pub elem :Asn1Seq<TimeStampReqElem>,
+}
+
+impl TimeStampReqElem {
+	pub fn set_version(&mut self, vernum :i32) -> Result<(),Box<dyn Error>> {
+		self.version.val = vernum as i64;
+		Ok(())
+	}
+
+	pub fn set_digest_param(&mut self, digoid :&str, param :&Asn1Any) -> Result<(),Box<dyn Error>> {
+		return self.messageimprint.set_digest_param(digoid,param);
+	}
+ 
+	pub fn set_digest(&mut self,odigest:&[u8]) -> Result<(),Box<dyn Error>> {
+		return self.messageimprint.set_digest(odigest);
+	}
+
+	pub fn set_certreq(&mut self, val :bool) -> Result<(),Box<dyn Error>> {
+		self.certreq.val = val;
+		Ok(())
+	}
+
+}
+
+impl TimeStampReq {
+	pub fn set_version(&mut self, vernum :i32) -> Result<(),Box<dyn Error>> {
+		self.elem.make_safe_one("TimeStampReqElem")?;
+		return self.elem.val[0].set_version(vernum);
+	}
+
+	pub fn set_digest_param(&mut self, digoid :&str, param :&Asn1Any) -> Result<(),Box<dyn Error>> {
+		self.elem.make_safe_one("TimeStampReqElem")?;
+		return self.elem.val[0].set_digest_param(digoid,param);
+	}
+ 
+	pub fn set_digest(&mut self,odigest:&[u8]) -> Result<(),Box<dyn Error>> {
+		self.elem.make_safe_one("TimeStampReqElem")?;
+		return self.elem.val[0].set_digest(odigest);
+	}
+
+	pub fn set_certreq(&mut self, val :bool) -> Result<(),Box<dyn Error>> {
+		self.elem.make_safe_one("TimeStampReqElem")?;
+		return self.elem.val[0].set_certreq(val);
+	}
+
 }
 
 #[asn1_sequence()]

@@ -44,6 +44,8 @@ use ssllib::digest::ssllib_get_digest_operator;
 use super::fileop::*;
 use super::spc::form_sidc_from_pefile;
 use super::dgstlib::dgst_get_value;
+use super::spc::{TimeStampReq};
+use super::req::{reqpost_data};
 //use super::pelib::{pe_get_digest};
 #[allow(unused_imports)]
 use chrono::{Utc,DateTime,Datelike,Timelike};
@@ -272,6 +274,8 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	let _ = si.append_auth_attr(&oid,&oany)?;
 	oany.tag = 0x31;
 
+	/*now we get the trusted */
+
 
 	let mut pkcs7obj :Asn1Pkcs7 = Asn1Pkcs7::init_asn1();
 	pkcs7obj.set_type(PKCS7_TYPE_SIGNED)?;
@@ -331,6 +335,28 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	debug_buffer_trace!(code.as_ptr(),code.len(),"sign code");
 	let _ = si.set_enc_digest(&code)?;
 
+	/*to make digest*/
+	digop.borrow_mut().init_digest(0,&v)?;
+	digop.borrow_mut().digest_update(&code)?;
+
+	let ndigcode = digop.borrow_mut().digest_final()?;
+
+	debug_buffer_trace!(ndigcode.as_ptr(),ndigcode.len(), "digest code for enc_digest");
+
+	let mut tsreq :TimeStampReq = TimeStampReq::init_asn1();
+	tsreq.set_version(1)?;
+	let nullobj :Asn1Null = Asn1Null::init_asn1();
+	let mut oanyobj :Asn1Any = Asn1Any::init_asn1();
+	let code = nullobj.encode_asn1()?;
+	oanyobj.decode_asn1(&code)?;
+	tsreq.set_digest_param(&oiddgst,&oanyobj)?;
+	tsreq.set_digest(&ndigcode)?;
+	tsreq.set_certreq(true)?;
+	let url = ns.get_string("tsurl");
+	let incode = tsreq.encode_asn1()?;
+	let outcode = reqpost_data(&url,ns.clone(),&incode)?;
+	debug_buffer_trace!(outcode.as_ptr(),outcode.len(),"outcode");
+
 
 
 	/*now we should give the value for handle*/
@@ -384,6 +410,7 @@ pub fn load_pkcs7_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 		"pkcs7comm" : false,
 		"utctime" : null,
 		"localtime" : null,
+		"tsurl" : "https://tsa.swisssign.net",
 		"pkcs7dec<pkcs7dec_handler>##file ... ##" : {
 			"$" : "+"
 		},
