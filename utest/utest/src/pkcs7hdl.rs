@@ -410,6 +410,7 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	let code = pkcs7obj.encode_asn1()?;
 	/*now to extend total size*/
 	let mut appsize :usize = 8;
+	let mut addsize :usize = 8;
 	appsize += code.len();
 	if (appsize % 8) != 0 {
 		appsize += 8 - (appsize % 8)
@@ -434,6 +435,12 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	}
 
 	outbytes.extend(&code);
+	addsize += code.len();
+	while addsize < appsize {
+		outbytes.push(0);
+		addsize += 1;
+	}
+
 	let outfile = ns.get_string("output");
 	if outfile.len() > 0 {
 		write_file_bytes(&outfile,&outbytes)?;
