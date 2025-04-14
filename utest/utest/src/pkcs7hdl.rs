@@ -190,6 +190,8 @@ const SPC_STATEMENT_TYPE_OBJID :&str = "1.3.6.1.4.1.311.2.1.11";
 const SPC_INDIRECT_DATA_OBJID :&str = "1.3.6.1.4.1.311.2.1.4";
 const PKCS9_CONTENT_TYPE_OID :&str = "1.2.840.113549.1.9.3";
 const PKCS9_MESSAGE_DIGEST_TYPE_OID :&str = "1.2.840.113549.1.9.4";
+const WIN_CERT_REVISION_2_0 :u16 = 0x0200;
+const WIN_CERT_TYPE_PKCS_SIGNED_DATA :u16 = 0x0002;
 
 fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
 	let sarr :Vec<String>;
@@ -359,6 +361,7 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	let mut reply :TimeStampResp = TimeStampResp::init_asn1();
 	let _ = reply.decode_asn1(&outcode)?;
 	let ists = reply.get_status()?;
+	let mut outbytes :Vec<u8>;
 	if ists != 0 {
 		extargs_new_error!{Pkcs7Error,"status {} != 0", ists}
 	}
@@ -402,6 +405,39 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	*/
 
 	let _ = pkcs7obj.print_asn1("Asn1Pkcs7",0,&mut outf)?;
+
+	outbytes = read_file_bytes(&pefile)?;
+	let code = pkcs7obj.encode_asn1()?;
+	/*now to extend total size*/
+	let mut appsize :usize = 8;
+	appsize += code.len();
+	if (appsize % 8) != 0 {
+		appsize += 8 - (appsize % 8)
+	}
+
+	let mut idx :usize = 0;
+	while idx < 4 {
+		outbytes.push( ((appsize >> (idx * 8)) & 0xff) as u8);
+		idx += 1;
+	}
+
+	idx = 0;
+	while idx < 2 {
+		outbytes.push( ((WIN_CERT_REVISION_2_0 >> (idx * 8)) & 0xff) as u8);
+		idx += 1;
+	}
+
+	idx = 0;
+	while idx < 2 {
+		outbytes.push( ((WIN_CERT_TYPE_PKCS_SIGNED_DATA >> (idx * 8)) & 0xff) as u8);
+		idx += 1;		
+	}
+
+	outbytes.extend(&code);
+	let outfile = ns.get_string("output");
+	if outfile.len() > 0 {
+		write_file_bytes(&outfile,&outbytes)?;
+	}
 
 
 
