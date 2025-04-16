@@ -27,6 +27,7 @@ use regex::Regex;
 use std::any::Any;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
+use super::pelib::{PeHeader,get_pe_header_by_bytes,pe_set_calc_checksum};
 
 
 use super::loglib::*;
@@ -46,7 +47,6 @@ use super::spc::form_sidc_from_pefile;
 use super::dgstlib::dgst_get_value;
 use super::spc::{TimeStampReq,TimeStampResp,SPC_RFC3161_OBJID};
 use super::req::{reqpost_data};
-//use super::pelib::{pe_get_digest};
 #[allow(unused_imports)]
 use chrono::{Utc,DateTime,Datelike,Timelike};
 
@@ -407,13 +407,35 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	let _ = pkcs7obj.print_asn1("Asn1Pkcs7",0,&mut outf)?;
 
 	outbytes = read_file_bytes(&pefile)?;
+
+	let pehdr :PeHeader = get_pe_header_by_bytes(&outbytes)?;
 	let code = pkcs7obj.encode_asn1()?;
+	let endoff :usize = pehdr.headersize + 152 + pehdr.pe32plus * 16;
+
+
+	/*we change the buffer*/
+	if outbytes.len() < (endoff+8) {
+		extargs_new_error!{Pkcs7Error,"endoff {} + 8 > len(outbytes) {}", endoff, outbytes.len()}
+	}
+	debug_trace!("at 0x{:x} put 0x{:x}", endoff,outbytes.len());
+	for i in 0..4 {
+		outbytes[endoff + i] = ((outbytes.len() >> (i*8)) & 0xff) as u8;
+	}
+
+
+
 	/*now to extend total size*/
 	let mut appsize :usize = 8;
 	let mut addsize :usize = 8;
 	appsize += code.len();
 	if (appsize % 8) != 0 {
 		appsize += 8 - (appsize % 8)
+	}
+
+
+
+	for i in 0..4 {
+		outbytes[endoff + 4 +i] = ((appsize >> (i*8)) & 0xff) as u8;
 	}
 
 	let mut idx :usize = 0;
@@ -441,10 +463,15 @@ fn pkcs7sign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 		addsize += 1;
 	}
 
+
+
+	let _ = pe_set_calc_checksum(&mut outbytes)?;
+
 	let outfile = ns.get_string("output");
 	if outfile.len() > 0 {
 		write_file_bytes(&outfile,&outbytes)?;
 	}
+
 
 
 

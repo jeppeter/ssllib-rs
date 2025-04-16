@@ -31,7 +31,7 @@ use super::fileop::{read_file_bytes};
 use pe_parser::pe::{parse_portable_executable};
 
 use super::strop::{parse_u64,out_buffer_data};
-use super::pelib::{pe_get_digest};
+use super::pelib::{pe_get_digest,pe_get_calc_checksum};
 
 
 extargs_error_class!{PeHdlError}
@@ -88,7 +88,28 @@ fn pedigest_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImp
 }
 
 
-#[extargs_map_function(peparse_handler,pedigest_handler)]
+fn pechecksum_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {	
+	let sarr :Vec<String>;
+	//let mut lastidx :usize;
+
+
+	init_log(ns.clone())?;
+
+	sarr = ns.get_array("subnargs");
+	if sarr.len() < 1 {
+		extargs_new_error!{PeHdlError,"need pefile ..."}
+	}
+
+	for f in sarr.iter() {
+		let pecode = read_file_bytes(f)?;
+		let checksum = pe_get_calc_checksum(&pecode)?;
+		println!("{} checksum 0x{:x}", f, checksum);
+	}
+
+	Ok(())
+}
+
+#[extargs_map_function(peparse_handler,pedigest_handler,pechecksum_handler)]
 pub fn load_pe_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -96,6 +117,9 @@ pub fn load_pe_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 			"$" : "+"
 		},
 		"pedigest<pedigest_handler>##digestname pefile [times] [initfile] to display digest##" : {
+			"$" : "+"
+		},
+		"pechecksum<pechecksum_handler>##pefile to get check sum for pe##" : {
 			"$" : "+"
 		}
 	}
