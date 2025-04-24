@@ -45,7 +45,8 @@ use ssllib::digest::ssllib_get_digest_operator;
 use super::fileop::*;
 use super::spc::form_sidc_from_pefile;
 use super::dgstlib::dgst_get_value;
-use super::spc::{TimeStampReq,TimeStampResp,SPC_RFC3161_OBJID};
+use super::spc::{SPC_RFC3161_OBJID};
+use ssllib::ts::{TimeStampReq,TimeStampResp};
 use super::req::{reqpost_data};
 #[allow(unused_imports)]
 use chrono::{Utc,DateTime,Datelike,Timelike};

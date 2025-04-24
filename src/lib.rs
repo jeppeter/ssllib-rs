@@ -20,3 +20,4 @@ pub mod ec;
 pub mod pkcs7;
 pub mod pkcs8;
 pub mod pkcs12;
+pub mod ts;

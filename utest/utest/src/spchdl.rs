@@ -39,6 +39,7 @@ use super::*;
 use super::spc::*;
 use super::strop::{parse_u64,out_buffer_data};
 use super::fileop::{read_file_bytes};
+use ssllib::ts::{TimeStampReq,TimeStampResp,TimeStampRequest,PKIStatusInfo};
 
 extargs_error_class!{SpcHdlError}
 
