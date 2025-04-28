@@ -32,7 +32,19 @@ impl AlgorithmIdentifierElem {
 			self.parameters.val = None;
 		}
 		Ok(())
-	}	
+	}
+
+	pub fn get_hash_algo(&self)	-> Result<String,Box<dyn Error>> {
+		Ok(self.algorithm.get_value())
+	}
+
+	pub fn get_param(&self) -> Result<Option<Asn1Any>, Box<dyn Error>> {
+		if self.parameters.val.is_none() {
+			return Ok(None);
+		}
+		let val = self.parameters.val.as_ref().unwrap().clone();
+		Ok(Some(val))
+	}
 }
 
 #[asn1_sequence()]
@@ -51,7 +63,15 @@ impl AlgorithmIdentifier {
 	pub fn set_value(&mut self, oid :&str, oany :Option<Asn1Any>) -> Result<(),Box<dyn Error>> {
 		self._make_sure_elem()?;
 		return self.elem.val[0].set_value(oid,oany);
-	}	
+	}
+	pub fn get_hash_algo(&self)	-> Result<String,Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("AlgorithmIdentifierElem")?;
+		return self.elem.val[0].get_hash_algo();
+	}
+	pub fn get_param(&self) -> Result<Option<Asn1Any>, Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("AlgorithmIdentifierElem")?;
+		return self.elem.val[0].get_param();
+	}
 }
 
 
@@ -62,16 +82,14 @@ pub struct MessageImprintElem {
 	pub digest :Asn1OctData,
 }
 
-#[asn1_sequence()]
-#[derive(Clone)]
-pub struct MessageImprint {
-	pub elem :Asn1Seq<MessageImprintElem>,
-}
-
 impl MessageImprintElem {
 	pub fn set_digest_param(&mut self, digoid :&str, param :&Asn1Any) -> Result<(),Box<dyn Error>> {
 		let _  = self.digestAlgorithm.set_value(digoid,Some(param.clone()))?;
 		Ok(())
+	}
+
+	pub fn get_digest_algo(&self) -> Result<AlgorithmIdentifier,Box<dyn Error>> {
+		Ok(self.digestAlgorithm.clone())
 	}
 
 	pub fn set_digest(&mut self,digcode :&[u8]) -> Result<(),Box<dyn Error>> {
@@ -79,6 +97,14 @@ impl MessageImprintElem {
 		Ok(())
 	}
 }
+
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct MessageImprint {
+	pub elem :Asn1Seq<MessageImprintElem>,
+}
+
 
 
 impl MessageImprint {
@@ -91,6 +117,12 @@ impl MessageImprint {
 		self.elem.make_safe_one("MessageImprintElem")?;
 		return self.elem.val[0].set_digest(digcode);
 	}
+
+	pub fn get_digest_algo(&self) -> Result<AlgorithmIdentifier,Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("MessageImprintElem")?;
+		return self.elem.val[0].get_digest_algo();
+	}
+
 }
 
 
@@ -140,10 +172,30 @@ pub struct TimeStampReqElem {
 	extensions :Asn1Opt<Asn1ImpSet<Asn1X509Extension,0>>,
 }
 
+impl TimeStampReqElem {
+	pub fn check_request_base(&self) -> Result<bool, Box<dyn Error>> {
+		if self.version.val != 1 {
+			ssllib_new_error!{SslTsError,"version {} != 1", self.version.val}
+		}
+		let msgprnt :&MessageImprint = &self.messageimprint;
+		let _algo :AlgorithmIdentifier = msgprnt.get_digest_algo()?;
+
+
+		Ok(true)
+	}
+}
+
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct TimeStampReq {
 	pub elem :Asn1Seq<TimeStampReqElem>,
+}
+
+impl TimeStampReq {
+	pub fn check_request_base(&self) -> Result<bool,Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("TimeStampReqElem")?;
+		return self.elem.val[0].check_request_base();
+	}
 }
 
 impl TimeStampReqElem {
