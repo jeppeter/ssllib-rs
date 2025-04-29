@@ -138,3 +138,11 @@ pub const PKCS7_ENCRYPTED_DATA_OID :&str = "1.2.840.113549.1.7.6";
 pub const SIGNING_TIME_OID:&str = "1.2.840.113549.1.9.5";
 
 pub const PKCS8_PRIVATE_KEY_TYPE :&str = "pkcs8privatekey";
+
+
+pub const TS_STATUS_GRANTED                  :i64 = 0;
+pub const TS_STATUS_GRANTED_WITH_MODS        :i64 = 1;
+pub const TS_STATUS_REJECTION                :i64 = 2;
+pub const TS_STATUS_WAITING                  :i64 = 3;
+pub const TS_STATUS_REVOCATION_WARNING       :i64 = 4;
+pub const TS_STATUS_REVOCATION_NOTIFICATION  :i64 = 5;
