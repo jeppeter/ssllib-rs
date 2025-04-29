@@ -326,11 +326,15 @@ impl PKIStatusInfoElem {
 				retv = Some(format!("{}",elm.val[0].val));
 			}
 		}
-		let mut selm :Asn1Seq<Asn1String> = Asn1Seq::init_asn1();
-		let mut s :Asn1String = Asn1String::init_asn1();
-		s.val = format!("{}",val);
-		selm.val.push(s);
-		self.statusString.val = Some(selm);
+		if val.len() > 0 {
+			let mut selm :Asn1Seq<Asn1String> = Asn1Seq::init_asn1();
+			let mut s :Asn1String = Asn1String::init_asn1();
+			s.val = format!("{}",val);
+			selm.val.push(s);
+			self.statusString.val = Some(selm);			
+		} else {
+			self.statusString.val = None;
+		}
 		Ok(retv)
 	}
 }
