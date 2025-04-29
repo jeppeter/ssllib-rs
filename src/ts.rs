@@ -12,6 +12,10 @@ use std::io::Write;
 use crate::{ssllib_error_class,ssllib_new_error};
 use crate::x509::{Asn1X509Extension};
 use crate::pkcs7::{Asn1Pkcs7};
+use crate::digest::{ssllib_get_digest_by_oid};
+use std::sync::Arc;
+use std::cell::RefCell;
+use crate::impls::{Asn1DigestOp};
 
 ssllib_error_class!{SslTsError}
 
@@ -96,6 +100,10 @@ impl MessageImprintElem {
 		self.digest.data = digcode.to_vec().clone();
 		Ok(())
 	}
+
+	pub fn get_digest(&self) -> Result<Vec<u8>, Box<dyn Error>> {
+		Ok(self.digest.data.clone())
+	}
 }
 
 
@@ -121,6 +129,11 @@ impl MessageImprint {
 	pub fn get_digest_algo(&self) -> Result<AlgorithmIdentifier,Box<dyn Error>> {
 		let _ = self.elem.check_safe_one("MessageImprintElem")?;
 		return self.elem.val[0].get_digest_algo();
+	}
+
+	pub fn get_digest(&self) -> Result<Vec<u8>, Box<dyn Error>> {
+		let _ = self.elem.check_safe_one("MessageImprintElem")?;
+		return self.elem.val[0].get_digest();
 	}
 
 }
@@ -179,7 +192,21 @@ impl TimeStampReqElem {
 		}
 		let msgprnt :&MessageImprint = &self.messageimprint;
 		let _algo :AlgorithmIdentifier = msgprnt.get_digest_algo()?;
-
+		let bytes :Vec<u8> = vec![0,0,0,0];
+		let initv :Vec<u8> = vec![];
+		let _digoid = _algo.get_hash_algo()?;
+		let odigop  = ssllib_get_digest_by_oid(&_digoid);
+		if odigop.is_none() {
+			ssllib_new_error!{SslTsError,"no [{}] for digest", _digoid}
+		}
+		let digop :Arc<RefCell<dyn Asn1DigestOp>> = odigop.unwrap();
+		digop.borrow_mut().init_digest(0,&initv)?;
+		digop.borrow_mut().digest_update(&bytes)?;
+		let result = digop.borrow_mut().digest_final()?;
+		let digval = msgprnt.get_digest()?;
+		if result.len() != digval.len() {
+			ssllib_new_error!{SslTsError,"{} length != {}", result.len(),digval.len()}
+		}
 
 		Ok(true)
 	}

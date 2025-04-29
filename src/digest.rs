@@ -7,6 +7,8 @@ use crate::*;
 use std::sync::{Arc};
 use std::cell::RefCell;
 use crate::consts::*;
+use lazy_static::lazy_static;
+use std::collections::HashMap;
 //use crate::logger::*;
 
 
@@ -232,6 +234,29 @@ macro_rules! expand_digest_operator {
 
 pub fn ssllib_get_digest_operator(name :&str) -> Option<Arc<RefCell<dyn Asn1DigestOp>>> {
 	expand_digest_operator!(name);
+}
+
+fn create_digest_oid() -> HashMap<String,String> {
+	let mut retv :HashMap<String,String> = HashMap::new();
+
+	retv
+}
+
+lazy_static!{
+	static ref DIGEST_OID_MAPS :HashMap<String,String> = {
+		create_digest_oid()
+	};
+}
+
+pub fn ssllib_get_digest_by_oid(oid :&str) -> Option<Arc<RefCell<dyn Asn1DigestOp>>> {
+	match DIGEST_OID_MAPS.get(oid) {
+		None => {
+			return None;
+		},
+		Some(v) => {
+			return ssllib_get_digest_operator(v);
+		}
+	}
 }
 
 pub (crate) fn get_hmac_sha256_key(passv8 :&[u8], saltv8 :&[u8], itertimes : usize) -> Vec<u8> {
