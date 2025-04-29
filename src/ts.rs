@@ -310,6 +310,29 @@ impl PKIStatusInfoElem {
 	pub fn get_status(&self) -> Result<i32, Box<dyn Error>> {
 		Ok(self.status.val as i32)
 	}
+
+	pub fn set_status(&mut self, val :i64) -> Result<i64, Box<dyn Error>> {
+		let retv :i64;
+		retv = self.status.val;
+		self.status.val = val;
+		Ok(retv)
+	}
+
+	pub fn set_status_string(&mut self, val :&str) -> Result<Option<String>,Box<dyn Error>> {
+		let mut retv :Option<String> = None;
+		if self.statusString.val.is_some() {
+			let elm :&Asn1Seq<Asn1String> = self.statusString.val.as_ref().unwrap();
+			if elm.val.len() > 0 {
+				retv = Some(format!("{}",elm.val[0].val));
+			}
+		}
+		let mut selm :Asn1Seq<Asn1String> = Asn1Seq::init_asn1();
+		let mut s :Asn1String = Asn1String::init_asn1();
+		s.val = format!("{}",val);
+		selm.val.push(s);
+		self.statusString.val = Some(selm);
+		Ok(retv)
+	}
 }
 
 #[asn1_sequence()]
@@ -323,6 +346,17 @@ impl PKIStatusInfo {
 		let _ = self.elem.check_safe_one("PKIStatusInfoElem")?;
 		return self.elem.val[0].get_status();
 	}
+
+	pub fn set_status(&mut self, val :i64) -> Result<i64, Box<dyn Error>> {
+		let _ = self.elem.make_safe_one("PKIStatusInfoElem")?;
+		return self.elem.val[0].set_status(val);
+	}
+
+	pub fn set_status_string(&mut self, val :&str) -> Result<Option<String>,Box<dyn Error>> {
+		let _ = self.elem.make_safe_one("PKIStatusInfoElem")?;
+		return self.elem.val[0].set_status_string(val);
+	}
+
 }
 
 
