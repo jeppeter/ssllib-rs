@@ -1248,8 +1248,6 @@ fn create_signature_algorithm() -> Vec<signatureAlgorithmStruct> {
 	let mut retv :Vec<signatureAlgorithmStruct> = vec![];
 	let nullasn1 :Asn1Null = Asn1Null::init_asn1();
 	let nullbytes :Vec<u8> = nullasn1.encode_asn1().unwrap();
-	let mut pssenc :pss_encode = pss_encode::init_asn1();
-	let mut algo :Asn1X509Algor = Asn1X509Algor::init_asn1();
 	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::MD5WithRSA,"MD5-RSA",OID_MD5_WITH_RSA,&nullbytes,PublicKeyAlgorithm::RSA));
 	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::SHA1WithRSA,"SHA1-RSA",OID_SHA1_WITH_RSA,&nullbytes,PublicKeyAlgorithm::RSA));
 	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::SHA1WithRSA,"SHA1-RSA",OID_ISO_SHA1_WITH_RSA,&nullbytes,PublicKeyAlgorithm::RSA));
@@ -1264,13 +1262,8 @@ fn create_signature_algorithm() -> Vec<signatureAlgorithmStruct> {
 
 
 
-	pssenc.elem.push(pss_encode_elem::init_asn1());
-	algo.elem.push(Asn1X509AlgorElem::init_asn1());
-	algo.elem[0].algorithm.set_value(OID_SHA256_DIGEST).unwrap();
-	algo.elem[0].parameters.val = Some(Asn1Null::init_asn1());
-	pssenc.elem[0].kalgo1.val.push(algo.clone());
 
-	
+
 
 
 

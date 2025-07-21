@@ -10,7 +10,13 @@ use extargsparse_worker::parser::{ExtArgsParser};
 use extargsparse_worker::funccall::{ExtArgsParseFunc};
 use asn1obj::asn1impl::Asn1Op;
 
+use asn1obj_codegen::*;
+use asn1obj::*;
+use asn1obj::base::*;
+use asn1obj::complex::*;
+use asn1obj::strop::*;
 
+use ssllib::consts::*;
 
 use std::cell::RefCell;
 use std::sync::Arc;
@@ -155,9 +161,96 @@ fn x509auxdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 	Ok(())
 }
 
+#[asn1_sequence()]
+struct pss_encode_elem {
+	kaglo1 : Asn1ImpSet<Asn1X509Algor,0>,
+	kaglo2 :Asn1ImpSet<Asn1X509Algor,1>,
+	size : Asn1ImpSet<Asn1Integer,2>,
+}
+
+#[asn1_sequence()]
+struct pss_encode {
+	elem :Asn1Seq<pss_encode_elem>,
+}
+
+fn psstypeenc_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
+
+	init_log(ns.clone())?;
+
+	let mut pssenc :pss_encode = pss_encode::init_asn1();
+	let mut nalgor :Asn1X509Algor = Asn1X509Algor::init_asn1();
+	let mut nany :Asn1Any = Asn1Any::init_asn1();
+	let nullobj :Asn1Null = Asn1Null::init_asn1();
+	let mut code :Vec<u8>;
+
+	pssenc.elem.val.push(pss_encode_elem::init_asn1());
+	pssenc.elem.val[0].kaglo1.val.push(Asn1X509Algor::init_asn1());
+	pssenc.elem.val[0].kaglo1.val[0].elem.val.push(Asn1X509AlgorElem::init_asn1());
+	pssenc.elem.val[0].kaglo1.val[0].elem.val[0].algorithm.set_value(OID_SHA256_DIGEST).unwrap();
+	code = nullobj.encode_asn1().unwrap();
+	nany.decode_asn1(&code).unwrap();
+
+	pssenc.elem.val[0].kaglo1.val[0].elem.val[0].parameters.val = Some(nany.clone());
+
+	pssenc.elem.val[0].kaglo2.val.push(Asn1X509Algor::init_asn1());
+	pssenc.elem.val[0].kaglo2.val[0].elem.val.push(Asn1X509AlgorElem::init_asn1());
+	pssenc.elem.val[0].kaglo2.val[0].elem.val[0].algorithm.set_value(OID_RSA_MGF1).unwrap();
+
+	nalgor.elem.val.push(Asn1X509AlgorElem::init_asn1());
+	nalgor.elem.val[0].algorithm.set_value(OID_SHA256_DIGEST).unwrap();
+	code = nullobj.encode_asn1().unwrap();
+	nany.decode_asn1(&code).unwrap();
+	nalgor.elem.val[0].parameters.val = Some(nany.clone());
+	code = nalgor.encode_asn1().unwrap();
+	nany.decode_asn1(&code).unwrap();
+
+	pssenc.elem.val[0].kaglo2.val[0].elem.val[0].parameters.val = Some(nany.clone());
+	pssenc.elem.val[0].size.val.push(Asn1Integer::init_asn1());
+	pssenc.elem.val[0].size.val[0].val = 0x20;
+
+	code = pssenc.encode_asn1().unwrap();
+	debug_buffer_trace!(code.as_ptr(),code.len(), "pss enc1");
+
+	pssenc.elem.val[0].kaglo1.val[0].elem.val[0].algorithm.set_value(OID_SHA384_DIGEST).unwrap();
+
+	nalgor.elem.val[0].algorithm.set_value(OID_SHA384_DIGEST).unwrap();
+	code = nullobj.encode_asn1().unwrap();
+	nany.decode_asn1(&code).unwrap();
+	nalgor.elem.val[0].parameters.val = Some(nany.clone());
+	code = nalgor.encode_asn1().unwrap();
+	nany.decode_asn1(&code).unwrap();
+
+	pssenc.elem.val[0].kaglo2.val[0].elem.val[0].parameters.val = Some(nany.clone());
+
+	pssenc.elem.val[0].size.val[0].val = 0x30;
+	code = pssenc.encode_asn1().unwrap();
+	debug_buffer_trace!(code.as_ptr(),code.len(), "pss enc2");
 
 
-#[extargs_map_function(x509dec_handler,csrdec_handler,crldec_handler,x509sigdec_handler,x509auxdec_handler,x509auxenc_handler)]
+	pssenc.elem.val[0].kaglo1.val[0].elem.val[0].algorithm.set_value(OID_SHA512_DIGEST).unwrap();
+
+	nalgor.elem.val[0].algorithm.set_value(OID_SHA512_DIGEST).unwrap();
+	code = nullobj.encode_asn1().unwrap();
+	nany.decode_asn1(&code).unwrap();
+	nalgor.elem.val[0].parameters.val = Some(nany.clone());
+	code = nalgor.encode_asn1().unwrap();
+	nany.decode_asn1(&code).unwrap();
+
+	pssenc.elem.val[0].kaglo2.val[0].elem.val[0].parameters.val = Some(nany.clone());
+
+	pssenc.elem.val[0].size.val[0].val = 0x40;
+	code = pssenc.encode_asn1().unwrap();
+	debug_buffer_trace!(code.as_ptr(),code.len(), "pss enc3");
+
+
+
+	Ok(())
+}
+
+
+
+
+#[extargs_map_function(x509dec_handler,csrdec_handler,crldec_handler,x509sigdec_handler,x509auxdec_handler,x509auxenc_handler,psstypeenc_handler)]
 pub fn load_x509exec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -178,6 +271,9 @@ pub fn load_x509exec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>>
 		},
 		"x509auxdec<x509auxdec_handler>##binfile ... to decode Asn1X509AuxCert##" : {
 			"$" : 1
+		},
+		"psstypeenc<psstypeenc_handler>##to display pss type encryption##" : {
+			"$" : 0
 		}
 	}
 	"#;

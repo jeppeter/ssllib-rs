@@ -38,6 +38,8 @@ pub const OID_PKCS7_ENCRYPTED_DATA :&str = "1.2.840.113549.1.7.6";
 pub const OID_PKCS7_DATA :&str = "1.2.840.113549.1.7.1";
 pub const OID_PKCS12_SAFE_BAG_X509_CERT :&str = "1.2.840.113549.1.9.22.1";
 pub const OID_SHA256_DIGEST :&str = "2.16.840.1.101.3.4.2.1";
+pub const OID_SHA384_DIGEST :&str = "2.16.840.1.101.3.4.2.2";
+pub const OID_SHA512_DIGEST :&str = "2.16.840.1.101.3.4.2.3";
 pub const OID_EC_PUBLICK_KEY :&str = "1.2.840.10045.2.1";
 
 pub const OID_FRIEDLY_NAME :&str = "1.2.840.113549.1.9.20";
@@ -161,3 +163,6 @@ pub const OID_ECDSA_WITH_SHA384:&str = "1.2.840.10045.4.3.3";
 pub const OID_ECDSA_WITH_SHA512:&str = "1.2.840.10045.4.3.4";
 pub const OID_PURE_ED25519 :&str = "1.3.101.112";
 pub const OID_ISO_SHA1_WITH_RSA :&str = "1.3.14.3.2.29";
+
+
+pub const OID_RSA_MGF1 :&str = "1.2.840.113549.1.1.8";
