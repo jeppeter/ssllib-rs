@@ -15,6 +15,7 @@ pub mod genname;
 pub mod digest;
 pub mod encde;
 pub mod rsa;
+#[allow(non_camel_case_types)]
 pub mod x509;
 pub mod ec;
 pub mod pkcs7;

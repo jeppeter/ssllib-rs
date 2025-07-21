@@ -12,6 +12,9 @@ use asn1obj::consts::*;
 use std::error::Error;
 use std::io::{Write};
 
+use num_bigint::{BigInt};
+use num_traits::{zero};
+
 use crate::{ssllib_new_error,ssllib_error_class};
 #[allow(unused_imports)]
 use crate::{ssllib_buffer_trace,ssllib_format_buffer_log,ssllib_log_trace};
@@ -26,7 +29,26 @@ use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
 use crate::config::ConfigValue;
 use ecsimple::keys::{ECPrivateKey,ECPublicKey};
 
+use lazy_static::lazy_static;
+
+
 ssllib_error_class!{SslX509Error}
+
+pub struct X509BuildConfig {
+	serialnumber  :BigInt,
+}
+
+impl X509BuildConfig {
+	pub fn new() -> X509BuildConfig {
+		let mut retv :Self = Self {
+			serialnumber : zero(),
+		};
+
+		retv
+	}
+}
+
+
 
 #[asn1_sequence()]
 #[derive(Clone)]
@@ -628,6 +650,7 @@ impl Asn1X509 {
 		return self.aux.val.as_mut().unwrap().append_other(x);
 	}
 
+
 }
 
 #[asn1_sequence()]
@@ -1146,6 +1169,8 @@ pub fn get_algor_pbkdf2_private_data(x509algorbytes :&[u8],encdata :&[u8],passin
 }
 
 
+
+
 // pub (crate) fn get_encrypt_type_from_pkcs8(x509sigbytes :&[u8],passin :&[u8]) -> Result<(String,Vec<u8>),Box<dyn Error>> {
 // 	let mut x509sig = Asn1X509Sig::init_asn1();
 // 	let _= x509sig.decode_asn1(x509sigbytes)?;
@@ -1158,3 +1183,122 @@ pub fn get_algor_pbkdf2_private_data(x509algorbytes :&[u8],encdata :&[u8],passin
 // 	let odata = netpkey.encode_asn1()?;
 // 	return Ok((types,odata));
 // }
+
+enum SignatureAlgorithm {
+	UnknownSignatureAlgorithm,
+	MD2WithRSA,
+	MD5WithRSA,
+	SHA1WithRSA,
+	SHA256WithRSA,
+	SHA384WithRSA,
+	SHA512WithRSA,
+	DSAWithSHA1,
+	DSAWithSHA256,
+	ECDSAWithSHA1,
+	ECDSAWithSHA256,
+	ECDSAWithSHA384,
+	ECDSAWithSHA512,
+	SHA256WithRSAPSS,
+	SHA384WithRSAPSS,
+	SHA512WithRSAPSS,
+	PureEd25519,
+}
+
+enum PublicKeyAlgorithm {
+	UnknownPublicKeyAlgorithm,
+	RSA,
+	DSA,
+	ECDSA,
+	Ed25519,
+} 
+
+struct signatureAlgorithmStruct  {
+	algo :SignatureAlgorithm,
+	name :String,
+	oid :String,
+	params :Vec<u8>,
+	keyalgo :PublicKeyAlgorithm,
+}
+
+impl signatureAlgorithmStruct {
+	fn new(algo :SignatureAlgorithm,name :&str,oid :&str,params :&[u8],keyalgo :PublicKeyAlgorithm) -> Self {
+		Self {
+			algo : algo,
+			name : format!("{}",name),
+			oid : format!("{}",oid),
+			params : params.to_vec().clone(),
+			keyalgo : keyalgo,
+		}
+	}
+}
+
+#[asn1_sequence()]
+struct pss_encode_elem {
+	kaglo1 : Asn1ImpSet<Asn1X509Algor,0>,
+	kalgo2 :Asn1ImpSet<Asn1X509Algor,1>,
+	size : Asn1ImpSet<Asn1Integer,2>,
+}
+
+#[asn1_sequence()]
+struct pss_encode {
+	elem :Asn1Seq<pss_encode_elem>,
+}
+
+fn create_signature_algorithm() -> Vec<signatureAlgorithmStruct> {
+	let mut retv :Vec<signatureAlgorithmStruct> = vec![];
+	let nullasn1 :Asn1Null = Asn1Null::init_asn1();
+	let nullbytes :Vec<u8> = nullasn1.encode_asn1().unwrap();
+	let mut pssenc :pss_encode = pss_encode::init_asn1();
+	let mut algo :Asn1X509Algor = Asn1X509Algor::init_asn1();
+	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::MD5WithRSA,"MD5-RSA",OID_MD5_WITH_RSA,&nullbytes,PublicKeyAlgorithm::RSA));
+	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::SHA1WithRSA,"SHA1-RSA",OID_SHA1_WITH_RSA,&nullbytes,PublicKeyAlgorithm::RSA));
+	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::SHA1WithRSA,"SHA1-RSA",OID_ISO_SHA1_WITH_RSA,&nullbytes,PublicKeyAlgorithm::RSA));
+
+	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::SHA256WithRSA,"SHA256-RSA",OID_SHA256_WITH_RSA,&nullbytes,PublicKeyAlgorithm::RSA));
+
+	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::SHA384WithRSA,"SHA384-RSA",OID_SHA384_WITH_RSA,&nullbytes,PublicKeyAlgorithm::RSA));
+
+	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::SHA512WithRSA,"SHA512-RSA",OID_SHA512_WITH_RSA,&nullbytes,PublicKeyAlgorithm::RSA));
+
+	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::SHA256WithRSAPSS,"SHA256-RSAPSS",OID_RSA_PSS,&nullbytes,PublicKeyAlgorithm::RSA));
+
+
+
+	pssenc.elem.push(pss_encode_elem::init_asn1());
+	algo.elem.push(Asn1X509AlgorElem::init_asn1());
+	algo.elem[0].algorithm.set_value(OID_SHA256_DIGEST).unwrap();
+	algo.elem[0].parameters.val = Some(Asn1Null::init_asn1());
+	pssenc.elem[0].kalgo1.val.push(algo.clone());
+
+	
+
+
+
+
+
+	retv
+}
+
+lazy_static!{
+	static ref SIGNAGURE_ALGORITHM :Vec<signatureAlgorithmStruct> = {
+		create_signature_algorithm()
+	};
+}
+
+pub trait X509PublickKey {
+
+}
+
+pub trait X509Privatekey {
+
+}
+
+fn create_x509_from_config_build(template :&X509BuildConfig,parent :Option<&Asn1X509>,pubkey :Box<dyn X509PublickKey>,privkey :Box<dyn X509Privatekey>) -> Result<Vec<u8>,Box<dyn Error>> {
+	let zv :BigInt = zero();
+	let retv :Vec<u8> = vec![];
+	if template.serialnumber <  zv {
+		ssllib_new_error!{SslX509Error,"serial number {} must >= 0", template.serialnumber}
+	}
+
+	Ok(retv)
+}
