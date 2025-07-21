@@ -1235,7 +1235,7 @@ impl signatureAlgorithmStruct {
 #[asn1_sequence()]
 struct pss_encode_elem {
 	kaglo1 : Asn1ImpSet<Asn1X509Algor,0>,
-	kalgo2 :Asn1ImpSet<Asn1X509Algor,1>,
+	kaglo2 :Asn1ImpSet<Asn1X509Algor,1>,
 	size : Asn1ImpSet<Asn1Integer,2>,
 }
 
@@ -1248,6 +1248,7 @@ fn create_signature_algorithm() -> Vec<signatureAlgorithmStruct> {
 	let mut retv :Vec<signatureAlgorithmStruct> = vec![];
 	let nullasn1 :Asn1Null = Asn1Null::init_asn1();
 	let nullbytes :Vec<u8> = nullasn1.encode_asn1().unwrap();
+	let emptycode :Vec<u8> = vec![];
 	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::MD5WithRSA,"MD5-RSA",OID_MD5_WITH_RSA,&nullbytes,PublicKeyAlgorithm::RSA));
 	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::SHA1WithRSA,"SHA1-RSA",OID_SHA1_WITH_RSA,&nullbytes,PublicKeyAlgorithm::RSA));
 	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::SHA1WithRSA,"SHA1-RSA",OID_ISO_SHA1_WITH_RSA,&nullbytes,PublicKeyAlgorithm::RSA));
@@ -1258,16 +1259,93 @@ fn create_signature_algorithm() -> Vec<signatureAlgorithmStruct> {
 
 	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::SHA512WithRSA,"SHA512-RSA",OID_SHA512_WITH_RSA,&nullbytes,PublicKeyAlgorithm::RSA));
 
-	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::SHA256WithRSAPSS,"SHA256-RSAPSS",OID_RSA_PSS,&nullbytes,PublicKeyAlgorithm::RSA));
 
 
 
 
+	let mut pssenc :pss_encode = pss_encode::init_asn1();
+	let mut nalgor :Asn1X509Algor = Asn1X509Algor::init_asn1();
+	let mut nany :Asn1Any = Asn1Any::init_asn1();
+	let nullobj :Asn1Null = Asn1Null::init_asn1();
+	let mut code :Vec<u8>;
+
+	pssenc.elem.val.push(pss_encode_elem::init_asn1());
+	pssenc.elem.val[0].kaglo1.val.push(Asn1X509Algor::init_asn1());
+	pssenc.elem.val[0].kaglo1.val[0].elem.val.push(Asn1X509AlgorElem::init_asn1());
+	pssenc.elem.val[0].kaglo1.val[0].elem.val[0].algorithm.set_value(OID_SHA256_DIGEST).unwrap();
+	code = nullobj.encode_asn1().unwrap();
+	nany.decode_asn1(&code).unwrap();
+
+	pssenc.elem.val[0].kaglo1.val[0].elem.val[0].parameters.val = Some(nany.clone());
+
+	pssenc.elem.val[0].kaglo2.val.push(Asn1X509Algor::init_asn1());
+	pssenc.elem.val[0].kaglo2.val[0].elem.val.push(Asn1X509AlgorElem::init_asn1());
+	pssenc.elem.val[0].kaglo2.val[0].elem.val[0].algorithm.set_value(OID_RSA_MGF1).unwrap();
+
+	nalgor.elem.val.push(Asn1X509AlgorElem::init_asn1());
+	nalgor.elem.val[0].algorithm.set_value(OID_SHA256_DIGEST).unwrap();
+	code = nullobj.encode_asn1().unwrap();
+	nany.decode_asn1(&code).unwrap();
+	nalgor.elem.val[0].parameters.val = Some(nany.clone());
+	code = nalgor.encode_asn1().unwrap();
+	nany.decode_asn1(&code).unwrap();
+
+	pssenc.elem.val[0].kaglo2.val[0].elem.val[0].parameters.val = Some(nany.clone());
+	pssenc.elem.val[0].size.val.push(Asn1Integer::init_asn1());
+	pssenc.elem.val[0].size.val[0].val = 0x20;
+
+	code = pssenc.encode_asn1().unwrap();
+
+	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::SHA256WithRSAPSS,"SHA256-RSAPSS",OID_RSA_PSS,&code,PublicKeyAlgorithm::RSA));
+
+
+	pssenc.elem.val[0].kaglo1.val[0].elem.val[0].algorithm.set_value(OID_SHA384_DIGEST).unwrap();
+
+	nalgor.elem.val[0].algorithm.set_value(OID_SHA384_DIGEST).unwrap();
+	code = nullobj.encode_asn1().unwrap();
+	nany.decode_asn1(&code).unwrap();
+	nalgor.elem.val[0].parameters.val = Some(nany.clone());
+	code = nalgor.encode_asn1().unwrap();
+	nany.decode_asn1(&code).unwrap();
+
+	pssenc.elem.val[0].kaglo2.val[0].elem.val[0].parameters.val = Some(nany.clone());
+
+	pssenc.elem.val[0].size.val[0].val = 0x30;
+	code = pssenc.encode_asn1().unwrap();
+	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::SHA384WithRSAPSS,"SHA384-RSAPSS",OID_RSA_PSS,&code,PublicKeyAlgorithm::RSA));
+
+
+	pssenc.elem.val[0].kaglo1.val[0].elem.val[0].algorithm.set_value(OID_SHA512_DIGEST).unwrap();
+
+	nalgor.elem.val[0].algorithm.set_value(OID_SHA512_DIGEST).unwrap();
+	code = nullobj.encode_asn1().unwrap();
+	nany.decode_asn1(&code).unwrap();
+	nalgor.elem.val[0].parameters.val = Some(nany.clone());
+	code = nalgor.encode_asn1().unwrap();
+	nany.decode_asn1(&code).unwrap();
+
+	pssenc.elem.val[0].kaglo2.val[0].elem.val[0].parameters.val = Some(nany.clone());
+
+	pssenc.elem.val[0].size.val[0].val = 0x40;
+	code = pssenc.encode_asn1().unwrap();
+	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::SHA512WithRSAPSS,"SHA512-RSAPSS",OID_RSA_PSS,&code,PublicKeyAlgorithm::RSA));
 
 
 
+	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::DSAWithSHA1,"DSA-SHA1",OID_DSA_WITH_SHA1,&emptycode,PublicKeyAlgorithm::DSA));
+
+	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::DSAWithSHA256,"DSA-SHA256",OID_DSA_WITH_SHA256,&emptycode,PublicKeyAlgorithm::DSA));
+
+	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::ECDSAWithSHA1,"ECDSA-SHA1",OID_ECDSA_WITH_SHA1,&emptycode,PublicKeyAlgorithm::ECDSA));
+
+	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::ECDSAWithSHA256,"ECDSA-SHA256",OID_ECDSA_WITH_SHA256,&emptycode,PublicKeyAlgorithm::ECDSA));
 
 
+	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::ECDSAWithSHA384,"ECDSA-SHA384",OID_ECDSA_WITH_SHA384,&emptycode,PublicKeyAlgorithm::ECDSA));
+
+	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::ECDSAWithSHA512,"ECDSA-SHA512",OID_ECDSA_WITH_SHA512,&emptycode,PublicKeyAlgorithm::ECDSA));
+
+	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::PureEd25519,"Ed25519",OID_PURE_ED25519,&emptycode,PublicKeyAlgorithm::Ed25519));
 
 	retv
 }
