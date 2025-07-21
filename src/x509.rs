@@ -35,17 +35,37 @@ use lazy_static::lazy_static;
 ssllib_error_class!{SslX509Error}
 
 pub struct X509BuildConfig {
-	serialnumber  :BigInt,
+	serial_number  :BigInt,
+	basic_constraints_valid :bool,
+	is_ca :bool,
 }
 
 impl X509BuildConfig {
 	pub fn new() -> X509BuildConfig {
 		let mut retv :Self = Self {
-			serialnumber : zero(),
+			serial_number : zero(),
+			basic_constraints_valid: false,
+			is_ca: false,
 		};
 
 		retv
 	}
+
+	pub fn SerialNumber(mut self :Self,val :BigInt) -> Self {
+		self.serial_number = val;
+		self
+	}
+
+	pub fn BasicConstraintsValid(mut self :Self,val :bool) -> Self {
+		self.basic_constraints_valid = val;
+		self
+	}
+
+	pub fn IsCa(mut self :Self, val :bool) -> Self {
+		self.is_ca = val;
+		self
+	}
+
 }
 
 
@@ -1367,8 +1387,8 @@ pub trait X509Privatekey {
 fn create_x509_from_config_build(template :&X509BuildConfig,parent :Option<&Asn1X509>,pubkey :Box<dyn X509PublickKey>,privkey :Box<dyn X509Privatekey>) -> Result<Vec<u8>,Box<dyn Error>> {
 	let zv :BigInt = zero();
 	let retv :Vec<u8> = vec![];
-	if template.serialnumber <  zv {
-		ssllib_new_error!{SslX509Error,"serial number {} must >= 0", template.serialnumber}
+	if template.serial_number <  zv {
+		ssllib_new_error!{SslX509Error,"serial number {} must >= 0", template.serial_number}
 	}
 
 	Ok(retv)
