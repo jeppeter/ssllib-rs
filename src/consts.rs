@@ -27,6 +27,9 @@ pub const OID_PBES2 :&str = "1.2.840.113549.1.5.13";
 pub const OID_PBKDF2 :&str = "1.2.840.113549.1.5.12";
 pub const OID_HMAC_WITH_SHA256 :&str = "1.2.840.113549.2.9";
 pub const OID_RSA_ENCRYPTION :&str = "1.2.840.113549.1.1.1";
+pub const OID_DSA_ENCRYPTION :&str = "1.2.840.10040.4.1";
+pub const OID_X25519_ENCRYPTION :&str = "1.3.101.110";
+pub const OID_PURE_ED25519 :&str = "1.3.101.112";
 pub const OID_EC_PUBLICKEY_ENCRYPTION :&str = "1.2.840.10045.2.1";
 pub const OID_SHA256_WITH_RSA_ENCRYPTION :&str = "1.2.840.113549.1.1.11";
 pub const OID_KEY_BAG :&str = "1.2.840.113549.1.12.10.1.1";
@@ -161,8 +164,14 @@ pub const OID_ECDSA_WITH_SHA1 :&str = "1.2.840.10045.4.1";
 pub const OID_ECDSA_WITH_SHA256:&str = "1.2.840.10045.4.3.2";
 pub const OID_ECDSA_WITH_SHA384:&str = "1.2.840.10045.4.3.3";
 pub const OID_ECDSA_WITH_SHA512:&str = "1.2.840.10045.4.3.4";
-pub const OID_PURE_ED25519 :&str = "1.3.101.112";
 pub const OID_ISO_SHA1_WITH_RSA :&str = "1.3.14.3.2.29";
 
 
 pub const OID_RSA_MGF1 :&str = "1.2.840.113549.1.1.8";
+
+pub const OID_COMMON_NAME :&str = "2.5.4.3";
+pub const OID_SERIAL_NUMBER :&str = "2.5.4.5";
+pub const OID_COUNTRY :&str = "2.5.4.6";
+pub const OID_LOCALITY :&str = "2.5.4.7";
+pub const OID_PROVINCE :&str = "2.5.4.8";
+pub const OID_STREET_ADDRESS :&str = "2.5.4.9";

@@ -34,10 +34,237 @@ use lazy_static::lazy_static;
 
 ssllib_error_class!{SslX509Error}
 
+#[derive(Debug)]
+#[derive(Clone)]
+pub enum SignatureAlgorithm {
+	UnknownSignatureAlgorithm,
+	MD2WithRSA,
+	MD5WithRSA,
+	SHA1WithRSA,
+	SHA256WithRSA,
+	SHA384WithRSA,
+	SHA512WithRSA,
+	DSAWithSHA1,
+	DSAWithSHA256,
+	ECDSAWithSHA1,
+	ECDSAWithSHA256,
+	ECDSAWithSHA384,
+	ECDSAWithSHA512,
+	SHA256WithRSAPSS,
+	SHA384WithRSAPSS,
+	SHA512WithRSAPSS,
+	PureEd25519,
+}
+
+impl PartialEq for SignatureAlgorithm {
+	fn eq(&self, other :&Self) -> bool {
+		match self {
+			SignatureAlgorithm::UnknownSignatureAlgorithm => {
+				match other {
+					SignatureAlgorithm::UnknownSignatureAlgorithm => {
+						return true;
+					}
+					_ => {},
+				}
+			},
+			SignatureAlgorithm::MD2WithRSA => {
+				match other {
+					SignatureAlgorithm::MD2WithRSA => {
+						return true;
+					},
+					_ => {},
+				}
+			},
+			SignatureAlgorithm::MD5WithRSA => {
+				match other {
+					SignatureAlgorithm::MD5WithRSA => {
+						return true;
+					},
+					_ => {},
+				}
+			},
+			SignatureAlgorithm::SHA1WithRSA => {
+				match other {
+					SignatureAlgorithm::SHA1WithRSA => {
+						return true;
+					},
+					_ => {},
+				}
+			},
+			SignatureAlgorithm::SHA256WithRSA => {
+				match other {
+					SignatureAlgorithm::SHA256WithRSA => {
+						return true;
+					},
+					_ => {},
+				}				
+			},
+			SignatureAlgorithm::SHA384WithRSA=> {
+				match other {
+					SignatureAlgorithm::SHA384WithRSA => {
+						return true;
+					},
+					_ => {},
+				}
+			},
+			SignatureAlgorithm::SHA512WithRSA=> {
+				match other {
+					SignatureAlgorithm::SHA512WithRSA => {
+						return true;
+					},
+					_ => {},
+				}
+			},
+			SignatureAlgorithm::DSAWithSHA1=> {
+				match other {
+					SignatureAlgorithm::DSAWithSHA1 => {
+						return true;
+					},
+					_ => {},
+				}
+			},
+			SignatureAlgorithm::DSAWithSHA256=> {
+				match other {
+					SignatureAlgorithm::DSAWithSHA256 => {
+						return true;
+					},
+					_ => {},
+				}
+			},
+			SignatureAlgorithm::ECDSAWithSHA1=> {
+				match other {
+					SignatureAlgorithm::ECDSAWithSHA1 => {
+						return true;
+					},
+					_ => {},
+				}
+			},
+			SignatureAlgorithm::ECDSAWithSHA256=> {
+				match other {
+					SignatureAlgorithm::ECDSAWithSHA256 => {
+						return true;
+					},
+					_ => {},
+				}
+			},
+			SignatureAlgorithm::ECDSAWithSHA384=> {
+				match other {
+					SignatureAlgorithm::ECDSAWithSHA384 => {
+						return true;
+					},
+					_ => {},
+				}
+			},
+			SignatureAlgorithm::ECDSAWithSHA512=> {
+				match other {
+					SignatureAlgorithm::ECDSAWithSHA512 => {
+						return true;
+					},
+					_ => {},
+				}
+			},
+			SignatureAlgorithm::SHA256WithRSAPSS=> {
+				match other {
+					SignatureAlgorithm::SHA256WithRSAPSS => {
+						return true;
+					},
+					_ => {},
+				}
+			},
+			SignatureAlgorithm::SHA384WithRSAPSS=> {
+				match other {
+					SignatureAlgorithm::SHA384WithRSAPSS => {
+						return true;
+					},
+					_ => {},
+				}
+			},
+			SignatureAlgorithm::SHA512WithRSAPSS=> {
+				match other {
+					SignatureAlgorithm::SHA512WithRSAPSS => {
+						return true;
+					},
+					_ => {},
+				}
+			},
+			SignatureAlgorithm::PureEd25519=> {
+				match other {
+					SignatureAlgorithm::PureEd25519 => {
+						return true;
+					},
+					_ => {},
+				}
+			},
+		}
+		return false;
+	}
+
+	fn ne(&self, other :&Self) -> bool {
+		return !self.eq(other);
+	}
+}
+
+#[derive(Clone)]
+pub struct PkixName {
+	contry :Vec<String>,
+	orgnazation :Vec<String>,
+	orgnazational_unit :Vec<String>,
+	locality :Vec<String>,
+	province :Vec<String>,
+	street_address :Vec<String>,
+	postal_code :Vec<String>,
+	serial_number :String,
+	common_name :String,
+	names :Vec<Asn1X509AlgorElem>,
+	extra_names :Vec<Asn1X509AlgorElem>,
+}
+
+impl PkixName {
+	fn new() -> Self {
+		Self {
+			contry : vec![],
+			orgnazation :vec![],
+			orgnazational_unit :vec![],
+			locality :vec![],
+			province :vec![],
+			street_address :vec![],
+			postal_code :vec![],
+			serial_number : format!(""),
+			common_name : format!(""),
+			names :vec![],
+			extra_names :vec![],
+		}
+	}
+
+	fn format_new_rdn_sequence(&self, ns :&[String], oid :&str) ->  Vec<Asn1X509NameElement> {
+		let mut retv :Vec<Asn1X509NameElement> = vec![];
+		let mut idx :usize = 0;
+		while idx < ns.len() {
+			let mut curalgo :Asn1X509NameElement = Asn1X509NameElement::init_asn1();
+			curalgo.obj.set_value(oid).unwrap();
+			curalgo.name.val = format!("{}",ns[idx]);
+			retv.push(curalgo);			
+			idx += 1;	
+		}
+		retv
+	}
+
+	fn to_rdn_sequence(&self) -> Vec<Asn1X509NameElement> {
+		let mut retv :Vec<Asn1X509NameElement> = vec![];
+		retv.extend(self.format_new_rdn_sequence(&self.contry,OID_COUNTRY));
+
+		retv
+	}
+}
+
+
+#[derive(Clone)]
 pub struct X509BuildConfig {
 	serial_number  :BigInt,
 	basic_constraints_valid :bool,
 	is_ca :bool,
+	signature_algorithm :SignatureAlgorithm,
+	subject : PkixName,
 }
 
 impl X509BuildConfig {
@@ -46,6 +273,8 @@ impl X509BuildConfig {
 			serial_number : zero(),
 			basic_constraints_valid: false,
 			is_ca: false,
+			signature_algorithm :SignatureAlgorithm::UnknownSignatureAlgorithm,
+			subject :PkixName::new(),
 		};
 
 		retv
@@ -63,6 +292,11 @@ impl X509BuildConfig {
 
 	pub fn IsCa(mut self :Self, val :bool) -> Self {
 		self.is_ca = val;
+		self
+	}
+
+	pub fn SignatureAlgorithm(mut self :Self,val :SignatureAlgorithm) -> Self {
+		self.signature_algorithm = val;
 		self
 	}
 
@@ -1204,25 +1438,6 @@ pub fn get_algor_pbkdf2_private_data(x509algorbytes :&[u8],encdata :&[u8],passin
 // 	return Ok((types,odata));
 // }
 
-enum SignatureAlgorithm {
-	UnknownSignatureAlgorithm,
-	MD2WithRSA,
-	MD5WithRSA,
-	SHA1WithRSA,
-	SHA256WithRSA,
-	SHA384WithRSA,
-	SHA512WithRSA,
-	DSAWithSHA1,
-	DSAWithSHA256,
-	ECDSAWithSHA1,
-	ECDSAWithSHA256,
-	ECDSAWithSHA384,
-	ECDSAWithSHA512,
-	SHA256WithRSAPSS,
-	SHA384WithRSAPSS,
-	SHA512WithRSAPSS,
-	PureEd25519,
-}
 
 enum PublicKeyAlgorithm {
 	UnknownPublicKeyAlgorithm,
@@ -1377,19 +1592,42 @@ lazy_static!{
 }
 
 pub trait X509PublickKey {
-
 }
 
 pub trait X509Privatekey {
-
+	fn public_asn1_code(&self) -> Result<(String,Vec<u8>),Box<dyn Error>>;
 }
 
-fn create_x509_from_config_build(template :&X509BuildConfig,parent :Option<&Asn1X509>,pubkey :Box<dyn X509PublickKey>,privkey :Box<dyn X509Privatekey>) -> Result<Vec<u8>,Box<dyn Error>> {
+fn get_sign_asn1_code(algo :SignatureAlgorithm) -> Result<(String,Vec<u8>),Box<dyn Error>> {
+	let mut idx :usize = 0;
+	while idx < SIGNAGURE_ALGORITHM.len() {
+		if algo == SIGNAGURE_ALGORITHM[idx].algo {
+			let rets :String = format!("{}",SIGNAGURE_ALGORITHM[idx].oid);
+			let retc :Vec<u8> = SIGNAGURE_ALGORITHM[idx].params.clone();
+			return Ok((rets,retc));
+		}
+		idx += 1;
+	}
+	ssllib_new_error!{SslX509Error,"no match algo {:?}", algo}
+}
+
+fn create_x509_from_config_build(template :&X509BuildConfig,parent :&Asn1X509,pubkey :Box<dyn X509PublickKey>,privkey :Box<dyn X509Privatekey>) -> Result<Vec<u8>,Box<dyn Error>> {
 	let zv :BigInt = zero();
 	let retv :Vec<u8> = vec![];
+	let algooid :String;
+	let algocode :Vec<u8>;
+	let puboid :String;
+	let pubcode :Vec<u8>;
+	let mut pubalgo :Asn1X509AlgorElem = Asn1X509AlgorElem::init_asn1();
 	if template.serial_number <  zv {
 		ssllib_new_error!{SslX509Error,"serial number {} must >= 0", template.serial_number}
 	}
+
+	(algooid,algocode) = get_sign_asn1_code(template.signature_algorithm.clone())?;
+	(puboid,pubcode) = privkey.public_asn1_code()?;
+
+	let _ = pubalgo.decode_asn1(&pubcode)?;
+
 
 	Ok(retv)
 }
