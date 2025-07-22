@@ -206,25 +206,25 @@ impl PartialEq for SignatureAlgorithm {
 
 #[derive(Clone)]
 pub struct PkixName {
-	contry :Vec<String>,
-	orgnazation :Vec<String>,
-	orgnazational_unit :Vec<String>,
-	locality :Vec<String>,
-	province :Vec<String>,
-	street_address :Vec<String>,
-	postal_code :Vec<String>,
-	serial_number :String,
-	common_name :String,
-	names :Vec<Asn1X509AlgorElem>,
-	extra_names :Vec<Asn1X509AlgorElem>,
+	pub contry :Vec<String>,
+	pub orgnization :Vec<String>,
+	pub orgnizational_unit :Vec<String>,
+	pub locality :Vec<String>,
+	pub province :Vec<String>,
+	pub street_address :Vec<String>,
+	pub postal_code :Vec<String>,
+	pub serial_number :String,
+	pub common_name :String,
+	pub names :Vec<Asn1X509NameElement>,
+	pub extra_names :Vec<Asn1X509NameElement>,
 }
 
 impl PkixName {
 	fn new() -> Self {
 		Self {
 			contry : vec![],
-			orgnazation :vec![],
-			orgnazational_unit :vec![],
+			orgnization :vec![],
+			orgnizational_unit :vec![],
 			locality :vec![],
 			province :vec![],
 			street_address :vec![],
@@ -249,9 +249,36 @@ impl PkixName {
 		retv
 	}
 
+	fn format_new_name(&self,n :&str , oid :&str) -> Vec<Asn1X509NameElement> {
+		let mut retv :Vec<Asn1X509NameElement> = vec![];
+		if n.len() > 0{
+			let mut curalgo :Asn1X509NameElement = Asn1X509NameElement::init_asn1();
+			curalgo.obj.set_value(oid).unwrap();
+			curalgo.name.val = format!("{}",n);
+			retv.push(curalgo);
+		}
+		retv
+	}
+
 	fn to_rdn_sequence(&self) -> Vec<Asn1X509NameElement> {
 		let mut retv :Vec<Asn1X509NameElement> = vec![];
+		let mut idx :usize;
 		retv.extend(self.format_new_rdn_sequence(&self.contry,OID_COUNTRY));
+		retv.extend(self.format_new_rdn_sequence(&self.province,OID_PROVINCE));
+		retv.extend(self.format_new_rdn_sequence(&self.locality,OID_LOCALITY));
+		retv.extend(self.format_new_rdn_sequence(&self.street_address,OID_STREET_ADDRESS));
+		retv.extend(self.format_new_rdn_sequence(&self.postal_code,OID_POSTAL_CODE));
+		retv.extend(self.format_new_rdn_sequence(&self.orgnization,OID_ORGANIZATION));
+		retv.extend(self.format_new_rdn_sequence(&self.orgnizational_unit,OID_ORGANIZATIONAL_UNIT));
+
+		retv.extend(self.format_new_name(&self.common_name,OID_COMMON_NAME));
+		retv.extend(self.format_new_name(&self.serial_number,OID_SERIAL_NUMBER));
+
+		idx = 0;
+		while idx < self.extra_names.len() {
+			retv.push(self.extra_names[idx].clone());
+			idx += 1;
+		}
 
 		retv
 	}
@@ -260,11 +287,11 @@ impl PkixName {
 
 #[derive(Clone)]
 pub struct X509BuildConfig {
-	serial_number  :BigInt,
-	basic_constraints_valid :bool,
-	is_ca :bool,
-	signature_algorithm :SignatureAlgorithm,
-	subject : PkixName,
+	pub serial_number  :BigInt,
+	pub basic_constraints_valid :bool,
+	pub is_ca :bool,
+	pub signature_algorithm :SignatureAlgorithm,
+	pub subject : PkixName,
 }
 
 impl X509BuildConfig {
@@ -278,26 +305,6 @@ impl X509BuildConfig {
 		};
 
 		retv
-	}
-
-	pub fn SerialNumber(mut self :Self,val :BigInt) -> Self {
-		self.serial_number = val;
-		self
-	}
-
-	pub fn BasicConstraintsValid(mut self :Self,val :bool) -> Self {
-		self.basic_constraints_valid = val;
-		self
-	}
-
-	pub fn IsCa(mut self :Self, val :bool) -> Self {
-		self.is_ca = val;
-		self
-	}
-
-	pub fn SignatureAlgorithm(mut self :Self,val :SignatureAlgorithm) -> Self {
-		self.signature_algorithm = val;
-		self
 	}
 
 }

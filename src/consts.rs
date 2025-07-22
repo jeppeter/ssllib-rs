@@ -175,3 +175,6 @@ pub const OID_COUNTRY :&str = "2.5.4.6";
 pub const OID_LOCALITY :&str = "2.5.4.7";
 pub const OID_PROVINCE :&str = "2.5.4.8";
 pub const OID_STREET_ADDRESS :&str = "2.5.4.9";
+pub const OID_ORGANIZATION :&str = "2.5.4.10";
+pub const OID_ORGANIZATIONAL_UNIT :&str = "2.5.4.11";
+pub const OID_POSTAL_CODE :&str = "2.5.4.17";
