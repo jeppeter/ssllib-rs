@@ -215,8 +215,7 @@ pub struct PkixName {
 	pub postal_code :Vec<String>,
 	pub serial_number :String,
 	pub common_name :String,
-	pub names :Vec<Asn1X509NameElement>,
-	pub extra_names :Vec<Asn1X509NameElement>,
+	pub extra_names :Vec<Asn1Any>,
 }
 
 impl PkixName {
@@ -231,57 +230,10 @@ impl PkixName {
 			postal_code :vec![],
 			serial_number : format!(""),
 			common_name : format!(""),
-			names :vec![],
 			extra_names :vec![],
 		}
 	}
 
-	fn format_new_rdn_sequence(&self, ns :&[String], oid :&str) ->  Vec<Asn1X509NameElement> {
-		let mut retv :Vec<Asn1X509NameElement> = vec![];
-		let mut idx :usize = 0;
-		while idx < ns.len() {
-			let mut curalgo :Asn1X509NameElement = Asn1X509NameElement::init_asn1();
-			curalgo.obj.set_value(oid).unwrap();
-			curalgo.name.val = format!("{}",ns[idx]);
-			retv.push(curalgo);			
-			idx += 1;	
-		}
-		retv
-	}
-
-	fn format_new_name(&self,n :&str , oid :&str) -> Vec<Asn1X509NameElement> {
-		let mut retv :Vec<Asn1X509NameElement> = vec![];
-		if n.len() > 0{
-			let mut curalgo :Asn1X509NameElement = Asn1X509NameElement::init_asn1();
-			curalgo.obj.set_value(oid).unwrap();
-			curalgo.name.val = format!("{}",n);
-			retv.push(curalgo);
-		}
-		retv
-	}
-
-	fn to_rdn_sequence(&self) -> Vec<Asn1X509NameElement> {
-		let mut retv :Vec<Asn1X509NameElement> = vec![];
-		let mut idx :usize;
-		retv.extend(self.format_new_rdn_sequence(&self.contry,OID_COUNTRY));
-		retv.extend(self.format_new_rdn_sequence(&self.province,OID_PROVINCE));
-		retv.extend(self.format_new_rdn_sequence(&self.locality,OID_LOCALITY));
-		retv.extend(self.format_new_rdn_sequence(&self.street_address,OID_STREET_ADDRESS));
-		retv.extend(self.format_new_rdn_sequence(&self.postal_code,OID_POSTAL_CODE));
-		retv.extend(self.format_new_rdn_sequence(&self.orgnization,OID_ORGANIZATION));
-		retv.extend(self.format_new_rdn_sequence(&self.orgnizational_unit,OID_ORGANIZATIONAL_UNIT));
-
-		retv.extend(self.format_new_name(&self.common_name,OID_COMMON_NAME));
-		retv.extend(self.format_new_name(&self.serial_number,OID_SERIAL_NUMBER));
-
-		idx = 0;
-		while idx < self.extra_names.len() {
-			retv.push(self.extra_names[idx].clone());
-			idx += 1;
-		}
-
-		retv
-	}
 }
 
 
@@ -296,7 +248,7 @@ pub struct X509BuildConfig {
 
 impl X509BuildConfig {
 	pub fn new() -> X509BuildConfig {
-		let mut retv :Self = Self {
+		let retv :Self = Self {
 			serial_number : zero(),
 			basic_constraints_valid: false,
 			is_ca: false,
@@ -339,6 +291,14 @@ impl Asn1X509NameElement {
 		rets = format!("{}:{}",self.obj.get_value(),self.name.val);
 		return rets;
 	}
+}
+
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1X509NameAnyElement {
+	pub obj :Asn1Object,
+	pub value :Asn1Any,
 }
 
 
@@ -1618,7 +1578,238 @@ fn get_sign_asn1_code(algo :SignatureAlgorithm) -> Result<(String,Vec<u8>),Box<d
 	ssllib_new_error!{SslX509Error,"no match algo {:?}", algo}
 }
 
-fn create_x509_from_config_build(template :&X509BuildConfig,parent :&Asn1X509,pubkey :Box<dyn X509PublickKey>,privkey :Box<dyn X509Privatekey>) -> Result<Vec<u8>,Box<dyn Error>> {
+#[derive(Clone)]
+#[asn1_sequence()]
+pub struct Asn1PkixNameElem {
+	pub country :Asn1Opt<Asn1X509NameEntry>,
+	pub province :Asn1Opt<Asn1X509NameEntry>,
+	pub locality :Asn1Opt<Asn1X509NameEntry>,
+	pub street_address :Asn1Opt<Asn1X509NameEntry>,
+	pub postal_code :Asn1Opt<Asn1X509NameEntry>,
+	pub organization :Asn1Opt<Asn1X509NameEntry>,
+	pub organizational_unit :Asn1Opt<Asn1X509NameEntry>,
+	pub common_name :Asn1Opt<Asn1X509NameEntry>,
+	pub serial_number :Asn1Opt<Asn1X509NameEntry>,
+	pub extra_names :Asn1Opt<Asn1Set<Asn1Seq<Asn1X509NameAnyElement>>>,
+}
+
+fn append_name(set :&mut Asn1X509NameEntry, n :&Asn1X509NameElement) -> Result<(),Box<dyn Error>> {
+	if set.names.val.len() == 0 {
+		set.names.val.push(Asn1Seq::init_asn1());
+	}
+
+	set.names.val[0].val.push(n.clone());
+	Ok(())
+}
+
+fn append_extranames(set :&mut Asn1Set<Asn1Seq<Asn1X509NameAnyElement>>, n :&Asn1X509NameElement) -> Result<(),Box<dyn Error>> {
+	if set.val.len() == 0 {
+		set.val.push(Asn1Seq::init_asn1());
+	}
+	let mut c :Asn1X509NameAnyElement = Asn1X509NameAnyElement::init_asn1();
+	c.obj.set_value(&n.obj.get_value())?;
+	let mut a :Asn1Any = Asn1Any::init_asn1();
+	let code = n.encode_asn1()?;
+	a.decode_asn1(&code)?;
+	c.value = a.clone();
+	set.val[0].val.push(c);
+	Ok(())
+}
+
+fn append_name_extra(set :&mut Asn1X509NameEntry,n :&Asn1X509NameAnyElement) -> Result<(),Box<dyn Error>> {
+	if set.names.val.len() == 0 {
+		set.names.val.push(Asn1Seq::init_asn1());
+	}
+	let mut cn :Asn1X509NameElement = Asn1X509NameElement::init_asn1();
+	cn.obj.set_value(&n.obj.get_value())?;
+	cn.name.val = String::from_utf8_lossy(&n.value.content).to_string();
+
+	set.names.val[0].val.push(cn.clone());
+	Ok(())
+}
+
+
+fn append_extranames_extra(set :&mut Asn1Set<Asn1Seq<Asn1X509NameAnyElement>>, n :&Asn1X509NameAnyElement) -> Result<(),Box<dyn Error>> {
+	if set.val.len() == 0 {
+		set.val.push(Asn1Seq::init_asn1());
+	}
+	set.val[0].val.push(n.clone());
+	Ok(())
+}
+
+macro_rules! expand_fixup_part {
+	($elemname:expr,$cntexpr :expr,$provexpr :expr,$locexpr:expr,$strexpr:expr,$orgexpr:expr,$orgunitexpr:expr,$postexpr:expr,$serexpr:expr,$extexpr:expr,$cmnexpr:expr) => {
+		if $elemname.val.is_some() {
+			let _cvals :Asn1X509NameEntry = $elemname.val.as_ref().unwrap().clone();
+			if _cvals.names.val.len() > 0 {
+				let mut _idx :usize = 0;
+				let mut _jdx :usize = 0;
+				_idx = 0;
+				while _idx < _cvals.names.val.len() {
+					ssllib_log_trace!("{} value",_idx);
+					if _cvals.names.val[_idx].val.len() > 0 {
+						_jdx = 0;	
+						while _jdx < _cvals.names.val[_idx].val.len() {
+							ssllib_log_trace!("[{}].[{}] value",_idx,_jdx);
+							let _curname :Asn1X509NameElement = _cvals.names.val[_idx].val[_jdx].clone();
+							let _curoid :String = _curname.obj.get_value();
+							if _curoid == OID_COUNTRY {
+								let _ = append_name(&mut $cntexpr,&_curname)?;
+							} else if _curoid == OID_PROVINCE {
+								let _ = append_name(&mut $provexpr,&_curname)?;
+							} else if _curoid == OID_LOCALITY {
+								let _ = append_name(&mut $locexpr,&_curname)?;
+							} else if _curoid == OID_STREET_ADDRESS {
+								let _ = append_name(&mut $strexpr,&_curname)?;
+							} else if _curoid == OID_ORGANIZATION {
+								let _ = append_name(&mut $orgexpr,&_curname)?;
+							} else if _curoid == OID_ORGANIZATIONAL_UNIT {
+								let _ = append_name(&mut $orgunitexpr,&_curname)?;
+							} else if _curoid == OID_POSTAL_CODE {
+								let _ = append_name(&mut $postexpr,&_curname)?;
+							} else if _curoid == OID_SERIAL_NUMBER {
+								let _ = append_name(&mut $serexpr,&_curname)?;
+							} else if _curoid == OID_COMMON_NAME {
+								let _ = append_name(&mut $cmnexpr,&_curname)?;
+							} else {
+								let _ = append_extranames(&mut $extexpr,&_curname)?;
+							}
+
+							_jdx += 1;
+						}
+					}
+					_idx += 1;
+				}
+			}
+		}
+
+	}
+}
+
+macro_rules! expand_fixup_extra {
+	($elemname:expr,$cntexpr :expr,$provexpr :expr,$locexpr:expr,$strexpr:expr,$orgexpr:expr,$orgunitexpr:expr,$postexpr:expr,$serexpr:expr,$extexpr:expr,$cmnexpr:expr) => {
+		if $elemname.val.is_some() {
+			let _cvals :Asn1Set<Asn1Seq<Asn1X509NameAnyElement>> = $elemname.val.as_ref().unwrap().clone();
+			let mut _idx :usize;
+			let mut _jdx :usize;
+
+			_idx = 0;
+			while _idx < _cvals.val.len() {
+				if _cvals.val[_idx].val.len() > 0 {
+					_jdx = 0 ;
+					while _jdx < _cvals.val[_idx].val.len() {
+						let _curname :Asn1X509NameAnyElement = _cvals.val[_idx].val[_jdx].clone();
+						let _curoid :String = _curname.obj.get_value();
+						if _curoid == OID_COUNTRY {
+							let _ = append_name_extra(&mut $cntexpr,&_curname)?;
+						} else if _curoid == OID_PROVINCE {
+							let _ = append_name_extra(&mut $provexpr,&_curname)?;
+						} else if _curoid == OID_LOCALITY {
+							let _ = append_name_extra(&mut $locexpr,&_curname)?;
+						} else if _curoid == OID_STREET_ADDRESS {
+							let _ = append_name_extra(&mut $strexpr,&_curname)?;
+						} else if _curoid == OID_ORGANIZATION {
+							let _ = append_name_extra(&mut $orgexpr,&_curname)?;
+						} else if _curoid == OID_ORGANIZATIONAL_UNIT {
+							let _ = append_name_extra(&mut $orgunitexpr,&_curname)?;
+						} else if _curoid == OID_POSTAL_CODE {
+							let _ = append_name_extra(&mut $postexpr,&_curname)?;
+						} else if _curoid == OID_SERIAL_NUMBER {
+							let _ = append_name_extra(&mut $serexpr,&_curname)?;
+						} else if _curoid == OID_COMMON_NAME {
+							let _ = append_name_extra(&mut $cmnexpr,&_curname)?;
+						} else {
+							let _ = append_extranames_extra(&mut $extexpr,&_curname)?;
+						}
+					}
+				}
+				_idx += 1;
+			}
+		}
+	}
+}
+
+
+macro_rules! set_name_entry {
+	($elemname:expr,$varexpr :expr) => {
+		if $varexpr.names.val.len() > 0 {
+			$elemname.val = Some($varexpr.clone());
+		} else {
+			$elemname.val = None;
+		}
+	}
+}
+
+macro_rules! set_name_extra {
+	($elemname:expr,$varexpr :expr) => {
+		if $varexpr.val.len() > 0 {
+			$elemname.val = Some($varexpr.clone());
+		} else {
+			$elemname.val = None;
+		}
+	}
+}
+
+
+impl Asn1PkixNameElem {
+	pub fn fixup(&mut self) -> Result<(),Box<dyn Error>> {
+		let mut country1 :Asn1X509NameEntry = Asn1X509NameEntry::init_asn1();
+		let mut province1 :Asn1X509NameEntry = Asn1X509NameEntry::init_asn1();
+		let mut locality1 :Asn1X509NameEntry = Asn1X509NameEntry::init_asn1();
+		let mut street_address1 :Asn1X509NameEntry = Asn1X509NameEntry::init_asn1();
+		let mut postal_code1 :Asn1X509NameEntry = Asn1X509NameEntry::init_asn1();
+		let mut organization1 :Asn1X509NameEntry = Asn1X509NameEntry::init_asn1();
+		let mut organizational_unit1 :Asn1X509NameEntry = Asn1X509NameEntry::init_asn1();
+		let mut common_name1 :Asn1X509NameEntry = Asn1X509NameEntry::init_asn1();
+		let mut serial_number1 :Asn1X509NameEntry = Asn1X509NameEntry::init_asn1();
+		let mut extra_names1 :Asn1Set<Asn1Seq<Asn1X509NameAnyElement>> = Asn1Set::init_asn1();
+
+		expand_fixup_part!(self.country,country1,province1,locality1,street_address1,organization1,organizational_unit1,postal_code1,serial_number1,extra_names1,common_name1);
+		expand_fixup_part!(self.province,country1,province1,locality1,street_address1,organization1,organizational_unit1,postal_code1,serial_number1,extra_names1,common_name1);
+		expand_fixup_part!(self.locality,country1,province1,locality1,street_address1,organization1,organizational_unit1,postal_code1,serial_number1,extra_names1,common_name1);
+		expand_fixup_part!(self.street_address,country1,province1,locality1,street_address1,organization1,organizational_unit1,postal_code1,serial_number1,extra_names1,common_name1);
+		expand_fixup_part!(self.postal_code,country1,province1,locality1,street_address1,organization1,organizational_unit1,postal_code1,serial_number1,extra_names1,common_name1);
+		expand_fixup_part!(self.organization,country1,province1,locality1,street_address1,organization1,organizational_unit1,postal_code1,serial_number1,extra_names1,common_name1);
+		expand_fixup_part!(self.organizational_unit,country1,province1,locality1,street_address1,organization1,organizational_unit1,postal_code1,serial_number1,extra_names1,common_name1);
+		expand_fixup_part!(self.common_name,country1,province1,locality1,street_address1,organization1,organizational_unit1,postal_code1,serial_number1,extra_names1,common_name1);
+		expand_fixup_part!(self.serial_number,country1,province1,locality1,street_address1,organization1,organizational_unit1,postal_code1,serial_number1,extra_names1,common_name1);
+
+		expand_fixup_extra!(self.extra_names,country1,province1,locality1,street_address1,organization1,organizational_unit1,postal_code1,serial_number1,extra_names1,common_name1);
+
+
+		set_name_entry!(self.country,country1);
+		set_name_entry!(self.province,province1);
+		set_name_entry!(self.locality,locality1);
+		set_name_entry!(self.street_address,street_address1);
+		set_name_entry!(self.postal_code,postal_code1);
+		set_name_entry!(self.organization,organization1);
+		set_name_entry!(self.organizational_unit,organizational_unit1);
+		set_name_entry!(self.common_name,common_name1);
+		set_name_entry!(self.serial_number,serial_number1);
+
+		set_name_extra!(self.extra_names,extra_names1);
+
+		Ok(())
+	}
+}
+
+#[derive(Clone)]
+#[asn1_sequence()]
+pub struct Asn1PkixName {
+	pub elem :Asn1Seq<Asn1PkixNameElem>,
+}
+
+impl Asn1PkixName {
+	pub fn fixup(&mut self) -> Result<(),Box<dyn Error>> {
+		if self.elem.val.len() < 1 {
+			return Ok(());
+		}
+
+		return self.elem.val[0].fixup();
+	}
+}
+
+pub fn create_x509_from_config_build(template :&X509BuildConfig,parent :&Asn1X509,_pubkey :Box<dyn X509PublickKey>,privkey :Box<dyn X509Privatekey>) -> Result<Vec<u8>,Box<dyn Error>> {
 	let zv :BigInt = zero();
 	let retv :Vec<u8> = vec![];
 	let algooid :String;

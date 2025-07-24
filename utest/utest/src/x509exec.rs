@@ -248,9 +248,28 @@ fn psstypeenc_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 }
 
 
+fn pkixnamedec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
+
+	let sarr :Vec<String>;
+	init_log(ns.clone())?;
+
+	sarr = ns.get_array("subnargs");
+	for f in sarr.iter() {
+		let code = read_file_into_der(f)?;
+		debug_buffer_trace!(code.as_ptr(),code.len(),"[{}]code in",f);
+		let mut pkixname :Asn1PkixName = Asn1PkixName::init_asn1();
+		let _ = pkixname.decode_asn1(&code)?;
+		let mut f = std::io::stderr();
+		pkixname.print_asn1("Asn1PkixName",0,&mut f)?;
+		pkixname.fixup()?;
+		pkixname.print_asn1("Asn1PkixName",0,&mut f)?;
+	}
+	Ok(())
+}
 
 
-#[extargs_map_function(x509dec_handler,csrdec_handler,crldec_handler,x509sigdec_handler,x509auxdec_handler,x509auxenc_handler,psstypeenc_handler)]
+
+#[extargs_map_function(x509dec_handler,csrdec_handler,crldec_handler,x509sigdec_handler,x509auxdec_handler,x509auxenc_handler,psstypeenc_handler,pkixnamedec_handler)]
 pub fn load_x509exec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -274,6 +293,9 @@ pub fn load_x509exec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>>
 		},
 		"psstypeenc<psstypeenc_handler>##to display pss type encryption##" : {
 			"$" : 0
+		},
+		"pkixnamedec<pkixnamedec_handler>##binfile ... to decode for Asn1PkixName##" : {
+			"$" : "+"
 		}
 	}
 	"#;
