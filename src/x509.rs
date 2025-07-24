@@ -206,22 +206,47 @@ impl PartialEq for SignatureAlgorithm {
 
 #[derive(Clone)]
 pub struct PkixName {
-	pub contry :Vec<String>,
+	pub country :Vec<String>,
+	pub province :Vec<String>,
+	pub locality :Vec<String>,
+	pub street_address :Vec<String>,
 	pub orgnization :Vec<String>,
 	pub orgnizational_unit :Vec<String>,
-	pub locality :Vec<String>,
-	pub province :Vec<String>,
-	pub street_address :Vec<String>,
 	pub postal_code :Vec<String>,
 	pub serial_number :String,
 	pub common_name :String,
 	pub extra_names :Vec<Asn1Any>,
 }
 
+macro_rules! set_pkix_name {
+	($elemname:expr,$selfval :expr) => {
+		if $elemname.val.is_some() {
+			let _cvals :Asn1X509NameEntry = $elemname.val.as_ref().unwrap().clone();
+			if _cvals.names.val.len() > 0 {
+				let mut _idx :usize = 0;
+				let mut _jdx :usize = 0;
+				_idx = 0;
+				while _idx < _cvals.names.val.len() {
+					ssllib_log_trace!("{} value",_idx);
+					if _cvals.names.val[_idx].val.len() > 0 {
+						_jdx = 0;	
+						while _jdx < _cvals.names.val[_idx].val.len() {
+							let _curname :Asn1X509NameElement = _cvals.names.val[_idx].val[_jdx].clone();
+							$selfval.push(format!("{}",_curname.name.val));
+							_jdx += 1;
+						}
+					}
+					_idx += 1;
+				}
+			}
+		}
+	}
+}
+
 impl PkixName {
 	fn new() -> Self {
 		Self {
-			contry : vec![],
+			country : vec![],
 			orgnization :vec![],
 			orgnizational_unit :vec![],
 			locality :vec![],
@@ -232,6 +257,22 @@ impl PkixName {
 			common_name : format!(""),
 			extra_names :vec![],
 		}
+	}
+
+	pub fn from_asn1(pkix :&Asn1PkixName) -> Result<Self,Box<dyn Error>> {
+		let mut retv :Self = Self::new();
+		let mut x :Asn1PkixNameElem = Asn1PkixNameElem::init_asn1();
+		if pkix.elem.val.len() > 0 {
+			x = pkix.elem.val[0].clone();
+			x.fixup()?;
+			set_pkix_name!(x.country,retv.country);
+			set_pkix_name!(x.province,retv.province);
+			set_pkix_name!(x.locality,retv.locality);
+			set_pkix_name!(x.street_address,retv.street_address);
+			set_pkix_name!(x.postal_code,retv.postal_code);
+		}
+		
+		Ok(retv)
 	}
 
 }
@@ -1639,6 +1680,7 @@ fn append_extranames_extra(set :&mut Asn1Set<Asn1Seq<Asn1X509NameAnyElement>>, n
 
 macro_rules! expand_fixup_part {
 	($elemname:expr,$cntexpr :expr,$provexpr :expr,$locexpr:expr,$strexpr:expr,$orgexpr:expr,$orgunitexpr:expr,$postexpr:expr,$serexpr:expr,$extexpr:expr,$cmnexpr:expr) => {
+		ssllib_log_trace!("compile element");
 		if $elemname.val.is_some() {
 			let _cvals :Asn1X509NameEntry = $elemname.val.as_ref().unwrap().clone();
 			if _cvals.names.val.len() > 0 {
@@ -1688,6 +1730,7 @@ macro_rules! expand_fixup_part {
 
 macro_rules! expand_fixup_extra {
 	($elemname:expr,$cntexpr :expr,$provexpr :expr,$locexpr:expr,$strexpr:expr,$orgexpr:expr,$orgunitexpr:expr,$postexpr:expr,$serexpr:expr,$extexpr:expr,$cmnexpr:expr) => {
+		ssllib_log_trace!("extra_compile");
 		if $elemname.val.is_some() {
 			let _cvals :Asn1Set<Asn1Seq<Asn1X509NameAnyElement>> = $elemname.val.as_ref().unwrap().clone();
 			let mut _idx :usize;
@@ -1721,11 +1764,13 @@ macro_rules! expand_fixup_extra {
 						} else {
 							let _ = append_extranames_extra(&mut $extexpr,&_curname)?;
 						}
+						_jdx += 1;
 					}
 				}
 				_idx += 1;
 			}
 		}
+		ssllib_log_trace!("extra exit");
 	}
 }
 
