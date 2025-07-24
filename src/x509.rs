@@ -269,6 +269,8 @@ impl PkixName {
 			set_pkix_name!(x.province,retv.province);
 			set_pkix_name!(x.locality,retv.locality);
 			set_pkix_name!(x.street_address,retv.street_address);
+			set_pkix_name!(x.organization,retv.orgnization);
+			set_pkix_name!(x.organizational_unit,retv.orgnizational_unit);
 			set_pkix_name!(x.postal_code,retv.postal_code);
 		}
 		
