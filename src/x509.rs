@@ -262,23 +262,23 @@ impl std::fmt::Debug for PkixName {
 	 fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 	 	f.write_fmt(format_args!("PkixName{{"))?;
 	 	expand_pkix_fmt!("country",self.country,f);
-	 	f.write_fmt(format_args!(","));
+	 	f.write_fmt(format_args!(","))?;
 	 	expand_pkix_fmt!("province",self.province,f);
-	 	f.write_fmt(format_args!(","));
+	 	f.write_fmt(format_args!(","))?;
 	 	expand_pkix_fmt!("locality",self.locality,f);
-	 	f.write_fmt(format_args!(","));
+	 	f.write_fmt(format_args!(","))?;
 	 	expand_pkix_fmt!("street_address",self.street_address,f);
-	 	f.write_fmt(format_args!(","));
+	 	f.write_fmt(format_args!(","))?;
 	 	expand_pkix_fmt!("postal_code",self.postal_code,f);
-	 	f.write_fmt(format_args!(","));
+	 	f.write_fmt(format_args!(","))?;
 	 	expand_pkix_fmt!("organization",self.organization,f);
-	 	f.write_fmt(format_args!(","));
+	 	f.write_fmt(format_args!(","))?;
 	 	expand_pkix_fmt!("organizational_unit",self.organizational_unit,f);
-	 	f.write_fmt(format_args!(","));
+	 	f.write_fmt(format_args!(","))?;
 	 	expand_pkix_fmt!("common_name",self.common_name,f);
-	 	f.write_fmt(format_args!(","));
+	 	f.write_fmt(format_args!(","))?;
 	 	expand_pkix_fmt!("serial_number",self.serial_number,f);
-	 	f.write_fmt(format_args!(","));
+	 	f.write_fmt(format_args!(","))?;
 
 	 	expand_pkix_fmt_extra!("extra_names",self.extra_names,f);
 
@@ -965,6 +965,11 @@ impl Asn1X509Elem {
 		cbytes = self.cert_info.elem.val[0].serial_number.val.to_bytes_be();
 		build.serial_number = BigInt::from_bytes_be(Sign::Plus,&cbytes);
 		ssllib_log_trace!("serial_number 0x{:x}", build.serial_number);
+
+		/*now to get the siganature*/
+		if self.cert_info.elem.val[0].signature.equal_asn1(&self.sig_alg) {
+			ssllib_new_error!{SslX509Error,"not matched signature algorithm to sig_alg"}
+		}
 
 		Ok(build)
 	}
