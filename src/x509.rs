@@ -12,7 +12,7 @@ use asn1obj::consts::*;
 use std::error::Error;
 use std::io::{Write};
 
-use num_bigint::{BigInt};
+use num_bigint::{BigInt,Sign};
 use num_traits::{zero};
 
 use crate::{ssllib_new_error,ssllib_error_class};
@@ -218,6 +218,74 @@ pub struct PkixName {
 	pub extra_names :Vec<Asn1X509NameAnyElement>,
 }
 
+macro_rules! expand_pkix_fmt {
+	($name :expr, $elem :expr, $f :expr) => {
+		let mut _idx :usize = 0;
+		$f.write_fmt(format_args!("{} : [",$name))?;
+		while _idx < $elem.len() {
+			if _idx > 0 {
+				$f.write_fmt(format_args!(","))?;
+			}
+			$f.write_fmt(format_args!("\"{}\"",$elem[_idx]))?;
+			_idx += 1;
+		}
+		$f.write_fmt(format_args!("]"))?;
+	};
+}
+
+macro_rules! expand_pkix_fmt_extra {
+	($name :expr, $elem :expr, $f :expr) => {
+		let mut _idx :usize = 0;
+		let mut _jdx :usize;
+		$f.write_fmt(format_args!("{} :[",$name))?;
+		while _idx < $elem.len() {
+			if _idx > 0 {
+				$f.write_fmt(format_args!(","))?;
+			}
+			$f.write_fmt(format_args!("{{ obj :\"{}\" ,tag: {}, content[",$elem[_idx].obj.get_value(),$elem[_idx].value.tag))?;
+			_jdx = 0;
+			while _jdx < $elem[_idx].value.content.len() {
+				if _jdx > 0 {
+					$f.write_fmt(format_args!(","))?;
+				}
+				$f.write_fmt(format_args!("{}",$elem[_idx].value.content[_jdx]))?;
+				_jdx += 1;
+			}
+			$f.write_fmt(format_args!("]}}"))?;
+			_idx += 1;
+		}
+		$f.write_fmt(format_args!("]"))?;		
+	};
+}
+
+impl std::fmt::Debug for PkixName {
+	 fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+	 	f.write_fmt(format_args!("PkixName{{"))?;
+	 	expand_pkix_fmt!("country",self.country,f);
+	 	f.write_fmt(format_args!(","));
+	 	expand_pkix_fmt!("province",self.province,f);
+	 	f.write_fmt(format_args!(","));
+	 	expand_pkix_fmt!("locality",self.locality,f);
+	 	f.write_fmt(format_args!(","));
+	 	expand_pkix_fmt!("street_address",self.street_address,f);
+	 	f.write_fmt(format_args!(","));
+	 	expand_pkix_fmt!("postal_code",self.postal_code,f);
+	 	f.write_fmt(format_args!(","));
+	 	expand_pkix_fmt!("organization",self.organization,f);
+	 	f.write_fmt(format_args!(","));
+	 	expand_pkix_fmt!("organizational_unit",self.organizational_unit,f);
+	 	f.write_fmt(format_args!(","));
+	 	expand_pkix_fmt!("common_name",self.common_name,f);
+	 	f.write_fmt(format_args!(","));
+	 	expand_pkix_fmt!("serial_number",self.serial_number,f);
+	 	f.write_fmt(format_args!(","));
+
+	 	expand_pkix_fmt_extra!("extra_names",self.extra_names,f);
+
+	 	f.write_fmt(format_args!("}}"))
+	 }
+}
+
 macro_rules! set_pkix_name {
 	($elemname:expr,$selfval :expr) => {
 		if $elemname.val.is_some() {
@@ -310,6 +378,7 @@ impl PkixName {
 }
 
 
+#[derive(Debug)]
 #[derive(Clone)]
 pub struct X509BuildConfig {
 	pub version :i64,
@@ -873,23 +942,29 @@ impl Asn1X509Elem {
 
 	pub fn to_export_build(&self) -> Result<X509BuildConfig,Box<dyn Error>> {
 		let mut build :X509BuildConfig = X509BuildConfig::new();
-		if self.cert_info.elem.val.len() > 0 {
-			if self.cert_info.elem.val[0].version.val.is_some() {
-				let verimpset :&Asn1ImpSet<Asn1Integer,0> = self.cert_info.elem.val[0].version.val.as_ref().unwrap();
-				if verimpset.val.len() > 0 {
-					build.version = verimpset.val[0].val as i64;
-					if build.version < 0 {
-						ssllib_new_error!{SslX509Error,"version {} < 0" ,build.version}
-					}
+		let mut cbytes :Vec<u8>;
+		if self.cert_info.elem.val.len() == 0 {
+			ssllib_new_error!{SslX509Error,"no elem cert_info"}
+		}
 
-					build.version += 1;
-					if build.version > 3 {
-						ssllib_new_error!{SslX509Error,"version {} > 3" ,build.version}
-					}
+		if self.cert_info.elem.val[0].version.val.is_some() {
+			let verimpset :&Asn1ImpSet<Asn1Integer,0> = self.cert_info.elem.val[0].version.val.as_ref().unwrap();
+			if verimpset.val.len() > 0 {
+				build.version = verimpset.val[0].val as i64;
+				if build.version < 0 {
+					ssllib_new_error!{SslX509Error,"version {} < 0" ,build.version}
 				}
 
+				build.version += 1;
+				if build.version > 3 {
+					ssllib_new_error!{SslX509Error,"version {} > 3" ,build.version}
+				}
 			}
 		}
+
+		cbytes = self.cert_info.elem.val[0].serial_number.val.to_bytes_be();
+		build.serial_number = BigInt::from_bytes_be(Sign::Plus,&cbytes);
+		ssllib_log_trace!("serial_number 0x{:x}", build.serial_number);
 
 		Ok(build)
 	}

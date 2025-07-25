@@ -268,8 +268,27 @@ fn pkixnamedec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSet
 }
 
 
+fn exportbuild_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
 
-#[extargs_map_function(x509dec_handler,csrdec_handler,crldec_handler,x509sigdec_handler,x509auxdec_handler,x509auxenc_handler,psstypeenc_handler,pkixnamedec_handler)]
+	let sarr :Vec<String>;
+	init_log(ns.clone())?;
+
+	sarr = ns.get_array("subnargs");
+	for f in sarr.iter() {
+		let code = read_file_into_der(f)?;
+		debug_buffer_trace!(code.as_ptr(),code.len(),"[{}]code in",f);
+		let mut x509 :Asn1X509 = Asn1X509::init_asn1();
+		let _ = x509.decode_asn1(&code)?;
+		let build :X509BuildConfig;
+		build = x509.to_export_build()?;
+		println!("{:?}",build);
+	}
+	Ok(())
+}
+
+
+
+#[extargs_map_function(x509dec_handler,csrdec_handler,crldec_handler,x509sigdec_handler,x509auxdec_handler,x509auxenc_handler,psstypeenc_handler,pkixnamedec_handler,exportbuild_handler)]
 pub fn load_x509exec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -295,6 +314,9 @@ pub fn load_x509exec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>>
 			"$" : 0
 		},
 		"pkixnamedec<pkixnamedec_handler>##binfile ... to decode for Asn1PkixName##" : {
+			"$" : "+"
+		},
+		"exportbuild<exportbuild_handler>##binfile ... to export x509 Config Build##" : {
 			"$" : "+"
 		}
 	}
