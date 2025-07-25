@@ -312,6 +312,7 @@ impl PkixName {
 
 #[derive(Clone)]
 pub struct X509BuildConfig {
+	pub version :i64,
 	pub serial_number  :BigInt,
 	pub basic_constraints_valid :bool,
 	pub is_ca :bool,
@@ -322,6 +323,7 @@ pub struct X509BuildConfig {
 impl X509BuildConfig {
 	pub fn new() -> X509BuildConfig {
 		let retv :Self = Self {
+			version : 0,
 			serial_number : zero(),
 			basic_constraints_valid: false,
 			is_ca: false,
@@ -330,6 +332,12 @@ impl X509BuildConfig {
 		};
 
 		retv
+	}
+
+	pub fn subject_bytes(&self) -> Result<Vec<u8>,Box<dyn Error>> {
+		let asn1pkix :Asn1PkixName = Asn1PkixName::from_pkixname(&self.subject)?;
+		let code = asn1pkix.encode_asn1()?;
+		Ok(code)
 	}
 
 }
@@ -850,6 +858,7 @@ pub struct Asn1X509Elem {
 	pub signature : Asn1BitDataFlag,
 }
 
+
 impl Asn1X509Elem {
 	pub fn match_priv_data(&self,signtype :&str,pktype :&str,privdata:&[u8]) -> Result<bool, Box<dyn Error>> {
 		if pktype == PKCS8_PRIVATE_KEY_TYPE {
@@ -860,6 +869,29 @@ impl Asn1X509Elem {
 			}
 		}
 		return Ok(false);
+	}
+
+	pub fn to_export_build(&self) -> Result<X509BuildConfig,Box<dyn Error>> {
+		let mut build :X509BuildConfig = X509BuildConfig::new();
+		if self.cert_info.elem.val.len() > 0 {
+			if self.cert_info.elem.val[0].version.val.is_some() {
+				let verimpset :&Asn1ImpSet<Asn1Integer,0> = self.cert_info.elem.val[0].version.val.as_ref().unwrap();
+				if verimpset.val.len() > 0 {
+					build.version = verimpset.val[0].val as i64;
+					if build.version < 0 {
+						ssllib_new_error!{SslX509Error,"version {} < 0" ,build.version}
+					}
+
+					build.version += 1;
+					if build.version > 3 {
+						ssllib_new_error!{SslX509Error,"version {} > 3" ,build.version}
+					}
+				}
+
+			}
+		}
+
+		Ok(build)
 	}
 }
 
@@ -942,6 +974,16 @@ impl Asn1X509 {
 			self.aux.val = Some(Asn1X509AuxCert::init_asn1());
 		}
 		return self.aux.val.as_mut().unwrap().append_other(x);
+	}
+
+	pub fn to_export_build(&self) -> Result<X509BuildConfig,Box<dyn Error>> {
+		let build :X509BuildConfig;
+		if self.elem.val.len() == 0 {
+			ssllib_new_error!{SslX509Error,"no element"}
+		}
+
+		build = self.elem.val[0].to_export_build()?;
+		Ok(build)
 	}
 
 
@@ -1632,6 +1674,7 @@ lazy_static!{
 }
 
 pub trait X509PublickKey {
+	fn export_pubkey(&self) -> Result<(Vec<u8>,Asn1X509Algor),Box<dyn Error>>;
 }
 
 pub trait X509Privatekey {
@@ -1895,6 +1938,12 @@ impl Asn1PkixName {
 		}
 
 		return self.elem.val[0].fixup();
+	}
+
+	pub fn from_pkixname(pkixname :&PkixName) -> Result<Self,Box<dyn Error>> {
+		let mut retv :Self = Self::init_asn1();
+		retv.elem.val.push(Asn1PkixNameElem::from_pkixname(pkixname)?);
+		Ok(retv)
 	}
 }
 
