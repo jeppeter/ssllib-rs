@@ -976,6 +976,11 @@ impl Asn1X509Elem {
 			ssllib_new_error!{SslX509Error,"not matched signature algorithm to sig_alg"}
 		}
 
+		/*now to get the signature*/
+		let oid :String = self.sig_alg.get_algorithm()?;
+		build.signature_algorithm = get_sig_algorithm_from_oid(&oid)?;
+
+
 		Ok(build)
 	}
 }
@@ -1750,6 +1755,15 @@ fn create_signature_algorithm() -> Vec<signatureAlgorithmStruct> {
 	retv.push(signatureAlgorithmStruct::new(SignatureAlgorithm::PureEd25519,"Ed25519",OID_PURE_ED25519,&emptycode,PublicKeyAlgorithm::Ed25519));
 
 	retv
+}
+
+fn get_sig_algorithm_from_oid(oid :&str) -> Result<SignatureAlgorithm,Box<dyn Error>> {
+	for f in SIGNAGURE_ALGORITHM.iter() {
+		if f.oid == oid {
+			return Ok(f.algo.clone());
+		}
+	}
+	ssllib_new_error!{SslX509Error,"not find algorithm oid [{}]", oid}
 }
 
 lazy_static!{
