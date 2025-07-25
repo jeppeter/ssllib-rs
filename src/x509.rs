@@ -17,7 +17,7 @@ use num_traits::{zero};
 
 use crate::{ssllib_new_error,ssllib_error_class};
 #[allow(unused_imports)]
-use crate::{ssllib_buffer_trace,ssllib_format_buffer_log,ssllib_log_trace};
+use crate::{ssllib_buffer_trace,ssllib_buffer_error,ssllib_format_buffer_log,ssllib_log_trace};
 //use crate::rsa::*;
 use crate::consts::*;
 use crate::digest::*;
@@ -967,7 +967,12 @@ impl Asn1X509Elem {
 		ssllib_log_trace!("serial_number 0x{:x}", build.serial_number);
 
 		/*now to get the siganature*/
-		if self.cert_info.elem.val[0].signature.equal_asn1(&self.sig_alg) {
+		if !self.cert_info.elem.val[0].signature.equal_asn1(&self.sig_alg) {
+			let mut code :Vec<u8>;
+			code = self.cert_info.elem.val[0].signature.encode_asn1()?;
+			ssllib_buffer_error!(code.as_ptr(), code.len(),"signature");
+			code = self.sig_alg.encode_asn1()?;
+			ssllib_buffer_error!(code.as_ptr(), code.len(),"sig_alg");
 			ssllib_new_error!{SslX509Error,"not matched signature algorithm to sig_alg"}
 		}
 
