@@ -210,12 +210,12 @@ pub struct PkixName {
 	pub province :Vec<String>,
 	pub locality :Vec<String>,
 	pub street_address :Vec<String>,
-	pub orgnization :Vec<String>,
-	pub orgnizational_unit :Vec<String>,
+	pub organization :Vec<String>,
+	pub organizational_unit :Vec<String>,
 	pub postal_code :Vec<String>,
-	pub serial_number :String,
-	pub common_name :String,
-	pub extra_names :Vec<Asn1Any>,
+	pub serial_number :Vec<String>,
+	pub common_name :Vec<String>,
+	pub extra_names :Vec<Asn1X509NameAnyElement>,
 }
 
 macro_rules! set_pkix_name {
@@ -243,18 +243,44 @@ macro_rules! set_pkix_name {
 	}
 }
 
+macro_rules! set_pkix_extra {
+	($elemname:expr,$selfval :expr) => {
+		if $elemname.val.is_some() {
+			let _cvals :Asn1Set<Asn1Seq<Asn1X509NameAnyElement>> = $elemname.val.as_ref().unwrap().clone();
+			if _cvals.val.len() > 0 {
+				let mut _idx :usize = 0;
+				let mut _jdx :usize = 0;
+				_idx = 0;
+				while _idx < _cvals.val.len() {
+					ssllib_log_trace!("{} value",_idx);
+					if _cvals.val[_idx].val.len() > 0 {
+						_jdx = 0;	
+						while _jdx < _cvals.val[_idx].val.len() {
+							let _curname :Asn1X509NameAnyElement = _cvals.val[_idx].val[_jdx].clone();
+							$selfval.push(_curname);
+							_jdx += 1;
+						}
+					}
+					_idx += 1;
+				}
+			}
+		}
+	}
+}
+
+
 impl PkixName {
-	fn new() -> Self {
+	pub fn new() -> Self {
 		Self {
 			country : vec![],
-			orgnization :vec![],
-			orgnizational_unit :vec![],
+			organization :vec![],
+			organizational_unit :vec![],
 			locality :vec![],
 			province :vec![],
 			street_address :vec![],
 			postal_code :vec![],
-			serial_number : format!(""),
-			common_name : format!(""),
+			serial_number : vec![],
+			common_name : vec![],
 			extra_names :vec![],
 		}
 	}
@@ -269,9 +295,13 @@ impl PkixName {
 			set_pkix_name!(x.province,retv.province);
 			set_pkix_name!(x.locality,retv.locality);
 			set_pkix_name!(x.street_address,retv.street_address);
-			set_pkix_name!(x.organization,retv.orgnization);
-			set_pkix_name!(x.organizational_unit,retv.orgnizational_unit);
+			set_pkix_name!(x.organization,retv.organization);
+			set_pkix_name!(x.organizational_unit,retv.organizational_unit);
 			set_pkix_name!(x.postal_code,retv.postal_code);
+			set_pkix_name!(x.common_name,retv.common_name);
+			set_pkix_name!(x.serial_number,retv.serial_number);
+
+			set_pkix_extra!(x.extra_names, retv.extra_names);
 		}
 		
 		Ok(retv)
@@ -1636,52 +1666,36 @@ pub struct Asn1PkixNameElem {
 	pub extra_names :Asn1Opt<Asn1Set<Asn1Seq<Asn1X509NameAnyElement>>>,
 }
 
-fn append_name(set :&mut Asn1X509NameEntry, n :&Asn1X509NameElement) -> Result<(),Box<dyn Error>> {
-	if set.names.val.len() == 0 {
-		set.names.val.push(Asn1Seq::init_asn1());
-	}
-
-	set.names.val[0].val.push(n.clone());
+fn append_name(set :&mut Vec<String>, n :&Asn1X509NameElement) -> Result<(),Box<dyn Error>> {
+	set.push(format!("{}",n.name.val));
 	Ok(())
 }
 
-fn append_extranames(set :&mut Asn1Set<Asn1Seq<Asn1X509NameAnyElement>>, n :&Asn1X509NameElement) -> Result<(),Box<dyn Error>> {
-	if set.val.len() == 0 {
-		set.val.push(Asn1Seq::init_asn1());
-	}
+fn append_extranames(set :&mut Vec<Asn1X509NameAnyElement>, n :&Asn1X509NameElement) -> Result<(),Box<dyn Error>> {
 	let mut c :Asn1X509NameAnyElement = Asn1X509NameAnyElement::init_asn1();
 	c.obj.set_value(&n.obj.get_value())?;
 	let mut a :Asn1Any = Asn1Any::init_asn1();
 	let code = n.encode_asn1()?;
 	a.decode_asn1(&code)?;
 	c.value = a.clone();
-	set.val[0].val.push(c);
+	set.push(c);
 	Ok(())
 }
 
-fn append_name_extra(set :&mut Asn1X509NameEntry,n :&Asn1X509NameAnyElement) -> Result<(),Box<dyn Error>> {
-	if set.names.val.len() == 0 {
-		set.names.val.push(Asn1Seq::init_asn1());
-	}
-	let mut cn :Asn1X509NameElement = Asn1X509NameElement::init_asn1();
-	cn.obj.set_value(&n.obj.get_value())?;
-	cn.name.val = String::from_utf8_lossy(&n.value.content).to_string();
-
-	set.names.val[0].val.push(cn.clone());
+fn append_name_extra(set :&mut Vec<String>,n :&Asn1X509NameAnyElement) -> Result<(),Box<dyn Error>> {
+	let s = String::from_utf8_lossy(&n.value.content).to_string();
+	set.push(s);
 	Ok(())
 }
 
 
-fn append_extranames_extra(set :&mut Asn1Set<Asn1Seq<Asn1X509NameAnyElement>>, n :&Asn1X509NameAnyElement) -> Result<(),Box<dyn Error>> {
-	if set.val.len() == 0 {
-		set.val.push(Asn1Seq::init_asn1());
-	}
-	set.val[0].val.push(n.clone());
+fn append_extranames_extra(set :&mut Vec<Asn1X509NameAnyElement>, n :&Asn1X509NameAnyElement) -> Result<(),Box<dyn Error>> {
+	set.push(n.clone());
 	Ok(())
 }
 
 macro_rules! expand_fixup_part {
-	($elemname:expr,$cntexpr :expr,$provexpr :expr,$locexpr:expr,$strexpr:expr,$orgexpr:expr,$orgunitexpr:expr,$postexpr:expr,$serexpr:expr,$extexpr:expr,$cmnexpr:expr) => {
+	($elemname:expr,$pkix:expr) => {
 		ssllib_log_trace!("compile element");
 		if $elemname.val.is_some() {
 			let _cvals :Asn1X509NameEntry = $elemname.val.as_ref().unwrap().clone();
@@ -1698,25 +1712,25 @@ macro_rules! expand_fixup_part {
 							let _curname :Asn1X509NameElement = _cvals.names.val[_idx].val[_jdx].clone();
 							let _curoid :String = _curname.obj.get_value();
 							if _curoid == OID_COUNTRY {
-								let _ = append_name(&mut $cntexpr,&_curname)?;
+								let _ = append_name(&mut $pkix.country,&_curname)?;
 							} else if _curoid == OID_PROVINCE {
-								let _ = append_name(&mut $provexpr,&_curname)?;
+								let _ = append_name(&mut $pkix.province,&_curname)?;
 							} else if _curoid == OID_LOCALITY {
-								let _ = append_name(&mut $locexpr,&_curname)?;
+								let _ = append_name(&mut $pkix.locality,&_curname)?;
 							} else if _curoid == OID_STREET_ADDRESS {
-								let _ = append_name(&mut $strexpr,&_curname)?;
+								let _ = append_name(&mut $pkix.street_address,&_curname)?;
 							} else if _curoid == OID_ORGANIZATION {
-								let _ = append_name(&mut $orgexpr,&_curname)?;
+								let _ = append_name(&mut $pkix.organization,&_curname)?;
 							} else if _curoid == OID_ORGANIZATIONAL_UNIT {
-								let _ = append_name(&mut $orgunitexpr,&_curname)?;
+								let _ = append_name(&mut $pkix.organizational_unit,&_curname)?;
 							} else if _curoid == OID_POSTAL_CODE {
-								let _ = append_name(&mut $postexpr,&_curname)?;
+								let _ = append_name(&mut $pkix.postal_code,&_curname)?;
 							} else if _curoid == OID_SERIAL_NUMBER {
-								let _ = append_name(&mut $serexpr,&_curname)?;
+								let _ = append_name(&mut $pkix.serial_number,&_curname)?;
 							} else if _curoid == OID_COMMON_NAME {
-								let _ = append_name(&mut $cmnexpr,&_curname)?;
+								let _ = append_name(&mut $pkix.common_name,&_curname)?;
 							} else {
-								let _ = append_extranames(&mut $extexpr,&_curname)?;
+								let _ = append_extranames(&mut $pkix.extra_names,&_curname)?;
 							}
 
 							_jdx += 1;
@@ -1731,7 +1745,7 @@ macro_rules! expand_fixup_part {
 }
 
 macro_rules! expand_fixup_extra {
-	($elemname:expr,$cntexpr :expr,$provexpr :expr,$locexpr:expr,$strexpr:expr,$orgexpr:expr,$orgunitexpr:expr,$postexpr:expr,$serexpr:expr,$extexpr:expr,$cmnexpr:expr) => {
+	($elemname:expr,$pkix:expr) => {
 		ssllib_log_trace!("extra_compile");
 		if $elemname.val.is_some() {
 			let _cvals :Asn1Set<Asn1Seq<Asn1X509NameAnyElement>> = $elemname.val.as_ref().unwrap().clone();
@@ -1746,25 +1760,25 @@ macro_rules! expand_fixup_extra {
 						let _curname :Asn1X509NameAnyElement = _cvals.val[_idx].val[_jdx].clone();
 						let _curoid :String = _curname.obj.get_value();
 						if _curoid == OID_COUNTRY {
-							let _ = append_name_extra(&mut $cntexpr,&_curname)?;
+							let _ = append_name_extra(&mut $pkix.country,&_curname)?;
 						} else if _curoid == OID_PROVINCE {
-							let _ = append_name_extra(&mut $provexpr,&_curname)?;
+							let _ = append_name_extra(&mut $pkix.province,&_curname)?;
 						} else if _curoid == OID_LOCALITY {
-							let _ = append_name_extra(&mut $locexpr,&_curname)?;
+							let _ = append_name_extra(&mut $pkix.locality,&_curname)?;
 						} else if _curoid == OID_STREET_ADDRESS {
-							let _ = append_name_extra(&mut $strexpr,&_curname)?;
+							let _ = append_name_extra(&mut $pkix.street_address,&_curname)?;
 						} else if _curoid == OID_ORGANIZATION {
-							let _ = append_name_extra(&mut $orgexpr,&_curname)?;
+							let _ = append_name_extra(&mut $pkix.organization,&_curname)?;
 						} else if _curoid == OID_ORGANIZATIONAL_UNIT {
-							let _ = append_name_extra(&mut $orgunitexpr,&_curname)?;
+							let _ = append_name_extra(&mut $pkix.organizational_unit,&_curname)?;
 						} else if _curoid == OID_POSTAL_CODE {
-							let _ = append_name_extra(&mut $postexpr,&_curname)?;
+							let _ = append_name_extra(&mut $pkix.postal_code,&_curname)?;
 						} else if _curoid == OID_SERIAL_NUMBER {
-							let _ = append_name_extra(&mut $serexpr,&_curname)?;
+							let _ = append_name_extra(&mut $pkix.serial_number,&_curname)?;
 						} else if _curoid == OID_COMMON_NAME {
-							let _ = append_name_extra(&mut $cmnexpr,&_curname)?;
+							let _ = append_name_extra(&mut $pkix.common_name,&_curname)?;
 						} else {
-							let _ = append_extranames_extra(&mut $extexpr,&_curname)?;
+							let _ = append_extranames_extra(&mut $pkix.extra_names,&_curname)?;
 						}
 						_jdx += 1;
 					}
@@ -1778,9 +1792,20 @@ macro_rules! expand_fixup_extra {
 
 
 macro_rules! set_name_entry {
-	($elemname:expr,$varexpr :expr) => {
-		if $varexpr.names.val.len() > 0 {
-			$elemname.val = Some($varexpr.clone());
+	($elemname:expr,$varexpr :expr,$oid :expr) => {
+		if $varexpr.len() > 0 {
+			let mut _cv :Asn1X509NameEntry = Asn1X509NameEntry::init_asn1();
+			let mut _idx :usize;
+			_cv.names.val.push(Asn1Seq::init_asn1());
+			_idx = 0;
+			while _idx < $varexpr.len() {
+				let mut _cb :Asn1X509NameElement = Asn1X509NameElement::init_asn1();
+				_cb.obj.set_value($oid)?;
+				_cb.name.val = format!("{}",$varexpr[_idx]);
+				_cv.names.val[0].val.push(_cb);
+				_idx += 1;
+			}
+			$elemname.val = Some(_cv);
 		} else {
 			$elemname.val = None;
 		}
@@ -1789,8 +1814,16 @@ macro_rules! set_name_entry {
 
 macro_rules! set_name_extra {
 	($elemname:expr,$varexpr :expr) => {
-		if $varexpr.val.len() > 0 {
-			$elemname.val = Some($varexpr.clone());
+		if $varexpr.len() > 0 {
+			let mut _cv :Asn1Set<Asn1Seq<Asn1X509NameAnyElement>> = Asn1Set::init_asn1();
+			_cv.val.push(Asn1Seq::init_asn1());
+			let mut _idx :usize;
+			_idx = 0;
+			while _idx < $varexpr.len() {
+				_cv.val[0].val.push($varexpr[_idx].clone());
+				_idx += 1;
+			}
+			$elemname.val = Some(_cv);
 		} else {
 			$elemname.val = None;
 		}
@@ -1800,43 +1833,52 @@ macro_rules! set_name_extra {
 
 impl Asn1PkixNameElem {
 	pub fn fixup(&mut self) -> Result<(),Box<dyn Error>> {
-		let mut country1 :Asn1X509NameEntry = Asn1X509NameEntry::init_asn1();
-		let mut province1 :Asn1X509NameEntry = Asn1X509NameEntry::init_asn1();
-		let mut locality1 :Asn1X509NameEntry = Asn1X509NameEntry::init_asn1();
-		let mut street_address1 :Asn1X509NameEntry = Asn1X509NameEntry::init_asn1();
-		let mut postal_code1 :Asn1X509NameEntry = Asn1X509NameEntry::init_asn1();
-		let mut organization1 :Asn1X509NameEntry = Asn1X509NameEntry::init_asn1();
-		let mut organizational_unit1 :Asn1X509NameEntry = Asn1X509NameEntry::init_asn1();
-		let mut common_name1 :Asn1X509NameEntry = Asn1X509NameEntry::init_asn1();
-		let mut serial_number1 :Asn1X509NameEntry = Asn1X509NameEntry::init_asn1();
-		let mut extra_names1 :Asn1Set<Asn1Seq<Asn1X509NameAnyElement>> = Asn1Set::init_asn1();
+		let mut pkixname :PkixName = PkixName::new();
 
-		expand_fixup_part!(self.country,country1,province1,locality1,street_address1,organization1,organizational_unit1,postal_code1,serial_number1,extra_names1,common_name1);
-		expand_fixup_part!(self.province,country1,province1,locality1,street_address1,organization1,organizational_unit1,postal_code1,serial_number1,extra_names1,common_name1);
-		expand_fixup_part!(self.locality,country1,province1,locality1,street_address1,organization1,organizational_unit1,postal_code1,serial_number1,extra_names1,common_name1);
-		expand_fixup_part!(self.street_address,country1,province1,locality1,street_address1,organization1,organizational_unit1,postal_code1,serial_number1,extra_names1,common_name1);
-		expand_fixup_part!(self.postal_code,country1,province1,locality1,street_address1,organization1,organizational_unit1,postal_code1,serial_number1,extra_names1,common_name1);
-		expand_fixup_part!(self.organization,country1,province1,locality1,street_address1,organization1,organizational_unit1,postal_code1,serial_number1,extra_names1,common_name1);
-		expand_fixup_part!(self.organizational_unit,country1,province1,locality1,street_address1,organization1,organizational_unit1,postal_code1,serial_number1,extra_names1,common_name1);
-		expand_fixup_part!(self.common_name,country1,province1,locality1,street_address1,organization1,organizational_unit1,postal_code1,serial_number1,extra_names1,common_name1);
-		expand_fixup_part!(self.serial_number,country1,province1,locality1,street_address1,organization1,organizational_unit1,postal_code1,serial_number1,extra_names1,common_name1);
+		expand_fixup_part!(self.country,pkixname);
+		expand_fixup_part!(self.province,pkixname);
+		expand_fixup_part!(self.locality,pkixname);
+		expand_fixup_part!(self.street_address,pkixname);
+		expand_fixup_part!(self.postal_code,pkixname);
+		expand_fixup_part!(self.organization,pkixname);
+		expand_fixup_part!(self.organizational_unit,pkixname);
+		expand_fixup_part!(self.common_name,pkixname);
+		expand_fixup_part!(self.serial_number,pkixname);
 
-		expand_fixup_extra!(self.extra_names,country1,province1,locality1,street_address1,organization1,organizational_unit1,postal_code1,serial_number1,extra_names1,common_name1);
+		expand_fixup_extra!(self.extra_names,pkixname);
 
 
-		set_name_entry!(self.country,country1);
-		set_name_entry!(self.province,province1);
-		set_name_entry!(self.locality,locality1);
-		set_name_entry!(self.street_address,street_address1);
-		set_name_entry!(self.postal_code,postal_code1);
-		set_name_entry!(self.organization,organization1);
-		set_name_entry!(self.organizational_unit,organizational_unit1);
-		set_name_entry!(self.common_name,common_name1);
-		set_name_entry!(self.serial_number,serial_number1);
+		set_name_entry!(self.country,pkixname.country,OID_COUNTRY);
+		set_name_entry!(self.province,pkixname.province,OID_PROVINCE);
+		set_name_entry!(self.locality,pkixname.locality,OID_LOCALITY);
+		set_name_entry!(self.street_address,pkixname.street_address,OID_STREET_ADDRESS);
+		set_name_entry!(self.postal_code,pkixname.postal_code,OID_POSTAL_CODE);
+		set_name_entry!(self.organization,pkixname.organization,OID_ORGANIZATION);
+		set_name_entry!(self.organizational_unit,pkixname.organizational_unit,OID_ORGANIZATIONAL_UNIT);
+		set_name_entry!(self.common_name,pkixname.common_name,OID_COMMON_NAME);
+		set_name_entry!(self.serial_number,pkixname.serial_number,OID_SERIAL_NUMBER);
 
-		set_name_extra!(self.extra_names,extra_names1);
+		set_name_extra!(self.extra_names,pkixname.extra_names);
 
 		Ok(())
+	}
+
+	pub fn from_pkixname(pkixname :&PkixName) -> Result<Self,Box<dyn Error>> {
+		let mut retv :Self = Self::init_asn1();
+
+		set_name_entry!(retv.country,pkixname.country,OID_COUNTRY);
+		set_name_entry!(retv.province,pkixname.province,OID_PROVINCE);
+		set_name_entry!(retv.locality,pkixname.locality,OID_LOCALITY);
+		set_name_entry!(retv.street_address,pkixname.street_address,OID_STREET_ADDRESS);
+		set_name_entry!(retv.postal_code,pkixname.postal_code,OID_POSTAL_CODE);
+		set_name_entry!(retv.organization,pkixname.organization,OID_ORGANIZATION);
+		set_name_entry!(retv.organizational_unit,pkixname.organizational_unit,OID_ORGANIZATIONAL_UNIT);
+		set_name_entry!(retv.common_name,pkixname.common_name,OID_COMMON_NAME);
+		set_name_entry!(retv.serial_number,pkixname.serial_number,OID_SERIAL_NUMBER);
+
+		set_name_extra!(retv.extra_names,pkixname.extra_names);
+
+		Ok(retv)
 	}
 }
 
