@@ -24,7 +24,7 @@ use crate::digest::*;
 use crate::impls::*;
 use crate::randop::*;
 use crate::encde::*;
-use chrono::{DateTime,FixedOffset};
+use chrono::{Utc,Datelike,DateTime};
 #[allow(unused_imports)]
 use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
 use crate::config::ConfigValue;
@@ -389,10 +389,14 @@ pub struct X509BuildConfig {
 	pub signature_algorithm :SignatureAlgorithm,
 	pub issuer :PkixName,
 	pub subject : PkixName,
+	pub not_before :DateTime<Utc>,
+	pub not_after :DateTime<Utc>,
 }
 
 impl X509BuildConfig {
 	pub fn new() -> X509BuildConfig {
+		let ct :DateTime<Utc> = Utc::now();
+		let (_, y) = ct.year_ce();
 		let retv :Self = Self {
 			version : 0,
 			serial_number : zero(),
@@ -401,6 +405,8 @@ impl X509BuildConfig {
 			signature_algorithm :SignatureAlgorithm::UnknownSignatureAlgorithm,
 			issuer :PkixName::new(),
 			subject :PkixName::new(),
+			not_before : Utc::now(),
+			not_after :Utc::now().with_year(y as i32 + 20).unwrap(),
 		};
 
 		retv
@@ -1004,6 +1010,10 @@ impl Asn1X509Elem {
 	pub fn to_export_build(&self) -> Result<X509BuildConfig,Box<dyn Error>> {
 		let mut build :X509BuildConfig = X509BuildConfig::new();
 		let mut cbytes :Vec<u8>;
+		let mut befores :String;
+		let mut afters :String;
+		let formats :&str = "%Y-%m-%d %H:%M:%S%z";
+
 		if self.cert_info.elem.val.len() == 0 {
 			ssllib_new_error!{SslX509Error,"no elem cert_info"}
 		}
@@ -1044,6 +1054,19 @@ impl Asn1X509Elem {
 		/*to issuer*/
 		build.issuer = self.cert_info.elem.val[0].issuer.to_pkixname()?;
 		build.subject = self.cert_info.elem.val[0].subject.to_pkixname()?;
+		if self.cert_info.elem.val[0].validity.elem.val.len() < 1 {
+			ssllib_new_error!{SslX509Error,"validity < 1"}
+		}
+
+		befores = self.cert_info.elem.val[0].validity.elem.val[0].notBefore.get_value_str();
+		afters = self.cert_info.elem.val[0].validity.elem.val[0].notAfter.get_value_str();
+
+		befores.push_str("+00:00");
+		afters.push_str("+00:00");
+
+		build.not_before = DateTime::parse_from_str(&befores,formats)?.into();
+		build.not_after = DateTime::parse_from_str(&afters,formats)?.into();
+
 
 
 		Ok(build)
