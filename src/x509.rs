@@ -24,6 +24,7 @@ use crate::digest::*;
 use crate::impls::*;
 use crate::randop::*;
 use crate::encde::*;
+use chrono::{DateTime,FixedOffset};
 #[allow(unused_imports)]
 use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
 use crate::config::ConfigValue;
@@ -386,6 +387,7 @@ pub struct X509BuildConfig {
 	pub basic_constraints_valid :bool,
 	pub is_ca :bool,
 	pub signature_algorithm :SignatureAlgorithm,
+	pub issuer :PkixName,
 	pub subject : PkixName,
 }
 
@@ -397,6 +399,7 @@ impl X509BuildConfig {
 			basic_constraints_valid: false,
 			is_ca: false,
 			signature_algorithm :SignatureAlgorithm::UnknownSignatureAlgorithm,
+			issuer :PkixName::new(),
 			subject :PkixName::new(),
 		};
 
@@ -473,11 +476,69 @@ impl Asn1X509NameEntry {
 }
 
 
-//#[asn1_sequence(debug=enable)]
+macro_rules! ent_to_pkixname {
+	($ent :expr,$pkix:expr) => {
+		if $ent.names.val.len() > 0 {
+			let mut _idx :usize = 0;
+			let mut _jdx :usize;
+			while _idx < $ent.names.val.len() {
+				if $ent.names.val[_idx].val.len() > 0 {
+					_jdx = 0;
+					while _jdx < $ent.names.val[_idx].val.len() {
+						let _curname:Asn1X509NameElement =$ent.names.val[_idx].val[_jdx].clone();
+ 						let _coid :String = _curname.obj.get_value();
+
+						if _coid == OID_COUNTRY {
+							append_name(&mut ($pkix.country), &_curname)?;
+						} else if _coid == OID_PROVINCE {
+							append_name(&mut ($pkix.province), &_curname)?;
+						} else if _coid == OID_STREET_ADDRESS {
+							append_name(&mut ($pkix.street_address),&_curname)?;
+						} else if _coid == OID_POSTAL_CODE {
+							append_name(&mut ($pkix.postal_code), &_curname)?;
+						} else if _coid == OID_ORGANIZATION {
+							append_name(&mut ($pkix.organization), &_curname)?;
+						} else if _coid == OID_ORGANIZATIONAL_UNIT {
+							append_name(&mut ($pkix.organizational_unit),&_curname)?;
+						} else if _coid == OID_SERIAL_NUMBER {
+							append_name(&mut ($pkix.serial_number),&_curname)?;
+						} else if _coid == OID_COMMON_NAME {
+							append_name(&mut ($pkix.common_name), &_curname)?;
+						} else if _coid == OID_LOCALITY {
+							append_name(&mut ($pkix.locality), &_curname)?;
+						} else {
+							append_extranames(&mut ($pkix.extra_names), &_curname)?;
+						}
+
+						_jdx += 1;
+					}
+				}
+
+				_idx += 1;
+			}
+		}
+	}
+}
+
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct Asn1X509Name {
 	pub entries : Asn1Seq<Asn1X509NameEntry>,
+}
+
+impl Asn1X509Name {
+	pub fn to_pkixname(&self) -> Result<PkixName,Box<dyn Error>> {
+		let mut retv :PkixName = PkixName::new();
+		let mut idx :usize = 0;
+
+		while idx < self.entries.val.len() {
+			let ent :Asn1X509NameEntry = self.entries.val[idx].clone();
+			ent_to_pkixname!(ent,retv);
+			idx += 1;
+		}
+
+		Ok(retv)
+	}
 }
 
 impl  PartialEq for Asn1X509Name {
@@ -979,6 +1040,10 @@ impl Asn1X509Elem {
 		/*now to get the signature*/
 		let oid :String = self.sig_alg.get_algorithm()?;
 		build.signature_algorithm = get_sig_algorithm_from_oid(&oid)?;
+
+		/*to issuer*/
+		build.issuer = self.cert_info.elem.val[0].issuer.to_pkixname()?;
+		build.subject = self.cert_info.elem.val[0].subject.to_pkixname()?;
 
 
 		Ok(build)
