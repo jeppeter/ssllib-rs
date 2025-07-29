@@ -640,6 +640,8 @@ pub struct Asn1PermsExcludes {
 }
 
 
+
+
 impl Asn1X509Elem {
 	pub fn match_priv_data(&self,signtype :&str,pktype :&str,privdata:&[u8]) -> Result<bool, Box<dyn Error>> {
 		if pktype == PKCS8_PRIVATE_KEY_TYPE {
@@ -1069,6 +1071,69 @@ impl Asn1X509Elem {
 		Ok(())
 	}
 
+	fn _get_ext_key_usage(&self,retv :&mut X509BuildConfig,extensions :&Asn1Seq<Asn1X509Extension>) -> Result<(),Box<dyn Error>> {
+		let mut idx :usize = 0;
+		let mut jdx :usize;
+
+		let mut data :Vec<u8>;
+
+		while idx < extensions.val.len() {
+			if extensions.val[idx].elem.val.len() > 0 {
+				jdx = 0;
+				while jdx < extensions.val[idx].elem.val.len() {
+					let curext :&Asn1X509ExtensionElem = &(extensions.val[idx].elem.val[jdx]);
+					let oid :String = curext.object.get_value();
+					if oid == OID_EXT_KEY_USAGE {
+						let mut objs :Asn1Seq<Asn1Object> = Asn1Seq::init_asn1();
+						data = curext.value.data.clone();
+						objs.decode_asn1(&data)?;
+						let mut kdx :usize = 0;
+						while kdx < objs.val.len() {
+							let curoid = objs.val[kdx].get_value();
+							if curoid == OID_EXT_KEY_USAGE_ANY {
+								retv.ext_key_usage.push(ExtKeyUsage::ExtKeyUsageAny);
+							} else if curoid == OID_EXT_KEY_USAGE_SERVER_AUTH {
+								retv.ext_key_usage.push(ExtKeyUsage::ExtKeyUsageServerAuth);
+							} else if curoid == OID_EXT_KEY_USAGE_CLIENT_AUTH {
+								retv.ext_key_usage.push(ExtKeyUsage::ExtKeyUsageClientAuth);
+							} else if curoid == OID_EXT_KEY_USAGE_CODE_SIGNING {
+								retv.ext_key_usage.push(ExtKeyUsage::ExtKeyUsageCodeSigning);
+							} else if curoid == OID_EXT_KEY_USAGE_EMAIL_PROTECTION {
+								retv.ext_key_usage.push(ExtKeyUsage::ExtKeyUsageEmailProtection);
+							} else if curoid == OID_EXT_KEY_USAGE_IP_SEC_END_SYSTEM {
+								retv.ext_key_usage.push(ExtKeyUsage::ExtKeyUsageIPSECEndSystem);
+							} else if curoid == OID_EXT_KEY_USAGE_IP_SEC_TUNNEL {
+								retv.ext_key_usage.push(ExtKeyUsage::ExtKeyUsageIPSECTunnel);
+							} else if curoid == OID_EXT_KEY_USAGE_IP_SEC_USER {
+								retv.ext_key_usage.push(ExtKeyUsage::ExtKeyUsageIPSECUser);
+							} else if curoid == OID_EXT_KEY_USAGE_TIME_STAMPING {
+								retv.ext_key_usage.push(ExtKeyUsage::ExtKeyUsageTimeStamping);
+							} else if curoid == OID_EXT_KEY_USAGE_OCSP_SIGNING {
+								retv.ext_key_usage.push(ExtKeyUsage::ExtKeyUsageOCSPSigning);
+							} else if curoid == OID_EXT_KEY_USAGE_MICROSOFT_SERVER_GATED_CRYPTO {
+								retv.ext_key_usage.push(ExtKeyUsage::ExtKeyUsageMicrosoftServerGatedCrypto);
+							} else if curoid == OID_EXT_KEY_USAGE_NETSCAPE_SERVER_GATED_CRYPTO {
+								retv.ext_key_usage.push(ExtKeyUsage::ExtKeyUsageNetscapeServerGatedCrypto);
+							} else if curoid == OID_EXT_KEY_USAGE_MICROSOFT_COMMERCIAL_CODE_SIGNING {
+								retv.ext_key_usage.push(ExtKeyUsage::ExtKeyUsageMicrosoftCommercialCodeSigning);
+							} else if curoid == OID_EXT_KEY_USAGE_MICROSOFT_KERNEL_CODE_SIGNING {
+								retv.ext_key_usage.push(ExtKeyUsage::ExtKeyUsageMicrosoftKernelCodeSigning);
+							} else {
+								retv.unknown_ext_key_usage.push(format!("{}",curoid));
+							}
+
+							kdx += 1;
+						}
+
+					}
+					jdx += 1;
+				}
+			}
+			idx += 1;		
+		}
+		Ok(())
+	}
+
 	pub fn to_export_build(&self) -> Result<X509BuildConfig,Box<dyn Error>> {
 		let mut build :X509BuildConfig = X509BuildConfig::new();
 		let cbytes :Vec<u8>;
@@ -1144,6 +1209,7 @@ impl Asn1X509Elem {
 		build.subject_key_id = self._get_subject_key_id(&extensions)?;
 		self._get_uris(&mut build,&extensions)?;
 		self._get_perm_exs(&mut build,&extensions)?;
+		self._get_ext_key_usage(&mut build,&extensions)?;
 
 		Ok(build)
 	}

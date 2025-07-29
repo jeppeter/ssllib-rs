@@ -196,6 +196,7 @@ pub const OID_CONSTRAINTS_VALID :&str = "2.5.29.19";
 pub const OID_SUBJECT_KEY_ID :&str = "2.5.29.14";
 pub const OID_URIS :&str = "2.5.29.17";
 pub const OID_PERM_EX :&str = "2.5.29.30";
+pub const OID_EXT_KEY_USAGE :&str = "2.5.29.37";
 
 pub const TAG_DNS_NAMES :u64 = 0x82;
 pub const TAG_EMAILS_ADDRESSES :u64= 0x81;
@@ -204,3 +205,19 @@ pub const TAG_URIS :u64 = 0x86;
 
 pub const TAG_PERMITTED :u64 = 0xa0;
 pub const TAG_EXCLUDED :u64 = 0xa1;
+
+
+pub const OID_EXT_KEY_USAGE_ANY :&str = "2.5.29.37.0";
+pub const OID_EXT_KEY_USAGE_SERVER_AUTH :&str = "1.3.6.1.5.5.7.3.1";
+pub const OID_EXT_KEY_USAGE_CLIENT_AUTH :&str = "1.3.6.1.5.5.7.3.2";
+pub const OID_EXT_KEY_USAGE_CODE_SIGNING :&str = "1.3.6.1.5.5.7.3.3";
+pub const OID_EXT_KEY_USAGE_EMAIL_PROTECTION :&str = "1.3.6.1.5.5.7.3.4";
+pub const OID_EXT_KEY_USAGE_IP_SEC_END_SYSTEM :&str = "1.3.6.1.5.5.7.3.5";
+pub const OID_EXT_KEY_USAGE_IP_SEC_TUNNEL :&str = "1.3.6.1.5.5.7.3.6";
+pub const OID_EXT_KEY_USAGE_IP_SEC_USER :&str = "1.3.6.1.5.5.7.3.7";
+pub const OID_EXT_KEY_USAGE_TIME_STAMPING :&str = "1.3.6.1.5.5.7.3.8";
+pub const OID_EXT_KEY_USAGE_OCSP_SIGNING :&str = "1.3.6.1.5.5.7.3.9";
+pub const OID_EXT_KEY_USAGE_MICROSOFT_SERVER_GATED_CRYPTO :&str = "1.3.6.1.4.1.311.10.3.3";
+pub const OID_EXT_KEY_USAGE_NETSCAPE_SERVER_GATED_CRYPTO :&str = "2.16.840.1.113730.4.1";
+pub const OID_EXT_KEY_USAGE_MICROSOFT_COMMERCIAL_CODE_SIGNING :&str = "1.3.6.1.4.1.311.2.1.22";
+pub const OID_EXT_KEY_USAGE_MICROSOFT_KERNEL_CODE_SIGNING :&str = "1.3.6.1.4.1.311.61.1.1";

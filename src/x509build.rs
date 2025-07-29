@@ -467,6 +467,8 @@ impl PkixName {
 }
 
 
+#[derive(Clone)]
+#[derive(Debug)]
 pub enum ExtKeyUsage {
     ExtKeyUsageAny,
     ExtKeyUsageServerAuth,
@@ -610,6 +612,8 @@ pub struct X509BuildConfig {
 	pub perm_email_addresses:Vec<String>,
 	pub perm_dns_names :Vec<String>,
 	pub perm_uris :Vec<String>,
+	pub ext_key_usage :Vec<ExtKeyUsage>,
+	pub unknown_ext_key_usage :Vec<String>,
 }
 
 impl X509BuildConfig {
@@ -641,6 +645,8 @@ impl X509BuildConfig {
 			perm_email_addresses:vec![],
 			perm_dns_names :vec![],
 			perm_uris :vec![],
+			ext_key_usage :vec![],
+			unknown_ext_key_usage :vec![],
 		};
 
 		retv
