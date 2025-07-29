@@ -649,7 +649,7 @@ pub struct Asn1AuthorityObjElem {
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct Asn1AuthorityObj {
-	pub elem :Asn1Seq<Asn1AuthorityObjElem>,
+	pub elem : Asn1Seq<Asn1Seq<Asn1AuthorityObjElem>>,
 }
 
 
@@ -1234,24 +1234,38 @@ impl Asn1X509Elem {
 					if oid == OID_AUTHORITY_INFO_ACCESS {
 						let mut auth :Asn1AuthorityObj = Asn1AuthorityObj::init_asn1();
 						data = curext.value.data.clone();
+						ssllib_buffer_trace!(data.as_ptr(),data.len(),"data");
 						auth.decode_asn1(&data)?;
 						let mut abx :usize;
-
+						let mut bdx :usize;
 						abx = 0;
 						while abx < auth.elem.val.len() {
-							let curoid = auth.elem.val[abx].obj.get_value();
+							bdx = 0;
+							while bdx < auth.elem.val[abx].val.len() {
+								let curoid = auth.elem.val[abx].val[bdx].obj.get_value();
 
-							if curoid == OID_AUTHORITY_INFO_ACCESS_OCSP {
-								data = auth.elem.val[abx].value.content.clone();
-								retv.ocsp_servers.push(format!("{}",String::from_utf8_lossy(&data)));
-							} else if curoid == OID_AUTHORITY_INFO_ACCESS_ISSUER {
-								data = auth.elem.val[abx].value.content.clone();
-								retv.issuer_certificate_urls.push(format!("{}",String::from_utf8_lossy(&data)));								
-							} else {
-								ssllib_log_trace!("[{}] not support", curoid);
+
+								if curoid == OID_AUTHORITY_INFO_ACCESS_OCSP {
+									let oany = auth.elem.val[abx].val[bdx].value.clone();
+									if oany.tag == TAG_URIS {
+										data = oany.content.clone();
+										retv.ocsp_servers.push(format!("{}",String::from_utf8_lossy(&data)));
+									} else {
+										ssllib_new_error!{SslX509Error,"tag 0x{:x} not TAG_URIS 0x{:x}", oany.tag, TAG_URIS}
+									}
+								} else if curoid == OID_AUTHORITY_INFO_ACCESS_ISSUER {
+									let oany = auth.elem.val[abx].val[bdx].value.clone();
+									if oany.tag == TAG_URIS {
+										data = oany.content.clone();
+										retv.issuer_certificate_urls.push(format!("{}",String::from_utf8_lossy(&data)));
+									} else {
+										ssllib_new_error!{SslX509Error,"tag 0x{:x} not TAG_URIS 0x{:x}", oany.tag, TAG_URIS}
+									}
+								} else {
+									ssllib_log_trace!("[{}] not support", curoid);
+								}
+								bdx += 1;
 							}
-
-
 							abx += 1;
 						}
 					}
@@ -1342,6 +1356,7 @@ impl Asn1X509Elem {
 		self._get_ext_key_usage(&mut build,&extensions)?;
 		self._get_policies(&mut build,&extensions)?;
 		self._get_authority_key_id(&mut build,&extensions)?;
+		self._get_ocsp_servers_and_issuer_certificate_urls(&mut build,&extensions)?;
 
 		Ok(build)
 	}
