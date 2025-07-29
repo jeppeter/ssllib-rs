@@ -236,6 +236,7 @@ pub fn ssllib_get_digest_operator(name :&str) -> Option<Arc<RefCell<dyn Asn1Dige
 	expand_digest_operator!(name);
 }
 
+#[allow(unused_mut)]
 fn create_digest_oid() -> HashMap<String,String> {
 	let mut retv :HashMap<String,String> = HashMap::new();
 
