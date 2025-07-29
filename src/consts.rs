@@ -197,6 +197,9 @@ pub const OID_SUBJECT_KEY_ID :&str = "2.5.29.14";
 pub const OID_URIS :&str = "2.5.29.17";
 pub const OID_PERM_EX :&str = "2.5.29.30";
 pub const OID_EXT_KEY_USAGE :&str = "2.5.29.37";
+pub const OID_POLICIES :&str = "2.5.29.32";
+pub const OID_AUTHORITY_KEY_ID :&str = "2.5.29.35";
+pub const OID_AUTHORITY_INFO_ACCESS :&str = "1.3.6.1.5.5.7.1.1";
 
 pub const TAG_DNS_NAMES :u64 = 0x82;
 pub const TAG_EMAILS_ADDRESSES :u64= 0x81;
@@ -221,3 +224,7 @@ pub const OID_EXT_KEY_USAGE_MICROSOFT_SERVER_GATED_CRYPTO :&str = "1.3.6.1.4.1.3
 pub const OID_EXT_KEY_USAGE_NETSCAPE_SERVER_GATED_CRYPTO :&str = "2.16.840.1.113730.4.1";
 pub const OID_EXT_KEY_USAGE_MICROSOFT_COMMERCIAL_CODE_SIGNING :&str = "1.3.6.1.4.1.311.2.1.22";
 pub const OID_EXT_KEY_USAGE_MICROSOFT_KERNEL_CODE_SIGNING :&str = "1.3.6.1.4.1.311.61.1.1";
+
+
+pub const OID_AUTHORITY_INFO_ACCESS_OCSP :&str = "1.3.6.1.5.5.7.48.1";
+pub const OID_AUTHORITY_INFO_ACCESS_ISSUER :&str = "1.3.6.1.5.5.7.48.2";

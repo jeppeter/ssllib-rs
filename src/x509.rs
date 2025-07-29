@@ -639,6 +639,19 @@ pub struct Asn1PermsExcludes {
 	pub elem :Asn1Seq<Asn1PermsExcludesElem>,
 }
 
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1AuthorityObjElem {
+	pub obj :Asn1Object,
+	pub value :Asn1Any,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1AuthorityObj {
+	pub elem :Asn1Seq<Asn1AuthorityObjElem>,
+}
+
 
 
 
@@ -1134,6 +1147,123 @@ impl Asn1X509Elem {
 		Ok(())
 	}
 
+
+	fn _get_policies(&self,retv :&mut X509BuildConfig,extensions :&Asn1Seq<Asn1X509Extension>) -> Result<(),Box<dyn Error>> {
+		let mut idx :usize = 0;
+		let mut jdx :usize;
+
+		let mut data :Vec<u8>;
+
+		while idx < extensions.val.len() {
+			if extensions.val[idx].elem.val.len() > 0 {
+				jdx = 0;
+				while jdx < extensions.val[idx].elem.val.len() {
+					let curext :&Asn1X509ExtensionElem = &(extensions.val[idx].elem.val[jdx]);
+					let oid :String = curext.object.get_value();
+					if oid == OID_POLICIES {
+						let mut objs :Asn1Seq<Asn1Seq<Asn1Object>> = Asn1Seq::init_asn1();
+						data = curext.value.data.clone();
+						ssllib_buffer_trace!(data.as_ptr(),data.len(),"data");
+						objs.decode_asn1(&data)?;
+						let mut adx :usize = 0;
+						let mut bdx :usize;
+						while adx < objs.val.len() {
+							bdx = 0;
+							while bdx < objs.val[adx].val.len() {
+								let curoid = objs.val[adx].val[bdx].get_value();
+								retv.policies.push(format!("{}",curoid));
+								bdx += 1;
+							}
+							adx += 1;
+						}
+
+					}
+					jdx += 1;
+				}
+			}
+			idx += 1;		
+		}
+		Ok(())
+	}
+
+	fn _get_authority_key_id(&self,retv :&mut X509BuildConfig,extensions :&Asn1Seq<Asn1X509Extension>) -> Result<(),Box<dyn Error>> {
+		let mut idx :usize = 0;
+		let mut jdx :usize;
+
+		let mut data :Vec<u8>;
+
+		while idx < extensions.val.len() {
+			if extensions.val[idx].elem.val.len() > 0 {
+				jdx = 0;
+				while jdx < extensions.val[idx].elem.val.len() {
+					let curext :&Asn1X509ExtensionElem = &(extensions.val[idx].elem.val[jdx]);
+					let oid :String = curext.object.get_value();
+					if oid == OID_AUTHORITY_KEY_ID {
+						let mut objs :Asn1Seq<Asn1Any> = Asn1Seq::init_asn1();
+						data = curext.value.data.clone();
+						objs.decode_asn1(&data)?;
+						if objs.val.len() != 1 {
+							ssllib_new_error!{SslX509Error,"len {} != 1", objs.val.len()}
+						}
+						if objs.val[0].tag != 0x80 {
+							ssllib_new_error!{SslX509Error,"tag for authority_key_id 0x{:x}", objs.val[0].tag}
+						}
+
+						retv.authority_key_id = objs.val[0].content.clone();
+					}
+					jdx += 1;
+				}
+			}
+			idx += 1;		
+		}
+		Ok(())
+	}
+
+	fn _get_ocsp_servers_and_issuer_certificate_urls(&self,retv :&mut X509BuildConfig,extensions :&Asn1Seq<Asn1X509Extension>) -> Result<(),Box<dyn Error>> {
+		let mut idx :usize = 0;
+		let mut jdx :usize;
+
+		let mut data :Vec<u8>;
+
+		while idx < extensions.val.len() {
+			if extensions.val[idx].elem.val.len() > 0 {
+				jdx = 0;
+				while jdx < extensions.val[idx].elem.val.len() {
+					let curext :&Asn1X509ExtensionElem = &(extensions.val[idx].elem.val[jdx]);
+					let oid :String = curext.object.get_value();
+					if oid == OID_AUTHORITY_INFO_ACCESS {
+						let mut auth :Asn1AuthorityObj = Asn1AuthorityObj::init_asn1();
+						data = curext.value.data.clone();
+						auth.decode_asn1(&data)?;
+						let mut abx :usize;
+
+						abx = 0;
+						while abx < auth.elem.val.len() {
+							let curoid = auth.elem.val[abx].obj.get_value();
+
+							if curoid == OID_AUTHORITY_INFO_ACCESS_OCSP {
+								data = auth.elem.val[abx].value.content.clone();
+								retv.ocsp_servers.push(format!("{}",String::from_utf8_lossy(&data)));
+							} else if curoid == OID_AUTHORITY_INFO_ACCESS_ISSUER {
+								data = auth.elem.val[abx].value.content.clone();
+								retv.issuer_certificate_urls.push(format!("{}",String::from_utf8_lossy(&data)));								
+							} else {
+								ssllib_log_trace!("[{}] not support", curoid);
+							}
+
+
+							abx += 1;
+						}
+					}
+					jdx += 1;
+				}
+			}
+			idx += 1;		
+		}
+		Ok(())
+	}
+
+
 	pub fn to_export_build(&self) -> Result<X509BuildConfig,Box<dyn Error>> {
 		let mut build :X509BuildConfig = X509BuildConfig::new();
 		let cbytes :Vec<u8>;
@@ -1210,6 +1340,8 @@ impl Asn1X509Elem {
 		self._get_uris(&mut build,&extensions)?;
 		self._get_perm_exs(&mut build,&extensions)?;
 		self._get_ext_key_usage(&mut build,&extensions)?;
+		self._get_policies(&mut build,&extensions)?;
+		self._get_authority_key_id(&mut build,&extensions)?;
 
 		Ok(build)
 	}

@@ -614,6 +614,10 @@ pub struct X509BuildConfig {
 	pub perm_uris :Vec<String>,
 	pub ext_key_usage :Vec<ExtKeyUsage>,
 	pub unknown_ext_key_usage :Vec<String>,
+	pub policies :Vec<String>,
+	pub authority_key_id :Vec<u8>,
+	pub ocsp_servers :Vec<String>,
+	pub issuer_certificate_urls:Vec<String>,
 }
 
 impl X509BuildConfig {
@@ -647,6 +651,10 @@ impl X509BuildConfig {
 			perm_uris :vec![],
 			ext_key_usage :vec![],
 			unknown_ext_key_usage :vec![],
+			policies : vec![],
+			authority_key_id: vec![],
+			ocsp_servers :vec![],
+			issuer_certificate_urls:vec![],
 		};
 
 		retv
