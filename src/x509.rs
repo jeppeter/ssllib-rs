@@ -493,6 +493,7 @@ pub struct X509BuildConfig {
 	pub subject : PkixName,
 	pub not_before :DateTime<Utc>,
 	pub not_after :DateTime<Utc>,
+	pub key_usage :Vec<KeyUsage>,
 }
 
 impl X509BuildConfig {
@@ -509,6 +510,7 @@ impl X509BuildConfig {
 			subject :PkixName::new(),
 			not_before : Utc::now(),
 			not_after :Utc::now().with_year(y as i32 + 20).unwrap(),
+			key_usage : vec![],
 		};
 
 		retv
