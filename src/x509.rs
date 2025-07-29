@@ -488,6 +488,7 @@ pub struct X509BuildConfig {
 	pub serial_number  :BigInt,
 	pub basic_constraints_valid :bool,
 	pub is_ca :bool,
+	pub max_path_len : i64,
 	pub signature_algorithm :SignatureAlgorithm,
 	pub issuer :PkixName,
 	pub subject : PkixName,
@@ -505,6 +506,7 @@ impl X509BuildConfig {
 			serial_number : zero(),
 			basic_constraints_valid: false,
 			is_ca: false,
+			max_path_len : 0,
 			signature_algorithm :SignatureAlgorithm::UnknownSignatureAlgorithm,
 			issuer :PkixName::new(),
 			subject :PkixName::new(),
@@ -1098,6 +1100,19 @@ pub struct Asn1X509Elem {
 	pub signature : Asn1BitDataFlag,
 }
 
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1BasicConstraintsElem {
+	pub isca :Asn1Boolean,
+	pub maxlen :Asn1Integer,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1BasicConstraints {
+	pub elem :Asn1Seq<Asn1BasicConstraintsElem>,
+}
+
 
 impl Asn1X509Elem {
 	pub fn match_priv_data(&self,signtype :&str,pktype :&str,privdata:&[u8]) -> Result<bool, Box<dyn Error>> {
@@ -1173,6 +1188,40 @@ impl Asn1X509Elem {
 		Ok(retv)
 	}
 
+	fn _get_constraints_valid(&self,retv :&mut X509BuildConfig, extensions :&Asn1Seq<Asn1X509Extension>) -> Result<(),Box<dyn Error>> {
+		let mut idx :usize = 0;
+		let mut jdx :usize = 0;
+
+		while idx < extensions.val.len() {
+			if extensions.val[idx].elem.val.len() > 0 {
+				jdx = 0;
+				while jdx < extensions.val[idx].elem.val.len() {
+					let curext :&Asn1X509ExtensionElem = &(extensions.val[idx].elem.val[jdx]);
+					let oid :String = curext.object.get_value();
+					if oid == OID_CONSTRAINTS_VALID {
+						/*now we should get the value*/
+						let mut cons :Asn1BasicConstraints = Asn1BasicConstraints::init_asn1();
+						let code = curext.value.data.clone();
+						cons.decode_asn1(&code)?;
+						if cons.elem.val.len() < 1 {
+							ssllib_new_error!{SslX509Error,"Basic Constrains not valid"}
+						}
+
+						retv.is_ca = cons.elem.val[0].isca.val;
+						retv.max_path_len = cons.elem.val[0].maxlen.val;
+						retv.basic_constraints_valid = true;					
+					}
+
+					jdx += 1;
+				}
+			}
+
+			idx += 1;
+		}
+
+		Ok(())
+	}
+
 	pub fn to_export_build(&self) -> Result<X509BuildConfig,Box<dyn Error>> {
 		let mut build :X509BuildConfig = X509BuildConfig::new();
 		let mut cbytes :Vec<u8>;
@@ -1244,6 +1293,8 @@ impl Asn1X509Elem {
 		}
 
 		build.key_usage = self._get_key_usage(&extensions)?;
+		self._get_constraints_valid(&mut build,&extensions)?;
+
 		Ok(build)
 	}
 }

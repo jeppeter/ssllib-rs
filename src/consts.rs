@@ -192,3 +192,4 @@ pub const KEY_USAGE_DECIPHER_ONLY :u8 = 0x80;
 
 
 pub const OID_KEY_USAGE :&str = "2.5.29.15";
+pub const OID_CONSTRAINTS_VALID :&str = "2.5.29.19";
