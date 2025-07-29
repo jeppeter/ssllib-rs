@@ -1382,6 +1382,80 @@ impl Asn1X509Elem {
 												retv.perm_dns_names.push(format!("{}",String::from_utf8_lossy(&data)));
 											} else if curany.tag == TAG_IP_ADDRESSES {
 												data = curany.content.clone();
+												if data.len() == (4 * 2) {
+													let mut s :String = "".to_string();
+													let mut adx :usize = 0;
+													while adx < 4 {
+														if adx > 0 {
+															s.push_str(".");
+														}
+														s.push_str(&format!("{}",data[adx]));
+														adx += 1;
+													}
+
+													let mut bits :usize = 0;
+													let mut bdx :i32;
+													let mut stopc :bool = false;
+													while adx < 4 {
+														bdx = 7 ;
+														while bdx >= 0 {
+															if (data[4+adx] & (1 << bdx) as u8) == 0 {
+																stopc = true;
+																break;
+															}
+															bits += 1;
+															bdx -= 1;
+														}
+
+														if stopc {
+															break;
+														}
+														adx += 1;
+													}
+
+													s.push_str(&format!("/{}", bits));
+													retv.perm_ip_ranges.push(format!("{}",s));
+												} else if data.len() == (0x10 * 2) {
+													let mut ndata :[u8;16] = [0;16];
+													let mut adx :usize = 0;
+													while adx < 16 {
+														ndata[adx] = data[adx];
+														adx += 1;
+													}
+													let ipv6 :std::net::Ipv6Addr = std::net::Ipv6Addr::from(ndata);
+													let mut outs :String = format!("{}",ipv6.to_string());
+													let mut bits :usize = 0;
+													let mut bdx :i32 = 0;
+													let mut stopc :bool = false;
+													adx = 0;
+													while adx < 16 {
+														bdx = 7;
+														while bdx >= 0 {
+															if (ndata[16 + adx] & ((1 << bdx) as u8)) == 0 {
+																stopc = true;
+																break;
+															}
+															bits += 1;
+															bdx -= 1;
+														}
+
+														if stopc {
+															break;
+														}
+														adx += 1;
+													}
+													outs.push_str(&format!("/{}",bits));
+													retv.perm_ip_ranges.push(format!("{}",outs));
+
+												} else {
+													ssllib_new_error!{SslX509Error,"ip addresses tag not valid len {}", data.len()}
+												}
+											} else if curany.tag == TAG_EMAILS_ADDRESSES {
+												data = curany.content.clone();
+												retv.perm_email_addresses.push(format!("{}",String::from_utf8_lossy(&data)));
+											} else if curany.tag == TAG_URIS {
+												data = curany.content.clone();
+												retv.perm_uris.push(format!("{}",String::from_utf8_lossy(&data)));
 											}
 
 											oidx += 1;
@@ -1390,7 +1464,95 @@ impl Asn1X509Elem {
 								}
 
 								if permexs.elem.val[ldx].excludes.val.is_some() {
+									let impexs :Asn1ImpSet<Asn1Seq<Asn1Any>,1> = permexs.elem.val[ldx].excludes.val.as_ref().unwrap().clone();
+									if impexs.val.len() > 0 {
+										let seqexs :Asn1Seq<Asn1Any> = impexs.val[0].clone();
+										let mut oidx :usize = 0;
+										while oidx < seqexs.val.len()  {
+											let curany :Asn1Any = seqexs.val[oidx].clone();
 
+											if curany.tag == TAG_DNS_NAMES {
+												data = curany.content.clone();
+												retv.ex_dns_names.push(format!("{}",String::from_utf8_lossy(&data)));
+											} else if curany.tag == TAG_IP_ADDRESSES {
+												data = curany.content.clone();
+												if data.len() == (4 * 2) {
+													let mut s :String = "".to_string();
+													let mut adx :usize = 0;
+													while adx < 4 {
+														if adx > 0 {
+															s.push_str(".");
+														}
+														s.push_str(&format!("{}",data[adx]));
+														adx += 1;
+													}
+
+													let mut bits :usize = 0;
+													let mut bdx :i32;
+													let mut stopc :bool = false;
+													while adx < 4 {
+														bdx = 7 ;
+														while bdx >= 0 {
+															if (data[4+adx] & (1 << bdx) as u8) == 0 {
+																stopc = true;
+																break;
+															}
+															bits += 1;
+															bdx -= 1;
+														}
+
+														if stopc {
+															break;
+														}
+														adx += 1;
+													}
+
+													s.push_str(&format!("/{}", bits));
+													retv.ex_ip_ranges.push(format!("{}",s));
+												} else if data.len() == (0x10 * 2) {
+													let mut ndata :[u8;16] = [0;16];
+													let mut adx :usize = 0;
+													while adx < 16 {
+														ndata[adx] = data[adx];
+														adx += 1;
+													}
+													let ipv6 :std::net::Ipv6Addr = std::net::Ipv6Addr::from(ndata);
+													let mut outs :String = format!("{}",ipv6.to_string());
+													let mut bits :usize = 0;
+													let mut bdx :i32 = 0;
+													let mut stopc :bool = false;
+													adx = 0;
+													while adx < 16 {
+														bdx = 7;
+														while bdx >= 0 {
+															if (ndata[16 + adx] & ((1 << bdx) as u8)) == 0 {
+																stopc = true;
+																break;
+															}
+															bits += 1;
+															bdx -= 1;
+														}
+
+														if stopc {
+															break;
+														}
+														adx += 1;
+													}
+													outs.push_str(&format!("/{}",bits));
+													retv.ex_ip_ranges.push(format!("{}",outs));
+												} else {
+													ssllib_new_error!{SslX509Error,"ip addresses tag not valid len {}", data.len()}
+												}
+											} else if curany.tag == TAG_EMAILS_ADDRESSES {
+												data = curany.content.clone();
+												retv.ex_email_addresses.push(format!("{}",String::from_utf8_lossy(&data)));
+											} else if curany.tag == TAG_URIS {
+												data = curany.content.clone();
+												retv.ex_uris.push(format!("{}",String::from_utf8_lossy(&data)));
+											}
+											oidx += 1;
+										}
+									}
 								}
 								ldx += 1;
 							}
@@ -1399,7 +1561,6 @@ impl Asn1X509Elem {
 					jdx += 1;
 				}
 			}
-
 			idx += 1;
 		}
 
@@ -1480,6 +1641,7 @@ impl Asn1X509Elem {
 		self._get_constraints_valid(&mut build,&extensions)?;
 		build.subject_key_id = self._get_subject_key_id(&extensions)?;
 		self._get_uris(&mut build,&extensions)?;
+		self._get_perm_exs(&mut build,&extensions)?;
 
 		Ok(build)
 	}
