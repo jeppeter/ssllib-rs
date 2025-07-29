@@ -467,6 +467,120 @@ impl PkixName {
 }
 
 
+pub enum ExtKeyUsage {
+    ExtKeyUsageAny,
+    ExtKeyUsageServerAuth,
+    ExtKeyUsageClientAuth,
+    ExtKeyUsageCodeSigning,
+    ExtKeyUsageEmailProtection,
+    ExtKeyUsageIPSECEndSystem,
+    ExtKeyUsageIPSECTunnel,
+    ExtKeyUsageIPSECUser,
+    ExtKeyUsageTimeStamping,
+    ExtKeyUsageOCSPSigning,
+    ExtKeyUsageMicrosoftServerGatedCrypto,
+    ExtKeyUsageNetscapeServerGatedCrypto,
+    ExtKeyUsageMicrosoftCommercialCodeSigning,
+    ExtKeyUsageMicrosoftKernelCodeSigning,
+}
+
+impl PartialEq for ExtKeyUsage {
+    fn ne(&self,other :&Self) -> bool {
+        return !self.eq(other);
+    }
+    
+    fn eq(&self,other :&Self) -> bool{
+        let mut retval :bool = false;
+        match self {
+            ExtKeyUsage::ExtKeyUsageAny => {
+                match other {
+                    ExtKeyUsage::ExtKeyUsageAny => {retval = true;},
+                    _ => {},
+                }
+            },
+            ExtKeyUsage::ExtKeyUsageServerAuth => {
+                match other {
+                    ExtKeyUsage::ExtKeyUsageServerAuth => {retval = true;},
+                    _ => {},
+                }
+            },
+            ExtKeyUsage::ExtKeyUsageClientAuth => {
+                match other {
+                    ExtKeyUsage::ExtKeyUsageClientAuth => {retval = true;},
+                    _ => {},
+                }
+            },
+            ExtKeyUsage::ExtKeyUsageCodeSigning => {
+                match other {
+                    ExtKeyUsage::ExtKeyUsageCodeSigning => {retval = true;},
+                    _ => {},
+                }
+            },
+            ExtKeyUsage::ExtKeyUsageEmailProtection => {
+                match other {
+                    ExtKeyUsage::ExtKeyUsageEmailProtection => {retval = true;},
+                    _ => {},
+                }
+            },
+            ExtKeyUsage::ExtKeyUsageIPSECEndSystem => {
+                match other {
+                    ExtKeyUsage::ExtKeyUsageIPSECEndSystem => {retval = true;},
+                    _ => {},
+                }
+            },
+            ExtKeyUsage::ExtKeyUsageIPSECTunnel => {
+                match other {
+                    ExtKeyUsage::ExtKeyUsageIPSECTunnel => {retval = true;},
+                    _ => {},
+                }
+            },
+            ExtKeyUsage::ExtKeyUsageIPSECUser => {
+                match other {
+                    ExtKeyUsage::ExtKeyUsageIPSECUser => {retval = true;},
+                    _ => {},
+                }
+            },
+            ExtKeyUsage::ExtKeyUsageTimeStamping => {
+                match other {
+                    ExtKeyUsage::ExtKeyUsageTimeStamping => {retval = true;},
+                    _ => {},
+                }
+            },
+            ExtKeyUsage::ExtKeyUsageOCSPSigning => {
+                match other {
+                    ExtKeyUsage::ExtKeyUsageOCSPSigning => {retval = true;},
+                    _ => {},
+                }
+            },
+            ExtKeyUsage::ExtKeyUsageMicrosoftServerGatedCrypto => {
+                match other {
+                    ExtKeyUsage::ExtKeyUsageMicrosoftServerGatedCrypto => {retval = true;},
+                    _ => {},
+                }
+            },
+            ExtKeyUsage::ExtKeyUsageNetscapeServerGatedCrypto => {
+                match other {
+                    ExtKeyUsage::ExtKeyUsageNetscapeServerGatedCrypto => {retval = true;},
+                    _ => {},
+                }
+            },
+            ExtKeyUsage::ExtKeyUsageMicrosoftCommercialCodeSigning => {
+                match other {
+                    ExtKeyUsage::ExtKeyUsageMicrosoftCommercialCodeSigning => {retval = true;},
+                    _ => {},
+                }
+            },
+            ExtKeyUsage::ExtKeyUsageMicrosoftKernelCodeSigning => {
+                match other {
+                    ExtKeyUsage::ExtKeyUsageMicrosoftKernelCodeSigning => {retval = true;},
+                    _ => {},
+                }
+            },
+        }
+        return retval;
+    }
+}
+
 
 
 #[derive(Debug)]

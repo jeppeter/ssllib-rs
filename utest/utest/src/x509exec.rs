@@ -34,6 +34,7 @@ use super::*;
 use super::loglib::*;
 use super::pemlib::*;
 use ssllib::x509::*;
+use ssllib::x509build::*;
 #[allow(unused_imports)]
 use super::fileop::*;
 #[allow(unused_imports)]
