@@ -180,12 +180,15 @@ pub const OID_ORGANIZATIONAL_UNIT :&str = "2.5.4.11";
 pub const OID_POSTAL_CODE :&str = "2.5.4.17";
 
 
-pub const KEY_USAGE_DIGITAL_SIGNATURE :u32 = 1;
-pub const KEY_USAGE_CONTENT_COMMITMENT :u32 = 2;
-pub const KEY_USAGE_KEY_ENCIPHERMENT :u32 = 4;
-pub const KEY_USAGE_DATA_ENCIPHERMENT :u32 = 8;
-pub const KEY_USAGE_KEY_AGREEMENT :u32 = 16;
-pub const KEY_USAGE_CERT_SIGN :u32 = 32;
-pub const KEY_USAGE_CRL_SIGN :u32 = 64;
-pub const KEY_USAGE_ENCIPHER_ONLY :u32 = 128;
-pub const KEY_USAGE_DECIPHER_ONLY :u32 = 256;
+pub const KEY_USAGE_DIGITAL_SIGNATURE :u8 = 0x80;
+pub const KEY_USAGE_CONTENT_COMMITMENT :u8 = 0x40;
+pub const KEY_USAGE_KEY_ENCIPHERMENT :u8 = 0x20;
+pub const KEY_USAGE_DATA_ENCIPHERMENT :u8 = 0x10;
+pub const KEY_USAGE_KEY_AGREEMENT :u8 = 0x8;
+pub const KEY_USAGE_CERT_SIGN :u8 = 0x4;
+pub const KEY_USAGE_CRL_SIGN :u8 = 0x2;
+pub const KEY_USAGE_ENCIPHER_ONLY :u8 = 0x1;
+pub const KEY_USAGE_DECIPHER_ONLY :u8 = 0x80;
+
+
+pub const OID_KEY_USAGE :&str = "2.5.29.15";

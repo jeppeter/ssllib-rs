@@ -1111,6 +1111,68 @@ impl Asn1X509Elem {
 		return Ok(false);
 	}
 
+	fn _get_key_usage(&self, extensions :&Asn1Seq<Asn1X509Extension>) -> Result<Vec<KeyUsage>,Box<dyn Error>> {
+		let mut retv :Vec<KeyUsage> = vec![];
+		let mut idx :usize = 0;
+		let mut jdx :usize = 0;
+
+		while idx < extensions.val.len() {
+			if extensions.val[idx].elem.val.len() > 0 {
+				jdx = 0;
+				while jdx < extensions.val[idx].elem.val.len() {
+					let curext :&Asn1X509ExtensionElem = &(extensions.val[idx].elem.val[jdx]);
+					let oid :String = curext.object.get_value();
+					if oid == OID_KEY_USAGE {
+						/*now we should get the value*/
+						let mut obitdata :Asn1BitData = Asn1BitData::init_asn1();
+						let code = curext.value.data.clone();
+						obitdata.decode_asn1(&code)?;
+						if obitdata.data.len() > 1 {
+							if (obitdata.data[1] & KEY_USAGE_DECIPHER_ONLY) != 0 {
+								retv.push(KeyUsage::KeyUsageDecipherOnly);
+							}
+						}
+
+						if obitdata.data.len() > 0 {
+							if (obitdata.data[0] & KEY_USAGE_DIGITAL_SIGNATURE) != 0 {
+								retv.push(KeyUsage::KeyUsageDigitalSignature);
+							}
+
+							if (obitdata.data[0] & KEY_USAGE_CONTENT_COMMITMENT) != 0 {
+								retv.push(KeyUsage::KeyUsageContentCommitment);
+							}
+							if (obitdata.data[0] & KEY_USAGE_KEY_ENCIPHERMENT) != 0 {
+								retv.push(KeyUsage::KeyUsageKeyEncipherment);
+							}
+							if (obitdata.data[0] & KEY_USAGE_DATA_ENCIPHERMENT) != 0 {
+								retv.push(KeyUsage::KeyUsageDataEncipherment);
+							}
+							if (obitdata.data[0] & KEY_USAGE_KEY_AGREEMENT) != 0 {
+								retv.push(KeyUsage::KeyUsageKeyAgreement);
+							}
+							if (obitdata.data[0] & KEY_USAGE_CERT_SIGN) != 0 {
+								retv.push(KeyUsage::KeyUsageCertSign);
+							}
+							if (obitdata.data[0] & KEY_USAGE_CRL_SIGN) != 0 {
+								retv.push(KeyUsage::KeyUsageCRLSign);
+							}
+							if (obitdata.data[0] & KEY_USAGE_ENCIPHER_ONLY) != 0 {
+								retv.push(KeyUsage::KeyUsageEncipherOnly);
+							}
+						}
+					}
+
+					jdx += 1;
+				}
+			}
+
+			idx += 1;
+		}
+
+
+		Ok(retv)
+	}
+
 	pub fn to_export_build(&self) -> Result<X509BuildConfig,Box<dyn Error>> {
 		let mut build :X509BuildConfig = X509BuildConfig::new();
 		let mut cbytes :Vec<u8>;
@@ -1172,7 +1234,16 @@ impl Asn1X509Elem {
 		build.not_after = DateTime::parse_from_str(&afters,formats)?.into();
 
 
+		let mut extensions :Asn1Seq<Asn1X509Extension> = Asn1Seq::init_asn1();
 
+		if self.cert_info.elem.val[0].extensions.val.is_some() {
+			let c :Asn1ImpSet<Asn1Seq<Asn1X509Extension>,3> = self.cert_info.elem.val[0].extensions.val.as_ref().unwrap().clone();
+			if c.val.len() > 0 {
+				extensions = c.val[0].clone();
+			}
+		}
+
+		build.key_usage = self._get_key_usage(&extensions)?;
 		Ok(build)
 	}
 }

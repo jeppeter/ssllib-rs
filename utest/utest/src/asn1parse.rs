@@ -45,7 +45,7 @@ fn asn1_parse_out<T : std::io::Write>(code :&[u8],outf :&mut T,tabs :i32,offseti
 		let ores = oany.decode_asn1(&(code[curv..capv]));
 
 		if ores.is_err() {
-			debug_buffer_trace!(code[curv..capv].as_ptr(),capv - curv, "error buffer");
+			debug_buffer_trace!(code[curv..capv].as_ptr(),capv - curv, "error buffer curv {} capv {}", curv, capv);
 			extargs_new_error!{Asn1ParseError,"parse at [0x{:x}] offset size [0x{:x}] error ", curv + offseti,capv - curv}
 		}
 		let stepv = ores.unwrap();
@@ -206,6 +206,7 @@ fn asn1parse_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	sarr = ns.get_array("subnargs");
 	for f in sarr.iter() {
 		let code = read_file_into_der(f)?;
+		debug_trace!("code {}",code.len());
 		let _ = asn1_parse_out(&code, &mut sout,0,0,true)?;
 	}
 
