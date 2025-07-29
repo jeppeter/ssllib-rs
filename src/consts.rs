@@ -193,3 +193,14 @@ pub const KEY_USAGE_DECIPHER_ONLY :u8 = 0x80;
 
 pub const OID_KEY_USAGE :&str = "2.5.29.15";
 pub const OID_CONSTRAINTS_VALID :&str = "2.5.29.19";
+pub const OID_SUBJECT_KEY_ID :&str = "2.5.29.14";
+pub const OID_URIS :&str = "2.5.29.17";
+pub const OID_PERM_EX :&str = "2.5.29.30";
+
+pub const TAG_DNS_NAMES :u64 = 0x82;
+pub const TAG_EMAILS_ADDRESSES :u64= 0x81;
+pub const TAG_IP_ADDRESSES :u64 = 0x87;
+pub const TAG_URIS :u64 = 0x86;
+
+pub const TAG_PERMITTED :u64 = 0xa0;
+pub const TAG_EXCLUDED :u64 = 0xa1;

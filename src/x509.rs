@@ -495,6 +495,19 @@ pub struct X509BuildConfig {
 	pub not_before :DateTime<Utc>,
 	pub not_after :DateTime<Utc>,
 	pub key_usage :Vec<KeyUsage>,
+	pub subject_key_id :Vec<u8>,
+	pub ip_addresses :Vec<String>,
+	pub email_addresses :Vec<String>,
+	pub dns_names :Vec<String>,
+	pub uris :Vec<String>,
+	pub ex_ip_ranges :Vec<String>,
+	pub ex_email_addresses :Vec<String>,
+	pub ex_dns_names :Vec<String>,
+	pub ex_uris :Vec<String>,
+	pub perm_ip_ranges :Vec<String>,
+	pub perm_email_addresses:Vec<String>,
+	pub perm_dns_names :Vec<String>,
+	pub perm_uris :Vec<String>,
 }
 
 impl X509BuildConfig {
@@ -513,6 +526,19 @@ impl X509BuildConfig {
 			not_before : Utc::now(),
 			not_after :Utc::now().with_year(y as i32 + 20).unwrap(),
 			key_usage : vec![],
+			subject_key_id : vec![],
+			ip_addresses : vec![],
+			email_addresses :vec![],
+			dns_names :vec![],
+			uris :vec![],
+			ex_ip_ranges :vec![],
+			ex_email_addresses :vec![],
+			ex_dns_names :vec![],
+			ex_uris :vec![],
+			perm_ip_ranges :vec![],
+			perm_email_addresses:vec![],
+			perm_dns_names :vec![],
+			perm_uris :vec![],
 		};
 
 		retv
@@ -1113,6 +1139,19 @@ pub struct Asn1BasicConstraints {
 	pub elem :Asn1Seq<Asn1BasicConstraintsElem>,
 }
 
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1PermsExcludesElem {
+	pub perms :Asn1Opt<Asn1ImpSet<Asn1Seq<Asn1Any>,0>>,
+	pub excludes :Asn1Opt<Asn1ImpSet<Asn1Seq<Asn1Any>,1>>,
+}
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1PermsExcludes {
+	pub elem :Asn1Seq<Asn1PermsExcludesElem>,
+}
+
 
 impl Asn1X509Elem {
 	pub fn match_priv_data(&self,signtype :&str,pktype :&str,privdata:&[u8]) -> Result<bool, Box<dyn Error>> {
@@ -1222,6 +1261,151 @@ impl Asn1X509Elem {
 		Ok(())
 	}
 
+	fn _get_subject_key_id(&self, extensions :&Asn1Seq<Asn1X509Extension>) -> Result<Vec<u8>,Box<dyn Error>> {
+		let mut retv :Vec<u8> = vec![];
+		let mut idx :usize = 0;
+		let mut jdx :usize = 0;
+
+		while idx < extensions.val.len() {
+			if extensions.val[idx].elem.val.len() > 0 {
+				jdx = 0;
+				while jdx < extensions.val[idx].elem.val.len() {
+					let curext :&Asn1X509ExtensionElem = &(extensions.val[idx].elem.val[jdx]);
+					let oid :String = curext.object.get_value();
+					if oid == OID_SUBJECT_KEY_ID {
+						/*now we should get the value*/
+						let mut odata :Asn1OctData = Asn1OctData::init_asn1();
+						let code = curext.value.data.clone();
+						odata.decode_asn1(&code)?;
+						retv.extend(odata.data.clone());
+					}
+
+					jdx += 1;
+				}
+			}
+
+			idx += 1;
+		}
+
+		Ok(retv)
+	}
+
+	fn _get_uris(&self, retv :&mut X509BuildConfig, extensions :&Asn1Seq<Asn1X509Extension>) -> Result<(),Box<dyn Error>> {
+		let mut idx :usize = 0;
+		let mut jdx :usize = 0;
+
+		while idx < extensions.val.len() {
+			if extensions.val[idx].elem.val.len() > 0 {
+				jdx = 0;
+				while jdx < extensions.val[idx].elem.val.len() {
+					let curext :&Asn1X509ExtensionElem = &(extensions.val[idx].elem.val[jdx]);
+					let oid :String = curext.object.get_value();
+					if oid == OID_URIS {
+						/*now we should get the value*/
+						let mut oanys :Asn1Seq<Asn1Any> = Asn1Seq::init_asn1();
+						let code = curext.value.data.clone();
+						oanys.decode_asn1(&code)?;
+
+						let mut kdx :usize = 0;
+						let mut data :Vec<u8>;
+						while kdx < oanys.val.len() {
+							if oanys.val[kdx].tag == TAG_DNS_NAMES {
+								/*this is dns*/
+								data = oanys.val[kdx].content.clone();
+								retv.dns_names.push(format!("{}",String::from_utf8_lossy(&data)));
+							} else if oanys.val[kdx].tag == TAG_EMAILS_ADDRESSES {
+								data = oanys.val[kdx].content.clone();
+								retv.email_addresses.push(format!("{}",String::from_utf8_lossy(&data)));
+							} else if oanys.val[kdx].tag == TAG_IP_ADDRESSES {
+								data = oanys.val[kdx].content.clone();
+								if data.len() == 4 {
+									let ipv4 :std::net::Ipv4Addr = std::net::Ipv4Addr::new(data[0],data[1],data[2],data[3]);
+									retv.ip_addresses.push(format!("{}",ipv4.to_string()));
+								} else if data.len() == 0x10 {
+									let mut ndata :[u8;16] = [0;16];
+									let mut ldx :usize = 0;
+									while ldx < 16 {
+										ndata[ldx] = data[ldx];
+										ldx += 1;
+									}
+									let ipv6 :std::net::Ipv6Addr = std::net::Ipv6Addr::from(ndata);
+									retv.ip_addresses.push(format!("{}",ipv6.to_string()));
+								} else {
+									ssllib_new_error!{SslX509Error,"not valid ip address len {}", data.len()}
+								}
+							} else if oanys.val[kdx].tag == TAG_URIS {
+								data = oanys.val[kdx].content.clone();
+								retv.uris.push(format!("{}",String::from_utf8_lossy(&data)));
+							}
+
+							kdx += 1;
+						}
+					}
+					jdx += 1;
+				}
+			}
+
+			idx += 1;
+		}
+
+		Ok(())
+	}
+
+	fn _get_perm_exs(&self, retv :&mut X509BuildConfig, extensions :&Asn1Seq<Asn1X509Extension>) -> Result<(),Box<dyn Error>> {
+		let mut idx :usize = 0;
+		let mut jdx :usize = 0;
+
+		let mut data :Vec<u8>;
+
+		while idx < extensions.val.len() {
+			if extensions.val[idx].elem.val.len() > 0 {
+				jdx = 0;
+				while jdx < extensions.val[idx].elem.val.len() {
+					let curext :&Asn1X509ExtensionElem = &(extensions.val[idx].elem.val[jdx]);
+					let oid :String = curext.object.get_value();
+					if oid == OID_PERM_EX {
+						/*now we should get the value*/
+						let mut permexs :Asn1PermsExcludes = Asn1PermsExcludes::init_asn1();
+						if permexs.elem.val.len() > 0 {
+							let mut ldx :usize = 0;
+							while ldx < permexs.elem.val.len() {
+								if permexs.elem.val[ldx].perms.val.is_some() {
+									let impperms :Asn1ImpSet<Asn1Seq<Asn1Any>,0> = permexs.elem.val[ldx].perms.val.as_ref().unwrap().clone();
+									if impperms.val.len() > 0 {
+										let seqperms :Asn1Seq<Asn1Any> = impperms.val[0].clone();
+										let mut oidx :usize = 0;
+										while oidx < seqperms.val.len()  {
+											let curany :Asn1Any = seqperms.val[oidx].clone();
+
+											if curany.tag == TAG_DNS_NAMES {
+												data = curany.content.clone();
+												retv.perm_dns_names.push(format!("{}",String::from_utf8_lossy(&data)));
+											} else if curany.tag == TAG_IP_ADDRESSES {
+												data = curany.content.clone();
+											}
+
+											oidx += 1;
+										}
+									}
+								}
+
+								if permexs.elem.val[ldx].excludes.val.is_some() {
+
+								}
+								ldx += 1;
+							}
+						}
+					}
+					jdx += 1;
+				}
+			}
+
+			idx += 1;
+		}
+
+		Ok(())
+	}
+
 	pub fn to_export_build(&self) -> Result<X509BuildConfig,Box<dyn Error>> {
 		let mut build :X509BuildConfig = X509BuildConfig::new();
 		let mut cbytes :Vec<u8>;
@@ -1294,6 +1478,8 @@ impl Asn1X509Elem {
 
 		build.key_usage = self._get_key_usage(&extensions)?;
 		self._get_constraints_valid(&mut build,&extensions)?;
+		build.subject_key_id = self._get_subject_key_id(&extensions)?;
+		self._get_uris(&mut build,&extensions)?;
 
 		Ok(build)
 	}
