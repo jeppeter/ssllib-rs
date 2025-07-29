@@ -205,6 +205,108 @@ impl PartialEq for SignatureAlgorithm {
 	}
 }
 
+
+#[derive(Debug)]
+#[derive(Clone)]
+pub enum KeyUsage {
+	KeyUsageDigitalSignature,
+	KeyUsageContentCommitment,
+	KeyUsageKeyEncipherment,
+	KeyUsageDataEncipherment,
+	KeyUsageKeyAgreement,
+	KeyUsageCertSign,
+	KeyUsageCRLSign,
+	KeyUsageEncipherOnly,
+	KeyUsageDecipherOnly,
+}
+
+impl PartialEq for KeyUsage {
+	fn eq(&self, other :&Self) -> bool {
+		let mut retval : bool = false;
+		match self {
+			KeyUsage::KeyUsageDigitalSignature => {
+				match other {
+					KeyUsage::KeyUsageDigitalSignature => {
+						retval = true;
+					},
+					_ => {},
+				}
+			},
+			KeyUsage::KeyUsageContentCommitment => {
+				match other {
+					KeyUsage::KeyUsageContentCommitment => {
+						retval = true;
+					},
+					_ => {},
+				}
+			},
+			KeyUsage::KeyUsageKeyEncipherment => {
+				match other {
+					KeyUsage::KeyUsageKeyEncipherment => {
+						retval = true;
+					},
+					_ => {},
+				}
+			},
+			KeyUsage::KeyUsageDataEncipherment => {
+				match other {
+					KeyUsage::KeyUsageDataEncipherment => {
+						retval = true;
+					},
+					_ => {},
+				}
+			},
+			KeyUsage::KeyUsageKeyAgreement => {
+				match other {
+					KeyUsage::KeyUsageKeyAgreement => {
+						retval = true;
+					},
+					_ => {},
+				}
+			},
+			KeyUsage::KeyUsageCertSign => {
+				match other {
+					KeyUsage::KeyUsageCertSign => {
+						retval = true;
+					},
+					_ => {},
+				}
+			},
+			KeyUsage::KeyUsageCRLSign => {
+				match other {
+					KeyUsage::KeyUsageCRLSign => {
+						retval = true;
+					},
+					_ => {},
+				}
+			},
+			KeyUsage::KeyUsageEncipherOnly => {
+				match other {
+					KeyUsage::KeyUsageEncipherOnly => {
+						retval = true;
+					},
+					_ => {},
+				}
+			},
+			KeyUsage::KeyUsageDecipherOnly => {
+				match other {
+					KeyUsage::KeyUsageDecipherOnly => {
+						retval = true;
+					},
+					_ => {},
+				}
+			},
+		}
+		return retval;
+	}
+
+	fn ne(&self, other :&Self) -> bool {
+		return !self.eq(other);
+	}
+}
+
+
+
 #[derive(Clone)]
 pub struct PkixName {
 	pub country :Vec<String>,
@@ -260,31 +362,31 @@ macro_rules! expand_pkix_fmt_extra {
 }
 
 impl std::fmt::Debug for PkixName {
-	 fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-	 	f.write_fmt(format_args!("PkixName{{"))?;
-	 	expand_pkix_fmt!("country",self.country,f);
-	 	f.write_fmt(format_args!(","))?;
-	 	expand_pkix_fmt!("province",self.province,f);
-	 	f.write_fmt(format_args!(","))?;
-	 	expand_pkix_fmt!("locality",self.locality,f);
-	 	f.write_fmt(format_args!(","))?;
-	 	expand_pkix_fmt!("street_address",self.street_address,f);
-	 	f.write_fmt(format_args!(","))?;
-	 	expand_pkix_fmt!("postal_code",self.postal_code,f);
-	 	f.write_fmt(format_args!(","))?;
-	 	expand_pkix_fmt!("organization",self.organization,f);
-	 	f.write_fmt(format_args!(","))?;
-	 	expand_pkix_fmt!("organizational_unit",self.organizational_unit,f);
-	 	f.write_fmt(format_args!(","))?;
-	 	expand_pkix_fmt!("common_name",self.common_name,f);
-	 	f.write_fmt(format_args!(","))?;
-	 	expand_pkix_fmt!("serial_number",self.serial_number,f);
-	 	f.write_fmt(format_args!(","))?;
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("PkixName{{"))?;
+		expand_pkix_fmt!("country",self.country,f);
+		f.write_fmt(format_args!(","))?;
+		expand_pkix_fmt!("province",self.province,f);
+		f.write_fmt(format_args!(","))?;
+		expand_pkix_fmt!("locality",self.locality,f);
+		f.write_fmt(format_args!(","))?;
+		expand_pkix_fmt!("street_address",self.street_address,f);
+		f.write_fmt(format_args!(","))?;
+		expand_pkix_fmt!("postal_code",self.postal_code,f);
+		f.write_fmt(format_args!(","))?;
+		expand_pkix_fmt!("organization",self.organization,f);
+		f.write_fmt(format_args!(","))?;
+		expand_pkix_fmt!("organizational_unit",self.organizational_unit,f);
+		f.write_fmt(format_args!(","))?;
+		expand_pkix_fmt!("common_name",self.common_name,f);
+		f.write_fmt(format_args!(","))?;
+		expand_pkix_fmt!("serial_number",self.serial_number,f);
+		f.write_fmt(format_args!(","))?;
 
-	 	expand_pkix_fmt_extra!("extra_names",self.extra_names,f);
+		expand_pkix_fmt_extra!("extra_names",self.extra_names,f);
 
-	 	f.write_fmt(format_args!("}}"))
-	 }
+		f.write_fmt(format_args!("}}"))
+	}
 }
 
 macro_rules! set_pkix_name {
@@ -492,7 +594,7 @@ macro_rules! ent_to_pkixname {
 					_jdx = 0;
 					while _jdx < $ent.names.val[_idx].val.len() {
 						let _curname:Asn1X509NameElement =$ent.names.val[_idx].val[_jdx].clone();
- 						let _coid :String = _curname.obj.get_value();
+						let _coid :String = _curname.obj.get_value();
 
 						if _coid == OID_COUNTRY {
 							append_name(&mut ($pkix.country), &_curname)?;
@@ -1699,13 +1801,68 @@ pub fn get_algor_pbkdf2_private_data(x509algorbytes :&[u8],encdata :&[u8],passin
 // }
 
 
-enum PublicKeyAlgorithm {
+#[derive(Debug)]
+#[derive(Clone)]
+pub enum PublicKeyAlgorithm {
 	UnknownPublicKeyAlgorithm,
 	RSA,
 	DSA,
 	ECDSA,
 	Ed25519,
 } 
+
+impl PartialEq for PublicKeyAlgorithm {
+	fn eq(&self, other :&Self) -> bool {
+		let mut retval :bool = false;
+		match self {
+			PublicKeyAlgorithm::UnknownPublicKeyAlgorithm => {
+				match other {
+					PublicKeyAlgorithm::UnknownPublicKeyAlgorithm => {
+						retval = true;
+					},
+					_ => {},
+				}
+			},
+			PublicKeyAlgorithm::RSA => {
+				match other {
+					PublicKeyAlgorithm::RSA => {
+						retval = true;
+					},
+					_ => {},
+				}
+			},
+			PublicKeyAlgorithm::DSA => {
+				match other {
+					PublicKeyAlgorithm::DSA => {
+						retval = true;
+					},
+					_ => {},
+				}
+			},
+			PublicKeyAlgorithm::ECDSA => {
+				match other {
+					PublicKeyAlgorithm::ECDSA => {
+						retval = true;
+					},
+					_ => {},
+				}
+			},
+			PublicKeyAlgorithm::Ed25519 => {
+				match other {
+					PublicKeyAlgorithm::Ed25519 => {
+						retval = true;
+					},
+					_ => {},
+				}
+			},
+		}
+		return retval;
+	}
+
+	fn ne(&self, other :&Self) -> bool {
+		return !self.eq(other);
+	}
+}
 
 struct signatureAlgorithmStruct  {
 	algo :SignatureAlgorithm,
@@ -1858,6 +2015,7 @@ lazy_static!{
 	static ref SIGNAGURE_ALGORITHM :Vec<signatureAlgorithmStruct> = {
 		create_signature_algorithm()
 	};
+
 }
 
 pub trait X509PublickKey {
