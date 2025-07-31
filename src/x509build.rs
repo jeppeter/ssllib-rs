@@ -666,9 +666,5 @@ impl X509BuildConfig {
 		Ok(code)
 	}
 
-	pub fn compact_x509(&self,cert :&mut Asn1X509,pubbytes :&[u8]) -> Result<(),Box<dyn Error>> {
-		
-	}
-
 }
 
