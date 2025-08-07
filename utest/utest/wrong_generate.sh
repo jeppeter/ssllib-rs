@@ -51,3 +51,5 @@ EOF
 
 
 openssl x509 -req -in sub_cert_req.pem -days 365 -CA my_signed_cert.pem -CAkey my_private_key.pem -CAcreateserial -out sub_signed_cert.pem
+
+openssl verify -CAfile ca_cert.pem -untrusted my_signed_cert.pem sub_signed_cert.pem
