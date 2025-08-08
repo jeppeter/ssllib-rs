@@ -280,6 +280,7 @@ fn exportbuild_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSet
 		debug_buffer_trace!(code.as_ptr(),code.len(),"[{}]code in",f);
 		let mut x509 :Asn1X509 = Asn1X509::init_asn1();
 		let _ = x509.decode_asn1(&code)?;
+		debug_trace!("decode x509 succ");
 		let build :X509BuildConfig;
 		build = x509.to_export_build()?;
 		println!("{:?}",build);
