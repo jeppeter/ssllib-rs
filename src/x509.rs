@@ -736,19 +736,14 @@ impl Asn1X509Elem {
 		while idx < extensions.val.len() {
 			if extensions.val[idx].elem.val.len() > 0 {
 				jdx = 0;
-				ssllib_log_trace!(" ");
 				while jdx < extensions.val[idx].elem.val.len() {
-					ssllib_log_trace!(" ");
 					let curext :&Asn1X509ExtensionElem = &(extensions.val[idx].elem.val[jdx]);
 					let oid :String = curext.object.get_value();
 					if oid == OID_CONSTRAINTS_VALID {
 						/*now we should get the value*/
 						let mut cons :Asn1BasicConstraints = Asn1BasicConstraints::init_asn1();
 						let code = curext.value.data.clone();
-						ssllib_buffer_trace!(code.as_ptr(),code.len(),"input data");
-						ssllib_log_trace!(" ");
 						cons.decode_asn1(&code)?;
-						ssllib_log_trace!(" ");
 						if cons.elem.val.len() < 1 {
 							ssllib_new_error!{SslX509Error,"Basic Constrains not valid"}
 						}
@@ -1301,12 +1296,10 @@ impl Asn1X509Elem {
 		let mut afters :String;
 		let formats :&str = "%Y-%m-%d %H:%M:%S%z";
 
-		ssllib_log_trace!(" ");
 		if self.cert_info.elem.val.len() == 0 {
 			ssllib_new_error!{SslX509Error,"no elem cert_info"}
 		}
 
-		ssllib_log_trace!(" ");
 		if self.cert_info.elem.val[0].version.val.is_some() {
 			let verimpset :&Asn1ImpSet<Asn1Integer,0> = self.cert_info.elem.val[0].version.val.as_ref().unwrap();
 			if verimpset.val.len() > 0 {
@@ -1322,12 +1315,10 @@ impl Asn1X509Elem {
 			}
 		}
 
-		ssllib_log_trace!(" ");
 		cbytes = self.cert_info.elem.val[0].serial_number.val.to_bytes_be();
 		build.serial_number = BigInt::from_bytes_be(Sign::Plus,&cbytes);
 		ssllib_log_trace!("serial_number 0x{:x}", build.serial_number);
 
-		ssllib_log_trace!(" ");
 		/*now to get the siganature*/
 		if !self.cert_info.elem.val[0].signature.equal_asn1(&self.sig_alg) {
 			let mut code :Vec<u8>;
@@ -1338,32 +1329,25 @@ impl Asn1X509Elem {
 			ssllib_new_error!{SslX509Error,"not matched signature algorithm to sig_alg"}
 		}
 
-		ssllib_log_trace!(" ");
 		/*now to get the signature*/
 		let oid :String = self.sig_alg.get_algorithm()?;
 		build.signature_algorithm = get_sig_algorithm_from_oid(&oid)?;
 
-		ssllib_log_trace!(" ");
 		/*to issuer*/
 		build.issuer = self.cert_info.elem.val[0].issuer.to_pkixname()?;
 		build.subject = self.cert_info.elem.val[0].subject.to_pkixname()?;
 		if self.cert_info.elem.val[0].validity.elem.val.len() < 1 {
 			ssllib_new_error!{SslX509Error,"validity < 1"}
 		}
-		ssllib_log_trace!(" ");
 
 		befores = self.cert_info.elem.val[0].validity.elem.val[0].notBefore.get_value_str();
 		afters = self.cert_info.elem.val[0].validity.elem.val[0].notAfter.get_value_str();
 
-		ssllib_log_trace!(" ");
 		befores.push_str("+00:00");
 		afters.push_str("+00:00");
 
-		ssllib_log_trace!(" ");
 		build.not_before = DateTime::parse_from_str(&befores,formats)?.into();
 		build.not_after = DateTime::parse_from_str(&afters,formats)?.into();
-
-		ssllib_log_trace!(" ");
 
 		let mut extensions :Asn1Seq<Asn1X509Extension> = Asn1Seq::init_asn1();
 
@@ -1374,26 +1358,16 @@ impl Asn1X509Elem {
 			}
 		}
 
-		ssllib_log_trace!(" ");
 
 		build.key_usage = self._get_key_usage(&extensions)?;
-		ssllib_log_trace!(" ");
 		self._get_constraints_valid(&mut build,&extensions)?;
-		ssllib_log_trace!(" ");
 		build.subject_key_id = self._get_subject_key_id(&extensions)?;
-		ssllib_log_trace!(" ");
 		self._get_uris(&mut build,&extensions)?;
-		ssllib_log_trace!(" ");
 		self._get_perm_exs(&mut build,&extensions)?;
-		ssllib_log_trace!(" ");
 		self._get_ext_key_usage(&mut build,&extensions)?;
-		ssllib_log_trace!(" ");
 		self._get_policies(&mut build,&extensions)?;
-		ssllib_log_trace!(" ");
 		self._get_authority_key_id(&mut build,&extensions)?;
-		ssllib_log_trace!(" ");
 		self._get_ocsp_servers_and_issuer_certificate_urls(&mut build,&extensions)?;
-		ssllib_log_trace!(" ");
 
 		Ok(build)
 	}
