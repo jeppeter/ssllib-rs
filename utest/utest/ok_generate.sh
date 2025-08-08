@@ -66,7 +66,7 @@ touch $cadir/root_ca/index
 
 echo "00" > $cadir/root_ca/serial
 
-openssl ca -batch -in $cadir/root.csr -out $cadir/root.pem -config $cadir/root.config -selfsign -extfile $cadir/ca.ext -days 1095
+openssl ca -notext -batch -in $cadir/root.csr -out $cadir/root.pem -config $cadir/root.config -selfsign -extfile $cadir/ca.ext -days 1095
 
 
 openssl genrsa -out $cadir/intermediate.key 4096
@@ -84,7 +84,7 @@ EOF
 openssl req -new -key $cadir/intermediate.key -out $cadir/intermediate.csr -config $cadir/intermediate_req.config
 
 
-openssl ca -batch -in $cadir/intermediate.csr -out $cadir/intermediate.pem -config $cadir/root.config -extfile $cadir/ca.ext -days 730
+openssl ca -notext -batch -in $cadir/intermediate.csr -out $cadir/intermediate.pem -config $cadir/root.config -extfile $cadir/ca.ext -days 730
 
 
 openssl genrsa -out $cadir/leaf.key 4096
@@ -137,6 +137,6 @@ touch $cadir/intermediate_ca/index
 
 echo "00" > $cadir/intermediate_ca/serial
 
-openssl ca -batch -in $cadir/leaf.csr -out $cadir/leaf.pem -config $cadir/intermediate.config -days 365
+openssl ca -batch -notext -in $cadir/leaf.csr -out $cadir/leaf.pem -config $cadir/intermediate.config -days 365
 
 openssl verify -x509_strict -CAfile $cadir/root.pem -untrusted $cadir/intermediate.pem $cadir/leaf.pem
