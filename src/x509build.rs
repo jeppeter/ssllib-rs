@@ -12,14 +12,18 @@ use asn1obj::asn1impl::*;
 use num_bigint::{BigInt,Sign};
 use num_traits::{zero};
 #[allow(unused_imports)]
-use chrono::{Utc,Datelike,DateTime};
+use chrono::{Utc,DateTime,Datelike,Months};
+
+use serde::{Deserialize, Serialize};
+use crate::serde_obj::{StringVisitor,parse_to_bigint};
+use serde::ser::{SerializeSeq};
 
 ssllib_error_class!{X509BuildError}
 
 
 
 #[derive(Debug)]
-#[derive(Clone)]
+#[derive(Clone,Serialize,Deserialize)]
 pub enum SignatureAlgorithm {
 	UnknownSignatureAlgorithm,
 	MD2WithRSA,
@@ -191,7 +195,7 @@ impl PartialEq for SignatureAlgorithm {
 
 
 #[derive(Debug)]
-#[derive(Clone)]
+#[derive(Clone,Serialize,Deserialize)]
 pub enum KeyUsage {
 	KeyUsageDigitalSignature,
 	KeyUsageContentCommitment,
@@ -292,19 +296,80 @@ impl PartialEq for KeyUsage {
 
 
 
-#[derive(Clone)]
+#[derive(Clone,Serialize,Deserialize)]
 pub struct PkixName {
+	#[serde(default = "array_string_default")]
 	pub country :Vec<String>,
+	#[serde(default = "array_string_default")]
 	pub province :Vec<String>,
+	#[serde(default = "array_string_default")]
 	pub locality :Vec<String>,
+	#[serde(default = "array_string_default")]
 	pub street_address :Vec<String>,
+	#[serde(default = "array_string_default")]
 	pub organization :Vec<String>,
+	#[serde(default = "array_string_default")]
 	pub organizational_unit :Vec<String>,
+	#[serde(default = "array_string_default")]
 	pub postal_code :Vec<String>,
+	#[serde(default = "array_string_default")]
 	pub serial_number :Vec<String>,
+	#[serde(default = "array_string_default")]
 	pub common_name :Vec<String>,
+	#[serde(serialize_with="extra_serialize", deserialize_with="extra_deserialize" ,default="extra_default")]
 	pub extra_names :Vec<Asn1X509NameAnyElement>,
 }
+
+fn array_string_default() -> Vec<String> {
+	vec![]
+}
+
+fn extra_default() -> Vec<Asn1X509NameAnyElement> {
+	vec![]
+}
+
+
+fn extra_serialize<S>(oany :&Vec<Asn1X509NameAnyElement>,serializer: S) -> Result<S::Ok, S::Error> where S: serde::ser::Serializer {
+	let mut seq = serializer.serialize_seq(Some(oany.len()))?;
+	for v in oany.iter() {
+		seq.serialize_element(v)?;
+	}
+	seq.end()
+}
+
+#[allow(dead_code)]
+struct Asn1X509NameAnyElementSeq(Vec<Asn1X509NameAnyElement>);
+
+impl<'de> serde::de::Visitor<'de> for Asn1X509NameAnyElementSeq {
+	type Value = Vec<Asn1X509NameAnyElement>;
+
+	fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+		write!(formatter, "an array need")
+	}
+
+
+
+	fn visit_seq<A>(self, mut seq: A) -> Result<Vec<Asn1X509NameAnyElement>, A::Error>
+	where A: serde::de::SeqAccess<'de>,
+	{
+		let mut vec :Vec<Asn1X509NameAnyElement>= Vec::new();
+
+		while let Some(v) = seq.next_element::<Asn1X509NameAnyElement>()? {
+			vec.push(v);
+		}
+		Ok(vec)
+
+	}
+}
+
+
+
+fn extra_deserialize<'de, D>(deserializer :D) -> Result<Vec<Asn1X509NameAnyElement>, D::Error> 
+where D: serde::de::Deserializer<'de> {
+	let visitor :Asn1X509NameAnyElementSeq = Asn1X509NameAnyElementSeq(vec![]);
+	deserializer.deserialize_seq(visitor)
+}
+
 
 macro_rules! expand_pkix_fmt {
 	($name :expr, $elem :expr, $f :expr) => {
@@ -468,7 +533,7 @@ impl PkixName {
 
 
 #[derive(Clone)]
-#[derive(Debug)]
+#[derive(Debug,Serialize,Deserialize)]
 pub enum ExtKeyUsage {
     ExtKeyUsageAny,
     ExtKeyUsageServerAuth,
@@ -586,40 +651,174 @@ impl PartialEq for ExtKeyUsage {
 
 
 #[derive(Debug)]
-#[derive(Clone)]
+#[derive(Clone,Serialize,Deserialize)]
 pub struct X509BuildConfig {
+	#[serde(default = "x509build_version_default")]
 	pub version :i64,
+	#[serde(default = "x509build_serial_number_default", serialize_with = "bigint_serialize", deserialize_with = "bigint_deserialize")]
 	pub serial_number  :BigInt,
+	#[serde(default = "x509build_basic_constraints_valid_default")]
 	pub basic_constraints_valid :bool,
+	#[serde(default = "x509build_is_ca_default")]
 	pub is_ca :bool,
+	#[serde(default = "x509build_max_path_len_default")]
 	pub max_path_len : i64,
+	#[serde(default = "x509build_max_path_zero_default")]
 	pub max_path_zero :bool,
+	#[serde(default = "x509build_signature_algorithm_default")]
 	pub signature_algorithm :SignatureAlgorithm,
+	#[serde(default = "x509build_pkixname_default")]
 	pub issuer :PkixName,
+	#[serde(default = "x509build_pkixname_default")]
 	pub subject : PkixName,
+	#[serde(default = "x509build_before_default", serialize_with= "date_time_serialize", deserialize_with = "date_time_deserialize")]
 	pub not_before :DateTime<Utc>,
+	#[serde(default = "x509build_after_default", serialize_with= "date_time_serialize", deserialize_with = "date_time_deserialize")]
 	pub not_after :DateTime<Utc>,
+	#[serde(default = "x509build_key_usage_default")]
 	pub key_usage :Vec<KeyUsage>,
+	#[serde(default = "x509build_subject_key_id_default")]
 	pub subject_key_id :Vec<u8>,
+	#[serde(default = "array_string_default")]
 	pub ip_addresses :Vec<String>,
+	#[serde(default = "array_string_default")]
 	pub email_addresses :Vec<String>,
+	#[serde(default = "array_string_default")]
 	pub dns_names :Vec<String>,
+	#[serde(default = "array_string_default")]
 	pub uris :Vec<String>,
+	#[serde(default = "array_string_default")]
 	pub ex_ip_ranges :Vec<String>,
+	#[serde(default = "array_string_default")]
 	pub ex_email_addresses :Vec<String>,
+	#[serde(default = "array_string_default")]
 	pub ex_dns_names :Vec<String>,
+	#[serde(default = "array_string_default")]
 	pub ex_uris :Vec<String>,
+	#[serde(default = "array_string_default")]
 	pub perm_ip_ranges :Vec<String>,
+	#[serde(default = "array_string_default")]
 	pub perm_email_addresses:Vec<String>,
+	#[serde(default = "array_string_default")]
 	pub perm_dns_names :Vec<String>,
+	#[serde(default = "array_string_default")]
 	pub perm_uris :Vec<String>,
+	#[serde(default = "x509build_ext_key_usage_default")]
 	pub ext_key_usage :Vec<ExtKeyUsage>,
+	#[serde(default = "array_string_default")]
 	pub unknown_ext_key_usage :Vec<String>,
+	#[serde(default = "array_string_default")]
 	pub policies :Vec<String>,
+	#[serde(default = "x509build_authority_key_id_default")]
 	pub authority_key_id :Vec<u8>,
+	#[serde(default = "array_string_default")]
 	pub ocsp_servers :Vec<String>,
+	#[serde(default = "array_string_default")]
 	pub issuer_certificate_urls:Vec<String>,
 }
+
+fn x509build_version_default() -> i64 {
+	/*default version 2*/
+	3
+}
+
+fn x509build_serial_number_default() -> BigInt {
+	zero()
+}
+
+fn bigint_serialize<S>(oany :&BigInt,serializer: S) -> Result<S::Ok, S::Error> where S: serde::ser::Serializer {
+	let c :String = format!("0x{:x}",oany);
+	serializer.serialize_str(&c)
+}
+
+
+
+
+fn bigint_deserialize<'de, D>(deserializer :D) -> Result<BigInt, D::Error> 
+where D: serde::de::Deserializer<'de> {
+	let vs :StringVisitor = StringVisitor("".to_string());
+	let c :String = format!("{}",deserializer.deserialize_str(vs)?);
+	let retv :BigInt ;
+	let ores = parse_to_bigint(&c);
+	if ores.is_err() {
+		let e  : D::Error =  serde::de::Error::custom( ores.err().unwrap().to_string());
+		return Err(e);
+	}
+	retv = ores.unwrap();
+	Ok(retv)
+}
+
+
+fn x509build_basic_constraints_valid_default() -> bool {
+	false
+}
+
+fn x509build_is_ca_default() -> bool {
+	false
+}
+
+fn x509build_max_path_len_default() -> i64 {
+	0
+}
+
+fn x509build_max_path_zero_default() -> bool {
+	false
+}
+
+fn x509build_signature_algorithm_default() -> SignatureAlgorithm {
+	SignatureAlgorithm::SHA256WithRSA
+}
+
+fn x509build_pkixname_default() -> PkixName {
+	PkixName::new()
+}
+
+fn x509build_before_default() -> DateTime<Utc> {
+	Utc::now()
+}
+
+fn x509build_after_default() -> DateTime<Utc> {
+	/*20 years with*/
+	Utc::now() + Months::new(240)
+}
+
+fn date_time_serialize<S>(utime :&DateTime<Utc>,serializer: S) -> Result<S::Ok, S::Error> where S: serde::ser::Serializer {
+	let c :String = format!("{}", utime.format("%Y-%m-%d %H:%M:%S"));
+	serializer.serialize_str(&c)
+}
+
+
+fn date_time_deserialize<'de, D>(deserializer :D) -> Result<DateTime<Utc>, D::Error> 
+where D: serde::de::Deserializer<'de> {
+	let vs :StringVisitor = StringVisitor("".to_string());
+	let mut c :String = format!("{}",deserializer.deserialize_str(vs)?);
+	let formats :&str = "%Y-%m-%d %H:%M:%S%z";
+	c.push_str("+00:00");
+	let ores = DateTime::parse_from_str(&c,formats);
+	if ores.is_err() {
+		let e  : D::Error =  serde::de::Error::custom( ores.err().unwrap().to_string());
+		return Err(e);		
+	}
+	let retv :DateTime<Utc> = ores.unwrap().into();
+	Ok(retv)
+}
+
+fn x509build_key_usage_default() -> Vec<KeyUsage> {
+	vec![]
+}
+
+fn x509build_subject_key_id_default() -> Vec<u8> {
+	vec![]
+}
+
+fn x509build_ext_key_usage_default() -> Vec<ExtKeyUsage> {
+	vec![]
+}
+
+fn x509build_authority_key_id_default() -> Vec<u8> {
+	vec![]
+}
+
 
 impl X509BuildConfig {
 	pub fn new() -> X509BuildConfig {
@@ -667,6 +866,65 @@ impl X509BuildConfig {
 		let code = asn1pkix.encode_asn1()?;
 		Ok(code)
 	}
-
 }
 
+
+#[derive(Clone,Serialize,Deserialize)]
+pub struct X509VerifyOption {
+	#[serde(default = "array_string_default")]
+	roots :Vec<String>,
+	#[serde(default = "array_string_default")]
+	interns :Vec<String>,
+	#[serde(skip)]
+	rootcerts :HashMap<String,Asn1X509>,
+	#[serde(skip)]
+	interncerts :HashMap<String,Asn1X509>,
+}
+
+
+impl X509VerifyOption {
+	pub new() -> Self {
+		Self {
+			roots :vec![],
+			interns :vec![],
+			rootcert :HashMap::new(),
+			interncerts : HashMap::new(),
+		}
+	}
+
+	pub fn add_root(&mut self, fname :&str) -> Result<(),Box<dyn Error>> {
+		self.roots.push(format!("{}",fname));
+		Ok(())
+	}
+
+	pub fn add_interns(&mut self, fname :&str) -> Result<(),Box<dyn Error>> {
+		self.interns.push(format!("{}",fname));
+		Ok(())
+	}
+
+	pub fn get_root_cert(&mut self, i :usize) -> Result<Vec<Asn1X509>,Box<dyn Error>> {
+		let mut retv :Vec<Asn1X509> = vec![];
+		if self.roots.len() <= i {
+			return Ok(retv);
+		}
+
+		let k :String = format!("{}",self.roots[i]);
+
+		match self.rootcerts.get(&k) {
+			Some(v) => {
+				retv.push(v.clone());
+				return Ok(retv);
+			},
+			None => {
+				/*now to read */
+			},
+		}
+	}
+
+	pub fn get_intern_cert(&mut self, i :usize) -> Result<Vec<Asn1X509>,Box<dyn Error>> {
+		let mut retv :Vec<Asn1X509> = vec![];
+		if self.interns.len() <= i {
+			return Ok(retv);
+		}
+
+	}

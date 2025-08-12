@@ -5,6 +5,8 @@ mod logger;
 pub mod impls;
 pub mod utils;
 mod fileop;
+mod base64;
+pub mod pemlib;
 mod cfbmode;
 mod kdfutils;
 pub mod randop;
@@ -15,6 +17,7 @@ pub mod genname;
 pub mod digest;
 pub mod encde;
 pub mod rsa;
+pub mod serde_obj;
 pub mod x509build;
 #[allow(non_camel_case_types)]
 pub mod x509;
