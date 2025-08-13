@@ -5,8 +5,6 @@ mod logger;
 pub mod impls;
 pub mod utils;
 mod fileop;
-mod base64;
-pub mod pemlib;
 mod cfbmode;
 mod kdfutils;
 pub mod randop;

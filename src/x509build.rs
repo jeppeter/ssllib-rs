@@ -17,6 +17,7 @@ use chrono::{Utc,DateTime,Datelike,Months};
 use serde::{Deserialize, Serialize};
 use crate::serde_obj::{StringVisitor,parse_to_bigint};
 use serde::ser::{SerializeSeq};
+use std::collections::{HashMap};
 
 ssllib_error_class!{X509BuildError}
 
@@ -883,22 +884,29 @@ pub struct X509VerifyOption {
 
 
 impl X509VerifyOption {
-	pub new() -> Self {
+	pub fn new() -> Self {
 		Self {
 			roots :vec![],
 			interns :vec![],
-			rootcert :HashMap::new(),
+			rootcerts :HashMap::new(),
 			interncerts : HashMap::new(),
 		}
 	}
 
-	pub fn add_root(&mut self, fname :&str) -> Result<(),Box<dyn Error>> {
+	pub fn add_root(&mut self, fname :&str,bs :&[u8]) -> Result<(),Box<dyn Error>> {
 		self.roots.push(format!("{}",fname));
+		let mut x :Asn1X509 = Asn1X509::init_asn1();
+		let _ = x.decode_asn1(bs)?;
+		self.rootcerts.insert(format!("{}",fname),x);
+
 		Ok(())
 	}
 
-	pub fn add_interns(&mut self, fname :&str) -> Result<(),Box<dyn Error>> {
+	pub fn add_interns(&mut self, fname :&str,bs :&[u8]) -> Result<(),Box<dyn Error>> {
 		self.interns.push(format!("{}",fname));
+		let mut x :Asn1X509 = Asn1X509::init_asn1();
+		let _ = x.decode_asn1(bs)?;
+		self.interncerts.insert(format!("{}",fname),x);
 		Ok(())
 	}
 
@@ -916,9 +924,9 @@ impl X509VerifyOption {
 				return Ok(retv);
 			},
 			None => {
-				/*now to read */
 			},
 		}
+		return Ok(retv)
 	}
 
 	pub fn get_intern_cert(&mut self, i :usize) -> Result<Vec<Asn1X509>,Box<dyn Error>> {
@@ -927,4 +935,16 @@ impl X509VerifyOption {
 			return Ok(retv);
 		}
 
+		let k :String = format!("{}",self.interns[i]);
+
+		match self.interncerts.get(&k) {
+			Some(v) => {
+				retv.push(v.clone());
+				return Ok(retv);
+			},
+			None => {
+			},
+		}
+		return Ok(retv)
 	}
+}
