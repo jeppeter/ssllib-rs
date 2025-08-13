@@ -929,46 +929,56 @@ impl X509VerifyOption {
 		Ok(())
 	}
 
-	pub fn get_root_cert(&mut self, i :usize) -> Result<Vec<Asn1X509>,Box<dyn Error>> {
+	pub fn get_root_certs(&mut self) -> Result<Vec<Asn1X509>,Box<dyn Error>> {
 		let mut retv :Vec<Asn1X509> = vec![];
-		if self.roots.len() <= i {
+		let mut i :usize = 0;
+		if self.roots.len() == 0 {
 			return Ok(retv);
 		}
 
-		let k :String = format!("{}",self.roots[i]);
+		while i < self.roots.len() {
+			let k :String = format!("{}",self.roots[i]);
 
-		match self.rootcerts.get(&k) {
-			Some(v) => {
-				retv.push(v.clone());
-			},
-			None => {
-				/*now we should get the inserts*/
-				let x = self._get_x509(&k)?;
-				self.rootcerts.insert(format!("{}",k),x.clone());
-				retv.push(x);
-			},
+			match self.rootcerts.get(&k) {
+				Some(v) => {
+					retv.push(v.clone());
+				},
+				None => {
+					/*now we should get the inserts*/
+					let x = self._get_x509(&k)?;
+					self.rootcerts.insert(format!("{}",k),x.clone());
+					retv.push(x);
+				},
+			}
+			i += 1;
 		}
+
 		return Ok(retv);
 	}
 
-	pub fn get_intern_cert(&mut self, i :usize) -> Result<Vec<Asn1X509>,Box<dyn Error>> {
+	pub fn get_intern_certs(&mut self) -> Result<Vec<Asn1X509>,Box<dyn Error>> {
 		let mut retv :Vec<Asn1X509> = vec![];
-		if self.interns.len() <= i {
+		if self.interns.len()  == 0 {
 			return Ok(retv);
 		}
+		let mut i :usize = 0;
 
-		let k :String = format!("{}",self.interns[i]);
+		while i < self.interns.len() {
+			let k :String = format!("{}",self.interns[i]);
 
-		match self.interncerts.get(&k) {
-			Some(v) => {
-				retv.push(v.clone());
-			},
-			None => {
-				let x = self._get_x509(&k)?;
-				self.interncerts.insert(format!("{}",k),x.clone());
-				retv.push(x);
-			},
+			match self.interncerts.get(&k) {
+				Some(v) => {
+					retv.push(v.clone());
+				},
+				None => {
+					let x = self._get_x509(&k)?;
+					self.interncerts.insert(format!("{}",k),x.clone());
+					retv.push(x);
+				},
+			}
+			i += 1;
 		}
+
 		return Ok(retv);
 	}
 

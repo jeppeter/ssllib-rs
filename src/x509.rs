@@ -1558,6 +1558,22 @@ impl Asn1X509 {
 		Ok(build)
 	}
 
+	pub fn self_verify(&self) -> Result<bool, Box<dyn Error>> {
+		let retv :bool = false;
+		Ok(retv)		
+	}
+
+
+	pub fn verify_opt(&self, opt :&mut X509VerifyOption) -> Result<bool, Box<dyn Error>> {
+		/*now to get verify*/
+		let mut retv :bool = false;
+		let roots :Vec<Asn1X509> = opt.get_root_certs()?;
+		if roots.len() != 0 {		
+			retv = true;
+		}
+
+		Ok(retv)
+	}
 
 }
 
