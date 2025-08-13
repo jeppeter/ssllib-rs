@@ -43,6 +43,7 @@ mod iniexec;
 mod asn1parse;
 mod gennamehdl;
 mod x509exec;
+mod rsaexec;
 mod ecparam;
 mod privkey;
 mod pkcs7hdl;
@@ -84,6 +85,7 @@ fn main() -> Result<(),Box<dyn Error>> {
 	spchdl::load_spc_handler(parser.clone())?;
 	pehdl::load_pe_handler(parser.clone())?;
 	reqhdl::load_req_handler(parser.clone())?;
+	rsaexec::load_rsaexec_handler(parser.clone())?;
 	let ores = parser.parse_commandline_ex(None,None,None,None);
 	if ores.is_err() {
 		let e = ores.err().unwrap();
