@@ -5,6 +5,7 @@ mod logger;
 pub mod impls;
 pub mod utils;
 mod fileop;
+pub (crate) mod pemlib;
 mod cfbmode;
 mod kdfutils;
 pub mod randop;

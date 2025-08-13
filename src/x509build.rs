@@ -4,6 +4,7 @@ use crate::{ssllib_new_error,ssllib_error_class};
 use crate::{ssllib_buffer_trace,ssllib_buffer_error,ssllib_format_buffer_log,ssllib_log_trace};
 use crate::logger::*;
 use crate::x509::*;
+use crate::pemlib::{read_file_into_der};
 use std::error::Error;
 use asn1obj::complex::*;
 use asn1obj::asn1impl::*;
@@ -880,6 +881,16 @@ pub struct X509VerifyOption {
 	rootcerts :HashMap<String,Asn1X509>,
 	#[serde(skip)]
 	interncerts :HashMap<String,Asn1X509>,
+	#[serde(default = "x509build_before_default", serialize_with = "date_time_serialize", deserialize_with = "date_time_deserialize")]
+	currenttime :DateTime<Utc>,
+	#[serde(default = "x509build_key_usage_default")]
+	key_usage :Vec<KeyUsage>,
+	#[serde(default = "x509_vfy_opt_max_constraints_comparisons_default")]
+	max_constraints_comparisons :i32,
+}
+
+fn x509_vfy_opt_max_constraints_comparisons_default() -> i32 {
+	0
 }
 
 
@@ -890,22 +901,30 @@ impl X509VerifyOption {
 			interns :vec![],
 			rootcerts :HashMap::new(),
 			interncerts : HashMap::new(),
+			currenttime : Utc::now(),
+			key_usage : vec![],
+			max_constraints_comparisons : 0,
 		}
 	}
 
-	pub fn add_root(&mut self, fname :&str,bs :&[u8]) -> Result<(),Box<dyn Error>> {
+	pub fn add_root(&mut self, fname :&str) -> Result<(),Box<dyn Error>> {
 		self.roots.push(format!("{}",fname));
-		let mut x :Asn1X509 = Asn1X509::init_asn1();
-		let _ = x.decode_asn1(bs)?;
-		self.rootcerts.insert(format!("{}",fname),x);
 
+		let x = self._get_x509(fname)?;
+		self.rootcerts.insert(format!("{}",fname),x);
 		Ok(())
 	}
 
-	pub fn add_interns(&mut self, fname :&str,bs :&[u8]) -> Result<(),Box<dyn Error>> {
-		self.interns.push(format!("{}",fname));
+	fn _get_x509(&self, fname :&str) -> Result<Asn1X509,Box<dyn Error>> {
+		let bs = read_file_into_der(fname)?;
 		let mut x :Asn1X509 = Asn1X509::init_asn1();
-		let _ = x.decode_asn1(bs)?;
+		let _ = x.decode_asn1(&bs)?;
+		return Ok(x);
+	}
+
+	pub fn add_interns(&mut self, fname :&str) -> Result<(),Box<dyn Error>> {
+		self.interns.push(format!("{}",fname));
+		let x = self._get_x509(fname)?;
 		self.interncerts.insert(format!("{}",fname),x);
 		Ok(())
 	}
@@ -921,12 +940,15 @@ impl X509VerifyOption {
 		match self.rootcerts.get(&k) {
 			Some(v) => {
 				retv.push(v.clone());
-				return Ok(retv);
 			},
 			None => {
+				/*now we should get the inserts*/
+				let x = self._get_x509(&k)?;
+				self.rootcerts.insert(format!("{}",k),x.clone());
+				retv.push(x);
 			},
 		}
-		return Ok(retv)
+		return Ok(retv);
 	}
 
 	pub fn get_intern_cert(&mut self, i :usize) -> Result<Vec<Asn1X509>,Box<dyn Error>> {
@@ -940,11 +962,41 @@ impl X509VerifyOption {
 		match self.interncerts.get(&k) {
 			Some(v) => {
 				retv.push(v.clone());
-				return Ok(retv);
 			},
 			None => {
+				let x = self._get_x509(&k)?;
+				self.interncerts.insert(format!("{}",k),x.clone());
+				retv.push(x);
 			},
 		}
-		return Ok(retv)
+		return Ok(retv);
+	}
+
+	pub fn add_key_usage(&mut self, usage :&KeyUsage) -> usize {
+		self.key_usage.push(usage.clone());
+		return self.key_usage.len();
+	}
+
+	pub fn key_usage_in(&self, usage :&KeyUsage) -> i32 {
+		let mut  ival :i32 = -1;
+		let mut idx :usize = 0;
+		for v in self.key_usage.iter() {
+			if v == usage {
+				ival = idx as i32;
+				break;
+			}
+			idx += 1;
+		}
+		return ival;
+	}
+
+	pub fn set_current_time(&mut self, ct :&DateTime<Utc>) -> DateTime<Utc> {
+		let retv :DateTime<Utc> = self.currenttime.clone();
+		self.currenttime = ct.clone();
+		retv
+	}
+
+	pub fn get_current_time(&self) -> DateTime<Utc> {
+		return self.currenttime.clone();
 	}
 }
