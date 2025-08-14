@@ -114,7 +114,7 @@ fn privkey_vfy_init_default() -> bool {
 }
 
 macro_rules!  expand_priv_sign_op {
-	($ctype:path,$hashtype:expr) => {
+	($ctype:path,$hashtype:expr,$clsname:expr) => {
 		impl Asn1SignOp for $ctype {
 			fn sign_init(&mut self,_key :&[u8],_initv :&[u8]) -> Result<(),Box<dyn Error>> {
 				self.signinited = true;
@@ -123,7 +123,7 @@ macro_rules!  expand_priv_sign_op {
 			fn sign_exec(&mut self,data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
 				let retv :Vec<u8>;
 				if !self.signinited {
-					ssllib_new_error!{SslAsn1RsaError,"not inited sign"}
+					ssllib_new_error!{SslAsn1RsaError,"{} not inited sign",$clsname}
 				}
 				let n = rsaBigUint::from_bytes_be(&self.privkey.modulus.val.to_bytes_be());
 				let d = rsaBigUint::from_bytes_be(&self.privkey.pubexp.val.to_bytes_be());
@@ -133,7 +133,7 @@ macro_rules!  expand_priv_sign_op {
 				primes.push(rsaBigUint::from_bytes_be(&self.privkey.prime2.val.to_bytes_be()));
 				let po = RsaPrivateKey::from_components(n,d,e,primes);
 				retv = po.sign(PaddingScheme::new_pkcs1v15_sign(Some($hashtype)),data)?;
-				ssllib_buffer_trace!(retv.as_ptr(),retv.len(),"sign value");
+				ssllib_buffer_trace!(retv.as_ptr(),retv.len(),"{} sign value",$clsname);
 				Ok(retv)
 			}
 		}
@@ -141,7 +141,7 @@ macro_rules!  expand_priv_sign_op {
 }
 
 macro_rules!  expand_priv_vfy_op {
-	($ctype:path,$hashtype:expr) => {
+	($ctype:path,$hashtype:expr,$clsname:expr) => {
 		impl Asn1VerifyOp for $ctype {
 			fn verify_init(&mut self,_key :&[u8],_initv :&[u8]) -> Result<(),Box<dyn Error>> {
 				self.vfyinited = true;
@@ -151,7 +151,7 @@ macro_rules!  expand_priv_vfy_op {
 			fn verify_exec(&mut self, origdata :&[u8], signdata :&[u8]) -> Result<bool,Box<dyn Error>> {
 				let mut retv :bool = false;
 				if !self.vfyinited {
-					ssllib_new_error!{SslAsn1RsaError,"not inited vfy"}
+					ssllib_new_error!{SslAsn1RsaError,"{} not inited vfy",$clsname}
 				}
 				let n = rsaBigUint::from_bytes_be(&self.privkey.modulus.val.to_bytes_be());
 				let d = rsaBigUint::from_bytes_be(&self.privkey.pubexp.val.to_bytes_be());
@@ -173,7 +173,7 @@ macro_rules!  expand_priv_vfy_op {
 
 
 macro_rules! decl_rsa_priv {
-	($name :ident,$hashtype:expr) => {
+	($name :ident,$hashtype:expr,$clsname:expr) => {
 		pub struct $name {
 			privkey :Asn1RsaPrivateKeyElem,
 			signinited : bool,
@@ -192,21 +192,21 @@ macro_rules! decl_rsa_priv {
 			}			
 		}
 
-		expand_priv_sign_op!{$name,$hashtype}
-		expand_priv_vfy_op!{$name,$hashtype}
+		expand_priv_sign_op!{$name,$hashtype,$clsname}
+		expand_priv_vfy_op!{$name,$hashtype,$clsname}
 	}
 }
 
 
-decl_rsa_priv!{RsaMD5priv,Hash::MD5}
-decl_rsa_priv!{RsaSHA1priv,Hash::SHA1}
-decl_rsa_priv!{RsaSHA224priv,Hash::SHA2_224}
-decl_rsa_priv!{RsaSHA256priv,Hash::SHA2_256}
-decl_rsa_priv!{RsaSHA384priv,Hash::SHA2_384}
-decl_rsa_priv!{RsaSHA512priv,Hash::SHA2_512}
+decl_rsa_priv!{RsaMD5priv,Hash::MD5,"RsaMD5priv"}
+decl_rsa_priv!{RsaSHA1priv,Hash::SHA1,"RsaSHA1priv"}
+decl_rsa_priv!{RsaSHA224priv,Hash::SHA2_224,"RsaSHA224priv"}
+decl_rsa_priv!{RsaSHA256priv,Hash::SHA2_256,"RsaSHA256priv"}
+decl_rsa_priv!{RsaSHA384priv,Hash::SHA2_384,"RsaSHA384priv"}
+decl_rsa_priv!{RsaSHA512priv,Hash::SHA2_512,"RsaSHA512priv"}
 
 macro_rules! decl_pub_vfy {
-	($name:ident,$hashtype:expr) => {
+	($name:ident,$hashtype:expr,$clsname:expr) => {
 		impl Asn1VerifyOp for $name {
 			fn verify_init(&mut self,_key :&[u8],_initv :&[u8]) -> Result<(),Box<dyn Error>> {
 				self.vfyinited = true;
@@ -216,7 +216,7 @@ macro_rules! decl_pub_vfy {
 			fn verify_exec(&mut self, origdata :&[u8], signdata :&[u8]) -> Result<bool,Box<dyn Error>> {
 				let mut retv :bool = false;
 				if !self.vfyinited {
-					ssllib_new_error!{SslAsn1RsaError,"not inited vfy"}
+					ssllib_new_error!{SslAsn1RsaError,"{} not inited vfy",$clsname}
 				}
 				let nb = rsaBigUint::from_bytes_be(&self.pubkey.n.val.to_bytes_be());
 				let eb = rsaBigUint::from_bytes_be(&self.pubkey.e.val.to_bytes_be());
@@ -233,7 +233,7 @@ macro_rules! decl_pub_vfy {
 }
 
 macro_rules! decl_rsa_pub {
-	($name:ident,$hashtype:expr) => {
+	($name:ident,$hashtype:expr,$clsname:expr) => {
 		pub struct $name {
 			pubkey :Asn1RsaPubkeyElem,
 			vfyinited :bool,
@@ -272,17 +272,17 @@ macro_rules! decl_rsa_pub {
 		}
 
 
-		decl_pub_vfy!{$name,$hashtype}
+		decl_pub_vfy!{$name,$hashtype,$clsname}
 	}
 }
 
 
-decl_rsa_pub!{RsaMD5pub,Hash::MD5}
-decl_rsa_pub!{RsaSHA1pub,Hash::SHA1}
-decl_rsa_pub!{RsaSHA224pub,Hash::SHA2_224}
-decl_rsa_pub!{RsaSHA256pub,Hash::SHA2_256}
-decl_rsa_pub!{RsaSHA384pub,Hash::SHA2_384}
-decl_rsa_pub!{RsaSHA512pub,Hash::SHA2_512}
+decl_rsa_pub!{RsaMD5pub,Hash::MD5,"RsaMD5pub"}
+decl_rsa_pub!{RsaSHA1pub,Hash::SHA1,"RsaSHA1pub"}
+decl_rsa_pub!{RsaSHA224pub,Hash::SHA2_224,"RsaSHA224pub"}
+decl_rsa_pub!{RsaSHA256pub,Hash::SHA2_256,"RsaSHA256pub"}
+decl_rsa_pub!{RsaSHA384pub,Hash::SHA2_384,"RsaSHA384pub"}
+decl_rsa_pub!{RsaSHA512pub,Hash::SHA2_512,"RsaSHA512pub"}
 
 
 
