@@ -29,6 +29,8 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 use ssllib::consts::KEY_JSON_AES256CBC;
 
+extargs_error_class!{MainError}
+
 mod consts;
 #[cfg(windows)]
 mod wchar_windows;
@@ -92,5 +94,12 @@ fn main() -> Result<(),Box<dyn Error>> {
 		eprintln!("{:?}", e);
 		return Err(e);
 	}
+	let ns :NameSpaceEx = ores.unwrap();
+	let commandline = ns.get_string("subcommand");
+	if commandline.len() == 0 {
+		eprintln!("no command set");
+		extargs_new_error!{MainError,"no command set"}
+	}
+
 	return Ok(());
 }

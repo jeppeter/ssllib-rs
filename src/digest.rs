@@ -1,7 +1,9 @@
 
 use crate::impls::*;
 use std::error::Error;
-use sha2::{Sha256,Digest};
+use sha1::{Sha1};
+use sha2::{Sha224,Sha256,Sha384,Sha512,Digest};
+use md5::{Md5};
 use hmac::{Hmac,Mac};
 use crate::*;
 use std::sync::{Arc};
@@ -14,55 +16,67 @@ use std::collections::HashMap;
 
 ssllib_error_class!{SslDigestError}
 
-pub struct Sha256Digest {
-	hasher :Vec<Sha256>,
-	inited : bool,
+macro_rules! decl_digest_class {
+	($name:ident,$innercall:ident,$clsname:expr) => {
+		pub struct $name {
+			hasher :Vec<$innercall>,
+			inited : bool,
+		}
+
+		impl $name {
+			pub fn calc(data :&[u8]) -> Vec<u8> {
+				let mut hasher = $innercall::new();
+				hasher.update(&data);
+				let res = hasher.finalize();
+				return res.to_vec();    
+			}	
+
+			pub fn new() -> Result<Self,Box<dyn Error>> {
+				Ok(Self{ 
+					hasher :vec![],
+					inited : false,
+				})
+			}
+		}
+
+		impl Asn1DigestOp for $name {
+			fn init_digest(&mut self,_times :u32,_initv :&[u8]) -> Result<(),Box<dyn Error>> {
+				if self.hasher.len() > 0 {
+					self.hasher[0] = $innercall::new();
+				} else {
+					self.hasher.push($innercall::new());
+				}
+				self.inited = true;
+				Ok(())
+			}
+			fn digest_update(&mut self, data :&[u8]) -> Result<(),Box<dyn Error>> {
+				if !self.inited {
+					ssllib_new_error!{SslDigestError,"{} not inited",$clsname}
+				}
+				self.hasher[0].update(&data);
+				Ok(())
+			}
+			fn digest_final(&mut self) -> Result<Vec<u8>,Box<dyn Error>> {
+				if !self.inited {
+					ssllib_new_error!{SslDigestError,"{} not inited",$clsname}
+				}
+				let res = self.hasher[0].clone().finalize();
+				self.inited = false;
+				let _ = self.hasher.remove(0);
+				return Ok(res.to_vec());
+			}
+		}
+
+	}
 }
 
-impl Sha256Digest {
-	pub fn calc(data :&[u8]) -> Vec<u8> {
-		let mut hasher = Sha256::new();
-		hasher.update(&data);
-		let res = hasher.finalize();
-		return res.to_vec();    
-	}	
+decl_digest_class!{MD5Digest,Md5,"MD5Digest"}
+decl_digest_class!{SHA1Digest,Sha1,"SHA1Digest"}
+decl_digest_class!{SHA224Digest,Sha224,"SHA224Digest"}
+decl_digest_class!{SHA256Digest,Sha256,"SHA256Digest"}
+decl_digest_class!{SHA384Digest,Sha384,"SHA384Digest"}
+decl_digest_class!{SHA512Digest,Sha512,"SHA512Digest"}
 
-	pub fn new() -> Result<Self,Box<dyn Error>> {
-		Ok(Self{ 
-			hasher :vec![],
-			inited : false,
-		})
-	}
-}
-
-impl Asn1DigestOp for Sha256Digest {
-	fn init_digest(&mut self,_times :u32,_initv :&[u8]) -> Result<(),Box<dyn Error>> {
-		if self.hasher.len() > 0 {
-			self.hasher[0] = Sha256::new();
-		} else {
-			self.hasher.push(Sha256::new());
-		}
-		self.inited = true;
-		Ok(())
-	}
-	fn digest_update(&mut self, data :&[u8]) -> Result<(),Box<dyn Error>> {
-		if !self.inited {
-			ssllib_new_error!{SslDigestError,"not inited"}
-		}
-		self.hasher[0].update(&data);
-		//self.innerdata = Sha256Digest::calc(data);
-		Ok(())
-	}
-	fn digest_final(&mut self) -> Result<Vec<u8>,Box<dyn Error>> {
-		if !self.inited {
-			ssllib_new_error!{SslDigestError,"not inited"}
-		}
-		let res = self.hasher[0].clone().finalize();
-		self.inited = false;
-		let _ = self.hasher.remove(0);
-		return Ok(res.to_vec());
-	}
-}
 
 pub type HmacSha256 = Hmac<Sha256>;
 
@@ -210,12 +224,37 @@ pub fn calc_hmac_sha256(initkey :&[u8],data :&[u8]) -> Vec<u8> {
 macro_rules! expand_digest_operator {
 	($name:expr) => {
 		if $name == DIGEST_SHA256 {
-			let ores = Sha256Digest::new();
+			let ores = SHA256Digest::new();
 			if ores.is_ok() {
 				return Some(Arc::new(RefCell::new(ores.unwrap())));    
 			}        
 		} else if $name == DIGEST_HMAC_SHA256 {
 			let ores = HmacSha256Digest::new();
+			if ores.is_ok() {
+				return Some(Arc::new(RefCell::new(ores.unwrap())));    
+			}
+		} else if $name == DIGEST_SHA1 {
+			let ores = SHA1Digest::new();
+			if ores.is_ok() {
+				return Some(Arc::new(RefCell::new(ores.unwrap())));    
+			}
+		} else if $name == DIGEST_SHA224 {
+			let ores = SHA224Digest::new();
+			if ores.is_ok() {
+				return Some(Arc::new(RefCell::new(ores.unwrap())));    
+			}
+		} else if $name == DIGEST_SHA384 {
+			let ores = SHA384Digest::new();
+			if ores.is_ok() {
+				return Some(Arc::new(RefCell::new(ores.unwrap())));    
+			}
+		} else if $name == DIGEST_SHA512 {
+			let ores = SHA512Digest::new();
+			if ores.is_ok() {
+				return Some(Arc::new(RefCell::new(ores.unwrap())));    
+			}
+		} else if $name == DIGEST_MD5 {
+			let ores = MD5Digest::new();
 			if ores.is_ok() {
 				return Some(Arc::new(RefCell::new(ores.unwrap())));    
 			}
