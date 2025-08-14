@@ -317,9 +317,9 @@ impl RsaPSSSHA256priv {
 	pub fn new(privkey :&Asn1RsaPrivateKey,len :usize) -> Result<Self,Box<dyn Error>> {
 		privkey.elem.check_safe_one("Asn1RsaPrivateKeyElem")?;
 		let mut saltlen :usize = len;
-		if saltlen == 0 {
+		if saltlen == 0xff {
 			saltlen = 32;
-		} else if saltlen == 0xff {
+		} else if saltlen == 0 {
 			let n = rsaBigUint::from_bytes_be(&privkey.elem.val[0].modulus.val.to_bytes_be());
 			let d = rsaBigUint::from_bytes_be(&privkey.elem.val[0].pubexp.val.to_bytes_be());
 			let e = rsaBigUint::from_bytes_be(&privkey.elem.val[0].privexp.val.to_bytes_be());
@@ -335,6 +335,7 @@ impl RsaPSSSHA256priv {
 			let nbytes :Vec<u8> = pubk.n().to_bytes_be().clone();
 			saltlen = ((nbytes.len() * 8 - 1 + 7) >> 3) - 2 - 32;
 		}
+		ssllib_log_trace!("saltlen {}",saltlen);
 		let retv :Self = Self {
 			privkey : privkey.elem.val[0].clone(),
 			signinited : false,
@@ -366,7 +367,8 @@ impl Asn1SignOp for RsaPSSSHA256priv {
 			ssllib_new_error!{SslAsn1RsaError,"{} not valid RsaPrivateKey","RsaPSSSHA256priv"}
 		}
 		let po = ores.unwrap();
-		let psskey :rsa::pss::Pss = rsa::pss::Pss::new_blinded_with_salt::<sha2::Sha256>(self.saltlen);
+		//let psskey :rsa::pss::Pss = rsa::pss::Pss::new_blinded_with_salt::<sha2::Sha256>(self.saltlen);
+		let psskey :rsa::pss::Pss = rsa::pss::Pss::new_with_salt::<sha2::Sha256>(self.saltlen);
 		//let mut hasher = sha2::Sha256::new();
 		//hasher.update(data);
 		//let hashdata = hasher.finalize().to_vec();
@@ -405,7 +407,8 @@ impl Asn1VerifyOp for RsaPSSSHA256priv {
 		}
 		let po = ores.unwrap();
 		let pubk = po.to_public_key();
-		let psskey :rsa::pss::Pss = rsa::pss::Pss::new_blinded_with_salt::<sha2::Sha256>(self.saltlen);
+		//let psskey :rsa::pss::Pss = rsa::pss::Pss::new_blinded_with_salt::<sha2::Sha256>(self.saltlen);
+		let psskey :rsa::pss::Pss = rsa::pss::Pss::new_with_salt::<sha2::Sha256>(self.saltlen);
 		//let mut hasher = sha2::Sha256::new();
 		//hasher.update(origdata);
 		//let hashdata = hasher.finalize().to_vec();
