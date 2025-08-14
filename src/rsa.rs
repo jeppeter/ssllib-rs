@@ -181,7 +181,7 @@ macro_rules! decl_rsa_priv {
 		}
 
 		impl $name {
-			pub fn new_from_asn1_priv(privkey :&Asn1RsaPrivateKey) -> Result<Self,Box<dyn Error>> {
+			pub fn new_from_priv(privkey :&Asn1RsaPrivateKey) -> Result<Self,Box<dyn Error>> {
 				privkey.elem.check_safe_one("Asn1RsaPrivateKeyElem")?;
 				let retv :Self = Self {
 					signinited : false,
