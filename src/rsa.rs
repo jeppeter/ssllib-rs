@@ -306,6 +306,34 @@ decl_rsa_pub!{RsaSHA256pub,sha2::Sha256,"RsaSHA256pub"}
 decl_rsa_pub!{RsaSHA384pub,sha2::Sha384,"RsaSHA384pub"}
 decl_rsa_pub!{RsaSHA512pub,sha2::Sha512,"RsaSHA512pub"}
 
+fn get_max_bits(cb :&[u8]) -> usize {
+	let mut retv :usize = cb.len() * 8;
+	let mut idx :usize = 0;
+	let mut jdx :usize;
+
+	while idx < cb.len() {
+		if cb[idx] != 0 {
+			jdx = 7;
+			loop {
+				if (cb[idx] & (1 << jdx)) != 0 {
+					break;
+				}
+				if jdx == 0 {
+					break;
+				}
+				retv -= 1;
+				jdx -= 1;
+			}
+			break;
+		}
+		idx += 1;
+		retv -= 8;
+	}
+
+	return retv;
+
+}
+
 pub struct RsaPSSSHA256priv {
 	privkey :Asn1RsaPrivateKeyElem,
 	signinited : bool,
@@ -333,7 +361,7 @@ impl RsaPSSSHA256priv {
 			let po = ores.unwrap();
 			let pubk = po.to_public_key();
 			let nbytes :Vec<u8> = pubk.n().to_bytes_be().clone();
-			saltlen = ((nbytes.len() * 8 - 1 + 7) >> 3) - 2 - 32;
+			saltlen = ((get_max_bits(&nbytes) - 1 + 7) >> 3) - 2 - 32;
 		}
 		ssllib_log_trace!("saltlen {}",saltlen);
 		let retv :Self = Self {
