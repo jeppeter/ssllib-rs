@@ -30,19 +30,22 @@ ecsimple = "^0.1.8"
 cipher = "^0.4.0"
 zeroize = "^1.8.1"
 num-traits = "^0.2"
+num-bigint-dig = "^0.8.1"
+num-bigint = "^0.4.3"
 
 
+# [dependencies.num-bigint]
+# version = "0.8.1"
+# features = [
+#     "i128",
+#     "u64_digit",
+#     "prime",
+#     "zeroize",
+# ]
+# default-features = false
+#package = "num-bigint-dig"
 
-[dependencies.num-bigint]
-version = "0.8.1"
-features = [
-    "i128",
-    "u64_digit",
-    "prime",
-    "zeroize",
-]
-default-features = false
-package = "num-bigint-dig"
+
 
 [features]
 debug_mode = ["ecsimple/debug_mode"]

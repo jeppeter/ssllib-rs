@@ -19,8 +19,9 @@ use rsa::BigUint as rsaBigUint;
 use rsa::hash::{Hash};
 use rsa::padding::{PaddingScheme};
 
-use num_bigint::traits::ModInverse;
+use num_bigint_dig::traits::ModInverse;
 use num_bigint::{BigUint};
+use num_bigint_dig::BigUint as DigBigUint;
 
 
 use crate::impls::*;
@@ -204,34 +205,86 @@ decl_rsa_priv!{RsaSHA256priv,Hash::SHA2_256}
 decl_rsa_priv!{RsaSHA384priv,Hash::SHA2_384}
 decl_rsa_priv!{RsaSHA512priv,Hash::SHA2_512}
 
+macro_rules! decl_pub_vfy {
+	($name:ident,$hashtype:expr) => {
+		impl Asn1VerifyOp for $name {
+			fn verify_init(&mut self,_key :&[u8],_initv :&[u8]) -> Result<(),Box<dyn Error>> {
+				self.vfyinited = true;
+				Ok(())
+			}
+
+			fn verify_exec(&mut self, origdata :&[u8], signdata :&[u8]) -> Result<bool,Box<dyn Error>> {
+				let mut retv :bool = false;
+				if !self.vfyinited {
+					ssllib_new_error!{SslAsn1RsaError,"not inited vfy"}
+				}
+				let nb = rsaBigUint::from_bytes_be(&self.pubkey.n.val.to_bytes_be());
+				let eb = rsaBigUint::from_bytes_be(&self.pubkey.e.val.to_bytes_be());
+
+				let pubk = RsaPublicKey::new(nb,eb)?;
+				let ores = pubk.verify(PaddingScheme::new_pkcs1v15_sign(Some($hashtype)),origdata,signdata);
+				if ores.is_ok() {
+					retv = true;
+				} 
+				Ok(retv)
+			}
+		}
+	}
+}
+
+macro_rules! decl_rsa_pub {
+	($name:ident,$hashtype:expr) => {
+		pub struct $name {
+			pubkey :Asn1RsaPubkeyElem,
+			vfyinited :bool,
+		}
+
+		impl $name {
+			pub fn new_from_priv(privkey :&Asn1RsaPrivateKey) -> Result<Self,Box<dyn Error>> {
+				let mut pubkey :Asn1RsaPubkeyElem = Asn1RsaPubkeyElem::init_asn1();
+				privkey.elem.check_safe_one("Asn1RsaPrivateKeyElem")?;
+				let n = rsaBigUint::from_bytes_be(&privkey.elem.val[0].modulus.val.to_bytes_be());
+				let d = rsaBigUint::from_bytes_be(&privkey.elem.val[0].pubexp.val.to_bytes_be());
+				let e = rsaBigUint::from_bytes_be(&privkey.elem.val[0].privexp.val.to_bytes_be());
+				let mut primes :Vec<rsaBigUint> = Vec::new();
+				primes.push(rsaBigUint::from_bytes_be(&privkey.elem.val[0].prime1.val.to_bytes_be()));
+				primes.push(rsaBigUint::from_bytes_be(&privkey.elem.val[0].prime2.val.to_bytes_be()));
+				let po = RsaPrivateKey::from_components(n,d,e,primes);
+				let nb :rsaBigUint = po.n().clone();
+				let eb :rsaBigUint = po.e().clone();
+				pubkey.n.val = BigUint::from_bytes_be(&nb.to_bytes_be());
+				pubkey.e.val = BigUint::from_bytes_be(&eb.to_bytes_be());
+				let retv :Self = Self {
+					pubkey :pubkey.clone(),
+					vfyinited : false,
+				};
+				Ok(retv)
+			}
+
+			pub fn new_from_pub(pubkey :&Asn1RsaPubkey) -> Result<Self,Box<dyn Error>> {
+				pubkey.elem.check_safe_one("Asn1RsaPubkeyElem")?;
+				let retv :Self = Self {
+					pubkey : pubkey.elem.val[0].clone(),
+					vfyinited : false,
+				};
+				Ok(retv)
+			}
+		}
 
 
-// impl Asn1VerifyOp for Rsasha256priv {
-// 	fn verify_init(&mut self,_key :&[u8],_initv :&[u8]) -> Result<(),Box<dyn Error>> {
-// 		self.vfyinited = true;
-// 		Ok(())
-// 	}
+		decl_pub_vfy!{$name,$hashtype}
+	}
+}
 
-// 	fn verify_exec(&mut self, origdata :&[u8], signdata :&[u8]) -> Result<bool,Box<dyn Error>> {
-// 		let mut retv :bool = false;
-// 		if !self.vfyinited {
-// 			ssllib_new_error!{SslAsn1RsaError,"not inited vfy"}
-// 		}
-// 		let n = rsaBigUint::from_bytes_be(&self.privkey.modulus.val.to_bytes_be());
-// 		let d = rsaBigUint::from_bytes_be(&self.privkey.pubexp.val.to_bytes_be());
-// 		let e = rsaBigUint::from_bytes_be(&self.privkey.privexp.val.to_bytes_be());
-// 		let mut primes :Vec<rsaBigUint> = Vec::new();
-// 		primes.push(rsaBigUint::from_bytes_be(&self.privkey.prime1.val.to_bytes_be()));
-// 		primes.push(rsaBigUint::from_bytes_be(&self.privkey.prime2.val.to_bytes_be()));
-// 		let po = RsaPrivateKey::from_components(n,d,e,primes);
-// 		let pubk = po.to_public_key();
-// 		let ores = pubk.verify(PaddingScheme::new_pkcs1v15_sign(Some(Hash::SHA2_256)),origdata,signdata);
-// 		if ores.is_ok() {
-// 			retv = true;
-// 		} 
-// 		Ok(retv)
-// 	}
-// }
+
+decl_rsa_pub!{RsaMD5pub,Hash::MD5}
+decl_rsa_pub!{RsaSHA1pub,Hash::SHA1}
+decl_rsa_pub!{RsaSHA224pub,Hash::SHA2_224}
+decl_rsa_pub!{RsaSHA256pub,Hash::SHA2_256}
+decl_rsa_pub!{RsaSHA384pub,Hash::SHA2_384}
+decl_rsa_pub!{RsaSHA512pub,Hash::SHA2_512}
+
+
 
 
 impl Asn1RsaPrivateKey {
@@ -258,11 +311,11 @@ impl Asn1RsaPrivateKey {
 		let primes = key.primes();
 		retv.elem.val[0].prime1.set_value(&(primes[0].to_bytes_be()));
 		retv.elem.val[0].prime2.set_value(&(primes[1].to_bytes_be()));
-		let p :BigUint = BigUint::from_bytes_be(&(primes[0].to_bytes_be()));
-		let q :BigUint = BigUint::from_bytes_be(&(primes[1].to_bytes_be()));
-		let r1 :BigUint = p.clone() - 1 as u32;
-		let r2 :BigUint = q.clone() - 1 as u32;
-		let e :BigUint = BigUint::from_bytes_be(&(key.e().to_bytes_be()));
+		let p :DigBigUint = DigBigUint::from_bytes_be(&(primes[0].to_bytes_be()));
+		let q :DigBigUint = DigBigUint::from_bytes_be(&(primes[1].to_bytes_be()));
+		let r1 :DigBigUint = p.clone() - 1 as u32;
+		let r2 :DigBigUint = q.clone() - 1 as u32;
+		let e :DigBigUint = DigBigUint::from_bytes_be(&(key.e().to_bytes_be()));
 		let dbase = r1.clone() * r2.clone();
 		let d2 = e.clone().mod_inverse(&dbase).unwrap();
 		let d = d2.to_biguint().unwrap();
