@@ -112,63 +112,127 @@ fn privkey_vfy_init_default() -> bool {
 	false
 }
 
-impl Asn1SignOp for Asn1RsaPrivateKey {
-	fn sign_init(&mut self,_key :&[u8],_initv :&[u8]) -> Result<(),Box<dyn Error>> {
-		self.signinited = true;
-		Ok(())
-	}
+macro_rules!  expand_priv_sign_op {
+	($ctype:path,$hashtype:expr) => {
+		impl Asn1SignOp for $ctype {
+			fn sign_init(&mut self,_key :&[u8],_initv :&[u8]) -> Result<(),Box<dyn Error>> {
+				self.signinited = true;
+				Ok(())
+			}
+			fn sign_exec(&mut self,data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
+				let retv :Vec<u8>;
+				if !self.signinited {
+					ssllib_new_error!{SslAsn1RsaError,"not inited sign"}
+				}
+				let n = rsaBigUint::from_bytes_be(&self.privkey.modulus.val.to_bytes_be());
+				let d = rsaBigUint::from_bytes_be(&self.privkey.pubexp.val.to_bytes_be());
+				let e = rsaBigUint::from_bytes_be(&self.privkey.privexp.val.to_bytes_be());
+				let mut primes :Vec<rsaBigUint> = Vec::new();
+				primes.push(rsaBigUint::from_bytes_be(&self.privkey.prime1.val.to_bytes_be()));
+				primes.push(rsaBigUint::from_bytes_be(&self.privkey.prime2.val.to_bytes_be()));
+				let po = RsaPrivateKey::from_components(n,d,e,primes);
+				retv = po.sign(PaddingScheme::new_pkcs1v15_sign(Some($hashtype)),data)?;
+				ssllib_buffer_trace!(retv.as_ptr(),retv.len(),"sign value");
+				Ok(retv)
+			}
+		}
+	};
+}
 
-	fn sign_exec(&mut self,data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
-		let retv :Vec<u8>;
-		if !self.signinited {
-			ssllib_new_error!{SslAsn1RsaError,"not inited sign"}
+macro_rules!  expand_priv_vfy_op {
+	($ctype:path,$hashtype:expr) => {
+		impl Asn1VerifyOp for $ctype {
+			fn verify_init(&mut self,_key :&[u8],_initv :&[u8]) -> Result<(),Box<dyn Error>> {
+				self.vfyinited = true;
+				Ok(())
+			}
+
+			fn verify_exec(&mut self, origdata :&[u8], signdata :&[u8]) -> Result<bool,Box<dyn Error>> {
+				let mut retv :bool = false;
+				if !self.vfyinited {
+					ssllib_new_error!{SslAsn1RsaError,"not inited vfy"}
+				}
+				let n = rsaBigUint::from_bytes_be(&self.privkey.modulus.val.to_bytes_be());
+				let d = rsaBigUint::from_bytes_be(&self.privkey.pubexp.val.to_bytes_be());
+				let e = rsaBigUint::from_bytes_be(&self.privkey.privexp.val.to_bytes_be());
+				let mut primes :Vec<rsaBigUint> = Vec::new();
+				primes.push(rsaBigUint::from_bytes_be(&self.privkey.prime1.val.to_bytes_be()));
+				primes.push(rsaBigUint::from_bytes_be(&self.privkey.prime2.val.to_bytes_be()));
+				let po = RsaPrivateKey::from_components(n,d,e,primes);
+				let pubk = po.to_public_key();
+				let ores = pubk.verify(PaddingScheme::new_pkcs1v15_sign(Some($hashtype)),origdata,signdata);
+				if ores.is_ok() {
+					retv = true;
+				} 
+				Ok(retv)
+			}
 		}
-		if self.elem.val.len() != 1 {
-			ssllib_new_error!{SslAsn1RsaError,"{} not valid len",self.elem.val.len()}
+	};
+}
+
+
+macro_rules! decl_rsa_priv {
+	($name :ident,$hashtype:expr) => {
+		pub struct $name {
+			privkey :Asn1RsaPrivateKeyElem,
+			signinited : bool,
+			vfyinited : bool,
 		}
-		let n = rsaBigUint::from_bytes_be(&self.elem.val[0].modulus.val.to_bytes_be());
-		let d = rsaBigUint::from_bytes_be(&self.elem.val[0].pubexp.val.to_bytes_be());
-		let e = rsaBigUint::from_bytes_be(&self.elem.val[0].privexp.val.to_bytes_be());
-		let mut primes :Vec<rsaBigUint> = Vec::new();
-		primes.push(rsaBigUint::from_bytes_be(&self.elem.val[0].prime1.val.to_bytes_be()));
-		primes.push(rsaBigUint::from_bytes_be(&self.elem.val[0].prime2.val.to_bytes_be()));
-		let po = RsaPrivateKey::from_components(n,d,e,primes);
-		retv = po.sign(PaddingScheme::new_pkcs1v15_sign(Some(Hash::SHA2_256)),data)?;
-		ssllib_buffer_trace!(retv.as_ptr(),retv.len(),"sign value");
-		Ok(retv)
+
+		impl $name {
+			pub fn new_from_asn1_priv(privkey :&Asn1RsaPrivateKey) -> Result<Self,Box<dyn Error>> {
+				privkey.elem.check_safe_one("Asn1RsaPrivateKeyElem")?;
+				let retv :Self = Self {
+					signinited : false,
+					vfyinited : false,
+					privkey :privkey.elem.val[0].clone(),
+				};
+				Ok(retv)
+			}			
+		}
+
+		expand_priv_sign_op!{$name,$hashtype}
+		expand_priv_vfy_op!{$name,$hashtype}
 	}
 }
 
-impl Asn1VerifyOp for Asn1RsaPrivateKey {
-	fn verify_init(&mut self,_key :&[u8],_initv :&[u8]) -> Result<(),Box<dyn Error>> {
-		self.vfyinited = true;
-		Ok(())
-	}
 
-	fn verify_exec(&mut self, origdata :&[u8], signdata :&[u8]) -> Result<bool,Box<dyn Error>> {
-		let mut retv :bool = false;
-		if !self.vfyinited {
-			ssllib_new_error!{SslAsn1RsaError,"not inited vfy"}
-		}
-		if self.elem.val.len() != 1 {
-			ssllib_new_error!{SslAsn1RsaError,"{} != 1 len",self.elem.val.len()}
-		}
-		let n = rsaBigUint::from_bytes_be(&self.elem.val[0].modulus.val.to_bytes_be());
-		let d = rsaBigUint::from_bytes_be(&self.elem.val[0].pubexp.val.to_bytes_be());
-		let e = rsaBigUint::from_bytes_be(&self.elem.val[0].privexp.val.to_bytes_be());
-		let mut primes :Vec<rsaBigUint> = Vec::new();
-		primes.push(rsaBigUint::from_bytes_be(&self.elem.val[0].prime1.val.to_bytes_be()));
-		primes.push(rsaBigUint::from_bytes_be(&self.elem.val[0].prime2.val.to_bytes_be()));
-		let po = RsaPrivateKey::from_components(n,d,e,primes);
-		let pubk = po.to_public_key();
-		let ores = pubk.verify(PaddingScheme::new_pkcs1v15_sign(Some(Hash::SHA2_256)),origdata,signdata);
-		if ores.is_ok() {
-			retv = true;
-		} 
-		Ok(retv)
-	}
+decl_rsa_priv!{RsaMD5priv,Hash::MD5}
+decl_rsa_priv!{RsaSHA1priv,Hash::SHA1}
+decl_rsa_priv!{RsaSHA224priv,Hash::SHA2_224}
+decl_rsa_priv!{RsaSHA256priv,Hash::SHA2_256}
+decl_rsa_priv!{RsaSHA384priv,Hash::SHA2_384}
+decl_rsa_priv!{RsaSHA512priv,Hash::SHA2_512}
 
-}
+
+
+// impl Asn1VerifyOp for Rsasha256priv {
+// 	fn verify_init(&mut self,_key :&[u8],_initv :&[u8]) -> Result<(),Box<dyn Error>> {
+// 		self.vfyinited = true;
+// 		Ok(())
+// 	}
+
+// 	fn verify_exec(&mut self, origdata :&[u8], signdata :&[u8]) -> Result<bool,Box<dyn Error>> {
+// 		let mut retv :bool = false;
+// 		if !self.vfyinited {
+// 			ssllib_new_error!{SslAsn1RsaError,"not inited vfy"}
+// 		}
+// 		let n = rsaBigUint::from_bytes_be(&self.privkey.modulus.val.to_bytes_be());
+// 		let d = rsaBigUint::from_bytes_be(&self.privkey.pubexp.val.to_bytes_be());
+// 		let e = rsaBigUint::from_bytes_be(&self.privkey.privexp.val.to_bytes_be());
+// 		let mut primes :Vec<rsaBigUint> = Vec::new();
+// 		primes.push(rsaBigUint::from_bytes_be(&self.privkey.prime1.val.to_bytes_be()));
+// 		primes.push(rsaBigUint::from_bytes_be(&self.privkey.prime2.val.to_bytes_be()));
+// 		let po = RsaPrivateKey::from_components(n,d,e,primes);
+// 		let pubk = po.to_public_key();
+// 		let ores = pubk.verify(PaddingScheme::new_pkcs1v15_sign(Some(Hash::SHA2_256)),origdata,signdata);
+// 		if ores.is_ok() {
+// 			retv = true;
+// 		} 
+// 		Ok(retv)
+// 	}
+// }
+
 
 impl Asn1RsaPrivateKey {
 	pub fn generate(bitsize :usize, randfile :Option<String>) -> Result<Asn1RsaPrivateKey,Box<dyn Error>> {

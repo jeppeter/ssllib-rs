@@ -55,14 +55,70 @@ fn rsaprivplaindec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn Ar
 	Ok(())
 }
 
+fn rsasign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
+
+	let sarr :Vec<String>;
+	let mut stdout = std::io::stdout();
+	let keyfile :String;
+	let binfile :String;
+	let signfile :String;
+	let keydata :Vec<u8>;
+	let bindata :Vec<u8>;
+	let signdata :Vec<u8>;
+	let mut privkey :Asn1RsaPrivateKey = Asn1RsaPrivateKey::init_asn1();
+
+	init_log(ns.clone())?;
+
+	sarr = ns.get_array("subnargs");
+	if sarr.len() < 3 {
+		extargs_new_error!{RsaExecError,"need keyfile binfile signfile"}
+	}
+
+	keyfile= format!("{}",sarr[0]);
+	binfile = format!("{}",sarr[1]);
+	signfile = format!("{}",sarr[2]);
+
+	keydata = read_file_into_der(&keyfile)?;
+	bindata = read_file_bytes(&binfile)?;
+	let _ = privkey.decode_asn1(&keydata);
+	
 
 
-#[extargs_map_function(rsaprivplaindec_handler)]
+
+	Ok(())
+}
+
+
+fn rsavfy_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
+
+	let sarr :Vec<String>;
+	let mut stdout = std::io::stdout();
+
+	init_log(ns.clone())?;
+
+	sarr = ns.get_array("subnargs");
+	for f in sarr.iter() {
+		let code = read_file_into_der(f)?;
+		debug_buffer_trace!(code.as_ptr(),code.len(),"[{}]code in",f);
+		let mut rsapriv :Asn1RsaPrivateKey = Asn1RsaPrivateKey::init_asn1();
+		let _ = rsapriv.decode_asn1(&code)?;
+		rsapriv.print_asn1("Asn1RsaPrivateKey",0,&mut stdout)?;
+	}
+	Ok(())
+}
+
+#[extargs_map_function(rsaprivplaindec_handler,rsasign_handler,rsavfy_handler)]
 pub fn load_rsaexec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
 		"rsaprivplaindec<rsaprivplaindec_handler>##binfile ... to decode rsaprivdec ##" : {
 			"$" : "+"
+		},
+		"rsasign<rsasign_handler>##keyfile binfile signfile to sign with rsa##" : {
+			"$" : 3
+		},
+		"rsavfy<rsavfy_handler>##keyfile binfile signfile to verify with rsa##" : {
+			"$" : 3
 		}
 	}
 	"#;
