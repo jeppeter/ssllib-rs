@@ -3,6 +3,7 @@ use crate::impls::*;
 use crate::*;
 use crate::consts::*;
 use crate::cfbmode::*;
+use crate::x509::{Asn1X509AlgorElem,Asn1X509PubkeyElem};
 
 
 extern crate crypto;
@@ -22,6 +23,8 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::sync::{Arc};
 use std::cell::RefCell;
+use crate::rsa::{Asn1RsaPubkey,RsaSHA1pub,RsaSHA256pub,RsaSHA384pub,RsaSHA512pub};
+use asn1obj::asn1impl::{Asn1Op};
 
 ssllib_error_class!{SslEncDeError}
 
@@ -452,3 +455,41 @@ pub fn get_encryptor_by_oid(oid :&str) -> Option<Arc<RefCell<dyn Asn1EncryptOp>>
         }
     }
 }
+
+
+pub fn get_verifier_from_asn1(algo :&Asn1X509AlgorElem,pubkey :&Asn1X509PubkeyElem) -> Result<Box<dyn Asn1VerifyOp>,Box<dyn Error>> {
+    let oid :String;
+    let digestoid :String;
+    let mut retv :Box<dyn Asn1VerifyOp>;
+    let mut rsapubk :Asn1RsaPubkey = Asn1RsaPubkey::init_asn1();
+    let empty_code:Vec<u8> = vec![];
+
+    oid = pubkey.algor.get_algorithm()?;
+    if oid == OID_RSA_ENCRYPTION {
+        digestoid = algo.get_algorithm()?;
+        rsapubk.decode_asn1(&pubkey.public_key.data)?;
+        rsapubk.elem.check_safe_one("Asn1RsaPubkeyElem")?;
+        if digestoid == OID_RSA_PSS {
+            /*that is pss*/
+        } else if digestoid == OID_SHA1_WITH_RSA_ENCRYPTION {
+            retv = Box::new(RsaSHA1pub::new_from_pub(&rsapubk)?);
+            retv.verify_init(&empty_code,&empty_code)?;
+            return Ok(retv);
+        } else if digestoid == OID_SHA256_WITH_RSA_ENCRYPTION {
+            retv = Box::new(RsaSHA256pub::new_from_pub(&rsapubk)?);
+            retv.verify_init(&empty_code,&empty_code)?;
+            return Ok(retv);
+        } else if digestoid == OID_SHA384_WITH_RSA_ENCRYPTION {
+            retv = Box::new(RsaSHA384pub::new_from_pub(&rsapubk)?);
+            retv.verify_init(&empty_code,&empty_code)?;
+            return Ok(retv);
+        } else if digestoid == OID_SHA512_WITH_RSA_ENCRYPTION {
+            retv = Box::new(RsaSHA512pub::new_from_pub(&rsapubk)?);
+            retv.verify_init(&empty_code,&empty_code)?;
+            return Ok(retv);
+        }
+    }
+
+    ssllib_new_error!{SslEncDeError,"can not get from pubkey oid [{}]", oid}
+}
+

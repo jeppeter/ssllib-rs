@@ -43,7 +43,6 @@ ssllib_error_class!{SslX509Error}
 
 
 
-
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct Asn1X509PubkeyElem {
@@ -651,6 +650,12 @@ impl Asn1X509CinfElem {
 		}
 		return Ok(retv);
 	}
+
+	pub fn get_verifier(&self) -> Result<Box<dyn Asn1VerifyOp>,Box<dyn Error>> {
+		self.signature.elem.check_safe_one("Asn1X509AlgorElem")?;
+		self.key.elem.check_safe_one("Asn1X509PubkeyElem")?;
+		return get_verifier_from_asn1(&self.signature.elem.val[0],&self.key.elem.val[0]);
+	}
 }
 
 //#[asn1_sequence(debug=enable)]
@@ -664,6 +669,11 @@ impl Asn1X509Cinf {
 	pub fn match_priv_data(&self,signtype :&str,pktype :&str,privdata:&[u8]) -> Result<bool, Box<dyn Error>> {
 		let _ = self.elem.check_safe_one("Asn1X509Cinf")?;
 		return self.elem.val[0].match_priv_data(signtype,pktype,privdata);
+	}
+
+	pub fn get_verifier(&self) -> Result<Box<dyn Asn1VerifyOp>,Box<dyn Error>> {
+		self.elem.check_safe_one("Asn1X509CinfElem")?;
+		return self.elem.val[0].get_verifier();
 	}
 }
 
@@ -759,6 +769,18 @@ impl Asn1X509Elem {
 			}
 		}
 		return Ok(false);
+	}
+
+	pub fn self_verify(&self) -> Result<bool, Box<dyn Error>> {
+		let retv :bool;
+		let mut vfyop :Box<dyn Asn1VerifyOp>;
+
+		/*now first to check for the get the value*/
+		vfyop = self.cert_info.get_verifier()?;
+		let origdata = self.cert_info.encode_asn1()?;
+		let signeddata = self.signature.data.clone();
+		retv = vfyop.verify_exec(&origdata,&signeddata)?;
+		Ok(retv)
 	}
 
 	fn _get_key_usage(&self, extensions :&Asn1Seq<Asn1X509Extension>) -> Result<Vec<KeyUsage>,Box<dyn Error>> {
@@ -1559,8 +1581,10 @@ impl Asn1X509 {
 	}
 
 	pub fn self_verify(&self) -> Result<bool, Box<dyn Error>> {
-		let retv :bool = false;
-		Ok(retv)		
+		let retv :bool;
+		self.elem.check_safe_one("Asn1X509Elem")?;
+		retv = self.elem.val[0].self_verify()?;
+		Ok(retv)
 	}
 
 

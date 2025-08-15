@@ -33,6 +33,7 @@ use sha2::{Sha224,Sha256,Sha384,Sha512};
 
 use crate::impls::*;
 use crate::fileop::RandFile;
+use crate::consts::{PSS_LENGTH_TO_AUTOSIZE,PSS_LENGTH_TO_HASHSIZE};
 
 use crate::{ssllib_new_error,ssllib_error_class,ssllib_buffer_trace,ssllib_log_trace};
 use crate::{ssllib_format_buffer_log};
@@ -355,9 +356,9 @@ macro_rules! expand_rsa_pss_impl {
 			pub fn new(privkey :&Asn1RsaPrivateKey,len :usize) -> Result<Self,Box<dyn Error>> {
 				privkey.elem.check_safe_one("Asn1RsaPrivateKeyElem")?;
 				let mut saltlen :usize = len;
-				if saltlen == 0xff {
+				if saltlen == PSS_LENGTH_TO_HASHSIZE {
 					saltlen = $hashtype::output_size();
-				} else if saltlen == 0 {
+				} else if saltlen == PSS_LENGTH_TO_AUTOSIZE {
 					let n = rsaBigUint::from_bytes_be(&privkey.elem.val[0].modulus.val.to_bytes_be());
 					let d = rsaBigUint::from_bytes_be(&privkey.elem.val[0].pubexp.val.to_bytes_be());
 					let e = rsaBigUint::from_bytes_be(&privkey.elem.val[0].privexp.val.to_bytes_be());
@@ -512,9 +513,9 @@ macro_rules! expand_rsa_pss_pub_impl {
 			pub fn new_from_pub(pubkey :&Asn1RsaPubkey,len :usize) -> Result<Self,Box<dyn Error>> {
 				pubkey.elem.check_safe_one("Asn1RsaPubkeyElem")?;
 				let mut saltlen :usize = len;
-				if saltlen == 0xff {
+				if saltlen == PSS_LENGTH_TO_HASHSIZE {
 					saltlen = $hashtype::output_size();
-				} else if saltlen == 0 {
+				} else if saltlen == PSS_LENGTH_TO_AUTOSIZE {
 					let nb = rsaBigUint::from_bytes_be(&pubkey.elem.val[0].n.val.to_bytes_be());
 					let eb = rsaBigUint::from_bytes_be(&pubkey.elem.val[0].e.val.to_bytes_be());
 

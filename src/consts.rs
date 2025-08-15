@@ -31,7 +31,6 @@ pub const OID_DSA_ENCRYPTION :&str = "1.2.840.10040.4.1";
 pub const OID_X25519_ENCRYPTION :&str = "1.3.101.110";
 pub const OID_PURE_ED25519 :&str = "1.3.101.112";
 pub const OID_EC_PUBLICKEY_ENCRYPTION :&str = "1.2.840.10045.2.1";
-pub const OID_SHA256_WITH_RSA_ENCRYPTION :&str = "1.2.840.113549.1.1.11";
 pub const OID_KEY_BAG :&str = "1.2.840.113549.1.12.10.1.1";
 pub const OID_PKCS8_SHROUDED_KEY_BAG :&str = "1.2.840.113549.1.12.10.1.2";
 pub const OID_PKCS12_CERT_BAG : &str = "1.2.840.113549.1.12.10.1.3";
@@ -47,6 +46,11 @@ pub const OID_EC_PUBLICK_KEY :&str = "1.2.840.10045.2.1";
 
 pub const OID_FRIEDLY_NAME :&str = "1.2.840.113549.1.9.20";
 pub const OID_LOCAL_KEY_ID:&str = "1.2.840.113549.1.9.21";
+
+pub const OID_SHA1_WITH_RSA_ENCRYPTION :&str = "1.2.840.113549.1.1.5";
+pub const OID_SHA256_WITH_RSA_ENCRYPTION :&str = "1.2.840.113549.1.1.11";
+pub const OID_SHA384_WITH_RSA_ENCRYPTION :&str = "1.2.840.113549.1.1.12";
+pub const OID_SHA512_WITH_RSA_ENCRYPTION :&str = "1.2.840.113549.1.1.13";
 
 
 pub const OID_X509_CERTIFICATE :&str =  "1.2.840.113549.1.9.22.1";
@@ -233,3 +237,6 @@ pub const OID_EXT_KEY_USAGE_MICROSOFT_KERNEL_CODE_SIGNING :&str = "1.3.6.1.4.1.3
 
 pub const OID_AUTHORITY_INFO_ACCESS_OCSP :&str = "1.3.6.1.5.5.7.48.1";
 pub const OID_AUTHORITY_INFO_ACCESS_ISSUER :&str = "1.3.6.1.5.5.7.48.2";
+
+pub const PSS_LENGTH_TO_HASHSIZE :usize = 0xff;
+pub const PSS_LENGTH_TO_AUTOSIZE :usize = 0;
