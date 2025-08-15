@@ -1509,8 +1509,12 @@ impl Asn1X509 {
 		let cert_info :&Asn1X509Cinf = &self.elem.val[0].cert_info;
 		cert_info.elem.sure_safe_one("Asn1X509 cert_info").unwrap();
 		if cert_info.elem.val[0].issuer.eq(&cert_info.elem.val[0].subject) {
-			return true;
+			let ores = self.self_verify();
+			if ores.is_ok() {
+				return ores.unwrap();
+			}
 		}
+
 
 		return false;
 	}
@@ -2004,10 +2008,29 @@ pub struct Asn1X509ReqElem {
 	pub signature : Asn1BitDataFlag,
 }
 
+impl Asn1X509ReqElem {
+	pub fn self_verify(&self) -> Result<bool,Box<dyn Error>> {
+		self.req_info.elem.check_safe_one("Asn1X509ReqInfoElem")?;
+		self.sig_alg.elem.check_safe_one("Asn1X509AlgorElem")?;
+		self.req_info.elem.val[0].pubkey.elem.check_safe_one("Asn1X509PubkeyElem")?;
+		let mut vfyop :Box<dyn Asn1VerifyOp> = get_x509_verifier_from_asn1(&self.sig_alg.elem.val[0],&self.req_info.elem.val[0].pubkey.elem.val[0])?;
+		let origdata = self.req_info.encode_asn1()?;
+		let signdata = self.signature.data.clone();
+		return vfyop.verify_exec(&origdata,&signdata);
+	}
+}
+
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct Asn1X509Req {
 	pub elem : Asn1Seq<Asn1X509ReqElem>,
+}
+
+impl Asn1X509Req {
+	pub fn self_verify(&self) -> Result<bool, Box<dyn Error>> {
+		self.elem.check_safe_one("Asn1X509ReqElem")?;
+		return self.elem.val[0].self_verify();
+	}
 }
 
 #[asn1_sequence()]
