@@ -654,7 +654,7 @@ impl Asn1X509CinfElem {
 	pub fn get_verifier(&self) -> Result<Box<dyn Asn1VerifyOp>,Box<dyn Error>> {
 		self.signature.elem.check_safe_one("Asn1X509AlgorElem")?;
 		self.key.elem.check_safe_one("Asn1X509PubkeyElem")?;
-		return get_verifier_from_asn1(&self.signature.elem.val[0],&self.key.elem.val[0]);
+		return get_x509_verifier_from_asn1(&self.signature.elem.val[0],&self.key.elem.val[0]);
 	}
 }
 

@@ -463,7 +463,7 @@ pub fn get_encryptor_by_oid(oid :&str) -> Option<Arc<RefCell<dyn Asn1EncryptOp>>
 }
 
 
-pub fn get_verifier_from_asn1(algo :&Asn1X509AlgorElem,pubkey :&Asn1X509PubkeyElem) -> Result<Box<dyn Asn1VerifyOp>,Box<dyn Error>> {
+pub fn get_x509_verifier_from_asn1(algo :&Asn1X509AlgorElem,pubkey :&Asn1X509PubkeyElem) -> Result<Box<dyn Asn1VerifyOp>,Box<dyn Error>> {
     let oid :String;
     let digestoid :String;
     let mut retv :Box<dyn Asn1VerifyOp>;
@@ -483,9 +483,7 @@ pub fn get_verifier_from_asn1(algo :&Asn1X509AlgorElem,pubkey :&Asn1X509PubkeyEl
             if oref.is_some() {
                 cany = oref.unwrap();
                 let code = cany.content.clone();
-                ssllib_buffer_trace!(code.as_ptr(),code.len(), "code decode");
                 rsapssalgo.decode_asn1(&code)?;
-                ssllib_log_trace!("algo impset {}",rsapssalgo.algo.val.len());
                 if rsapssalgo.algo.val.len() < 1 {
                     ssllib_new_error!{SslEncDeError,"algo impset .len == 0"}
                 }
