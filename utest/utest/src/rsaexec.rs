@@ -11,6 +11,7 @@ use extargsparse_worker::funccall::{ExtArgsParseFunc};
 use asn1obj::asn1impl::Asn1Op;
 
 
+
 use std::cell::RefCell;
 use std::sync::Arc;
 use std::error::Error;
@@ -395,7 +396,28 @@ fn rsapssvfypub_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSe
 }
 
 
-#[extargs_map_function(rsaprivplaindec_handler,rsasign_handler,rsavfy_handler,rsapssvfy_handler,rsapsssign_handler,rsapssvfypub_handler)]
+
+
+fn rsapssdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
+
+	let sarr :Vec<String>;
+	let mut stdout = std::io::stdout();
+
+	init_log(ns.clone())?;
+
+	sarr = ns.get_array("subnargs");
+	for f in sarr.iter() {
+		let code = read_file_into_der(f)?;
+		debug_buffer_trace!(code.as_ptr(),code.len(),"[{}]code in",f);
+		let mut rsapriv :Asn1RsaPssAlgoElem = Asn1RsaPssAlgoElem::init_asn1();
+		let _ = rsapriv.decode_asn1(&code)?;
+		rsapriv.print_asn1("Asn1RsaPssAlgoElem",0,&mut stdout)?;
+	}
+	Ok(())
+}
+
+
+#[extargs_map_function(rsaprivplaindec_handler,rsasign_handler,rsavfy_handler,rsapssvfy_handler,rsapsssign_handler,rsapssvfypub_handler,rsapssdec_handler)]
 pub fn load_rsaexec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -418,6 +440,9 @@ pub fn load_rsaexec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> 
 		},
 		"rsapssvfypub<rsapssvfypub_handler>##keyfile binfile signfile to verify with rsa call pub##" : {
 			"$" : 3
+		},
+		"rsapssdec<rsapssdec_handler>##to decode RsaPssAlgo##" : {
+			"$" : "+"
 		}
 	}
 	"#;

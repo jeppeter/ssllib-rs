@@ -5,6 +5,11 @@ use crate::consts::*;
 use crate::cfbmode::*;
 use crate::x509::{Asn1X509AlgorElem,Asn1X509PubkeyElem};
 
+#[allow(unused_imports)]
+use crate::*;
+#[allow(unused_imports)]
+use crate::logger::*;
+
 
 extern crate crypto;
 use crypto::buffer::{ReadBuffer,WriteBuffer};
@@ -23,8 +28,9 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::sync::{Arc};
 use std::cell::RefCell;
-use crate::rsa::{Asn1RsaPubkey,RsaSHA1pub,RsaSHA256pub,RsaSHA384pub,RsaSHA512pub};
+use crate::rsa::{Asn1RsaPubkey,RsaSHA1pub,RsaSHA256pub,RsaSHA384pub,RsaSHA512pub,Asn1RsaPssAlgoElem,RsaPSSSHA256pub,RsaPSSSHA384pub,RsaPSSSHA512pub};
 use asn1obj::asn1impl::{Asn1Op};
+use asn1obj::base::{Asn1Any};
 
 ssllib_error_class!{SslEncDeError}
 
@@ -462,6 +468,8 @@ pub fn get_verifier_from_asn1(algo :&Asn1X509AlgorElem,pubkey :&Asn1X509PubkeyEl
     let digestoid :String;
     let mut retv :Box<dyn Asn1VerifyOp>;
     let mut rsapubk :Asn1RsaPubkey = Asn1RsaPubkey::init_asn1();
+    let mut rsapssalgo :Asn1RsaPssAlgoElem = Asn1RsaPssAlgoElem::init_asn1();
+    let cany :Asn1Any;
     let empty_code:Vec<u8> = vec![];
 
     oid = pubkey.algor.get_algorithm()?;
@@ -471,6 +479,31 @@ pub fn get_verifier_from_asn1(algo :&Asn1X509AlgorElem,pubkey :&Asn1X509PubkeyEl
         rsapubk.elem.check_safe_one("Asn1RsaPubkeyElem")?;
         if digestoid == OID_RSA_PSS {
             /*that is pss*/
+            let oref = algo.get_param()?;
+            if oref.is_some() {
+                cany = oref.unwrap();
+                let code = cany.content.clone();
+                ssllib_buffer_trace!(code.as_ptr(),code.len(), "code decode");
+                rsapssalgo.decode_asn1(&code)?;
+                ssllib_log_trace!("algo impset {}",rsapssalgo.algo.val.len());
+                if rsapssalgo.algo.val.len() < 1 {
+                    ssllib_new_error!{SslEncDeError,"algo impset .len == 0"}
+                }
+                let realdigest = rsapssalgo.algo.val[0].get_algorithm()?;
+                if realdigest == OID_SHA256_DIGEST {
+                    retv = Box::new(RsaPSSSHA256pub::new_from_pub(&rsapubk,PSS_LENGTH_TO_HASHSIZE)?);
+                    retv.verify_init(&empty_code,&empty_code)?;
+                    return Ok(retv);
+                } else if realdigest == OID_SHA384_DIGEST {
+                    retv = Box::new(RsaPSSSHA384pub::new_from_pub(&rsapubk,PSS_LENGTH_TO_HASHSIZE)?);
+                    retv.verify_init(&empty_code,&empty_code)?;
+                    return Ok(retv);
+                } else if realdigest == OID_SHA512_DIGEST {
+                    retv = Box::new(RsaPSSSHA512pub::new_from_pub(&rsapubk,PSS_LENGTH_TO_HASHSIZE)?);
+                    retv.verify_init(&empty_code,&empty_code)?;
+                    return Ok(retv);
+                }
+            }
         } else if digestoid == OID_SHA1_WITH_RSA_ENCRYPTION {
             retv = Box::new(RsaSHA1pub::new_from_pub(&rsapubk)?);
             retv.verify_init(&empty_code,&empty_code)?;

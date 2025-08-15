@@ -34,6 +34,7 @@ use sha2::{Sha224,Sha256,Sha384,Sha512};
 use crate::impls::*;
 use crate::fileop::RandFile;
 use crate::consts::{PSS_LENGTH_TO_AUTOSIZE,PSS_LENGTH_TO_HASHSIZE};
+use crate::x509::{Asn1X509Algor};
 
 use crate::{ssllib_new_error,ssllib_error_class,ssllib_buffer_trace,ssllib_log_trace};
 use crate::{ssllib_format_buffer_log};
@@ -43,6 +44,19 @@ use digest::{Digest};
 
 
 ssllib_error_class!{SslAsn1RsaError}
+
+
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1RsaPssAlgoElem {
+	pub algo :Asn1ImpSet<Asn1X509Algor,0>,
+	pub pattern :Asn1ImpSet<Asn1X509Algor,1>,
+	pub size :Asn1ImpSet<Asn1Integer,2>,
+}
+
+pub struct Asn1RsaPssAlgo {
+	pub elem :Asn1Seq<Asn1RsaPssAlgoElem>,
+}
 
 
 //#[asn1_sequence(debug=enable)]
