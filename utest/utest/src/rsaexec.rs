@@ -27,7 +27,7 @@ use super::*;
 use super::loglib::*;
 use super::pemlib::*;
 use ssllib::rsa::*;
-use ssllib::impls::{Asn1SignOp,Asn1VerifyOp,Asn1DigestOp};
+use ssllib::impls::{Asn1SignOp,Asn1VerifyOp};
 use ssllib::consts::{OID_RSA_ENCRYPTION};
 use ssllib::pkcs8::{Asn1Pkcs8PrivKeyInfo};
 #[allow(unused_imports)]
@@ -207,7 +207,6 @@ fn rsapsssign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 	let privkey :Asn1RsaPrivateKey ;
 	let saltlen :i64;
 	let usaltsize :usize;
-	let mut digop :Box<dyn Asn1DigestOp>;
 
 	init_log(ns.clone())?;
 
@@ -234,16 +233,22 @@ fn rsapsssign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 	let initdata :Vec<u8> = vec![];
 	let ckey :Vec<u8> = vec![];
 	let mut rsadig :Box<dyn Asn1SignOp>;
-	if digesttype == SHA256_DIGEST_TYPE {
+	if digesttype == MD5_DIGEST_TYPE {
+		rsadig = Box::new(RsaPSSMD5priv::new(&privkey,usaltsize)?);
+	} else if digesttype == SHA1_DIGEST_TYPE {
+		rsadig = Box::new(RsaPSSSHA1priv::new(&privkey,usaltsize)?);
+	} else if digesttype == SHA224_DIGEST_TYPE {
+		rsadig = Box::new(RsaPSSSHA224priv::new(&privkey,usaltsize)?);
+	} else if digesttype == SHA256_DIGEST_TYPE {
 		rsadig = Box::new(RsaPSSSHA256priv::new(&privkey,usaltsize)?);
-		digop = Box::new(SHA256Digest::new()?);
+	} else if digesttype == SHA384_DIGEST_TYPE {
+		rsadig = Box::new(RsaPSSSHA384priv::new(&privkey,usaltsize)?);
+	} else if digesttype == SHA512_DIGEST_TYPE {
+		rsadig = Box::new(RsaPSSSHA512priv::new(&privkey,usaltsize)?);
 	} else {
 		extargs_new_error!{RsaExecError,"not support digesttype {}",digesttype}
 	}
-	digop.init_digest(0,&initdata)?;
-	digop.digest_update(&bindata)?;
-	let hashdata = digop.digest_final()?;
-	//let hashdata = bindata.clone();
+	let hashdata = bindata.clone();
 
 	rsadig.sign_init(&initdata,&ckey)?;
 	signdata = rsadig.sign_exec(&hashdata)?;
@@ -266,7 +271,6 @@ fn rsapssvfy_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	let privkey :Asn1RsaPrivateKey ;
 	let saltlen :i64;
 	let usaltsize :usize;
-	let mut digop :Box<dyn Asn1DigestOp>;
 
 	init_log(ns.clone())?;
 
@@ -294,16 +298,22 @@ fn rsapssvfy_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	let initdata :Vec<u8> = vec![];
 	let ckey :Vec<u8> = vec![];
 	let mut rsadig :Box<dyn Asn1VerifyOp>;
-	if digesttype == SHA256_DIGEST_TYPE {
+	if digesttype == MD5_DIGEST_TYPE {
+		rsadig = Box::new(RsaPSSMD5priv::new(&privkey,usaltsize)?);
+	} else if digesttype == SHA1_DIGEST_TYPE {
+		rsadig = Box::new(RsaPSSSHA1priv::new(&privkey,usaltsize)?);
+	} else if digesttype == SHA224_DIGEST_TYPE {
+		rsadig = Box::new(RsaPSSSHA224priv::new(&privkey,usaltsize)?);
+	} else if digesttype == SHA256_DIGEST_TYPE {
 		rsadig = Box::new(RsaPSSSHA256priv::new(&privkey,usaltsize)?);
-		digop = Box::new(SHA256Digest::new()?);
+	} else if digesttype == SHA384_DIGEST_TYPE {
+		rsadig = Box::new(RsaPSSSHA384priv::new(&privkey,usaltsize)?);
+	} else if digesttype == SHA512_DIGEST_TYPE {
+		rsadig = Box::new(RsaPSSSHA512priv::new(&privkey,usaltsize)?);
 	} else {
 		extargs_new_error!{RsaExecError,"not support digesttype {}",digesttype}
 	}
-	digop.init_digest(0,&initdata)?;
-	digop.digest_update(&bindata)?;
-	let hashdata = digop.digest_final()?;
-	//let hashdata = bindata.clone();
+	let hashdata = bindata.clone();
 
 	rsadig.verify_init(&initdata,&ckey)?;
 	let ok = rsadig.verify_exec(&hashdata,&signdata)?;
@@ -317,7 +327,75 @@ fn rsapssvfy_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 }
 
 
-#[extargs_map_function(rsaprivplaindec_handler,rsasign_handler,rsavfy_handler,rsapssvfy_handler,rsapsssign_handler)]
+fn rsapssvfypub_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
+
+	let sarr :Vec<String>;
+	let keyfile :String;
+	let binfile :String;
+	let signfile :String;
+	let keydata :Vec<u8>;
+	let bindata :Vec<u8>;
+	let signdata :Vec<u8>;
+	let privkey :Asn1RsaPrivateKey ;
+	let saltlen :i64;
+	let usaltsize :usize;
+
+	init_log(ns.clone())?;
+
+	sarr = ns.get_array("subnargs");
+	if sarr.len() < 3 {
+		extargs_new_error!{RsaExecError,"need keyfile binfile signfile"}
+	}
+
+	keyfile= format!("{}",sarr[0]);
+	binfile = format!("{}",sarr[1]);
+	signfile = format!("{}",sarr[2]);
+
+	keydata = read_file_into_der(&keyfile)?;
+	bindata = read_file_bytes(&binfile)?;
+	privkey = get_rsa_private_key(&keydata)?;
+	signdata = read_file_bytes(&signfile)?;
+	saltlen = ns.get_int("psslength");
+	if saltlen < 0 {
+		usaltsize = 0xff;
+	} else {
+		usaltsize = saltlen as usize;
+	}
+
+	let digesttype = ns.get_string("digesttype");
+	let initdata :Vec<u8> = vec![];
+	let ckey :Vec<u8> = vec![];
+	let mut rsadig :Box<dyn Asn1VerifyOp>;
+	if digesttype == MD5_DIGEST_TYPE {
+		rsadig = Box::new(RsaPSSMD5pub::new_from_priv(&privkey,usaltsize)?);
+	} else if digesttype == SHA1_DIGEST_TYPE {
+		rsadig = Box::new(RsaPSSSHA1pub::new_from_priv(&privkey,usaltsize)?);
+	} else if digesttype == SHA224_DIGEST_TYPE {
+		rsadig = Box::new(RsaPSSSHA224pub::new_from_priv(&privkey,usaltsize)?);
+	} else if digesttype == SHA256_DIGEST_TYPE {
+		rsadig = Box::new(RsaPSSSHA256pub::new_from_priv(&privkey,usaltsize)?);
+	} else if digesttype == SHA384_DIGEST_TYPE {
+		rsadig = Box::new(RsaPSSSHA384pub::new_from_priv(&privkey,usaltsize)?);
+	} else if digesttype == SHA512_DIGEST_TYPE {
+		rsadig = Box::new(RsaPSSSHA512pub::new_from_priv(&privkey,usaltsize)?);
+	} else {
+		extargs_new_error!{RsaExecError,"not support digesttype {}",digesttype}
+	}
+	let hashdata = bindata.clone();
+
+	rsadig.verify_init(&initdata,&ckey)?;
+	let ok = rsadig.verify_exec(&hashdata,&signdata)?;
+	if !ok {
+		extargs_new_error!{RsaExecError,"not valid {} {} {} psslength {}",keyfile,binfile,signfile,saltlen}
+	}
+
+	println!("verify {} {} {} saltlen {} succ", keyfile,binfile,signfile,saltlen);
+
+	Ok(())
+}
+
+
+#[extargs_map_function(rsaprivplaindec_handler,rsasign_handler,rsavfy_handler,rsapssvfy_handler,rsapsssign_handler,rsapssvfypub_handler)]
 pub fn load_rsaexec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -336,6 +414,9 @@ pub fn load_rsaexec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> 
 			"$" : 3
 		},
 		"rsapssvfy<rsapssvfy_handler>##keyfile binfile signfile to verify with rsa##" : {
+			"$" : 3
+		},
+		"rsapssvfypub<rsapssvfypub_handler>##keyfile binfile signfile to verify with rsa call pub##" : {
 			"$" : 3
 		}
 	}

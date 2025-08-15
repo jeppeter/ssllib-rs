@@ -26,6 +26,10 @@ use num_bigint_dig::BigUint as DigBigUint;
 
 //use sha2::{Digest};
 
+use md5::{Md5};
+use sha1::{Sha1};
+use sha2::{Sha224,Sha256,Sha384,Sha512};
+
 
 use crate::impls::*;
 use crate::fileop::RandFile;
@@ -183,7 +187,7 @@ macro_rules!  expand_priv_vfy_op {
 
 
 macro_rules! decl_rsa_priv {
-	($name :ident,$hashtype:path,$clsname:expr) => {
+	($name :ident,$hashtype:path) => {
 		pub struct $name {
 			privkey :Asn1RsaPrivateKeyElem,
 			signinited : bool,
@@ -202,18 +206,18 @@ macro_rules! decl_rsa_priv {
 			}			
 		}
 
-		expand_priv_sign_op!{$name,$hashtype,$clsname}
-		expand_priv_vfy_op!{$name,$hashtype,$clsname}
+		expand_priv_sign_op!{$name,$hashtype,stringify!($name)}
+		expand_priv_vfy_op!{$name,$hashtype,stringify!($name)}
 	}
 }
 
 
-decl_rsa_priv!{RsaMD5priv,md5::Md5,"RsaMD5priv"}
-decl_rsa_priv!{RsaSHA1priv,sha1::Sha1,"RsaSHA1priv"}
-decl_rsa_priv!{RsaSHA224priv,sha2::Sha224,"RsaSHA224priv"}
-decl_rsa_priv!{RsaSHA256priv,sha2::Sha256,"RsaSHA256priv"}
-decl_rsa_priv!{RsaSHA384priv,sha2::Sha384,"RsaSHA384priv"}
-decl_rsa_priv!{RsaSHA512priv,sha2::Sha512,"RsaSHA512priv"}
+decl_rsa_priv!{RsaMD5priv,Md5}
+decl_rsa_priv!{RsaSHA1priv,Sha1}
+decl_rsa_priv!{RsaSHA224priv,Sha224}
+decl_rsa_priv!{RsaSHA256priv,Sha256}
+decl_rsa_priv!{RsaSHA384priv,Sha384}
+decl_rsa_priv!{RsaSHA512priv,Sha512}
 
 macro_rules! decl_pub_vfy {
 	($name:ident,$hashtype:path,$clsname:expr) => {
@@ -251,7 +255,7 @@ macro_rules! decl_pub_vfy {
 }
 
 macro_rules! decl_rsa_pub {
-	($name:ident,$hashtype:path,$clsname:expr) => {
+	($name:ident,$hashtype:path) => {
 		pub struct $name {
 			pubkey :Asn1RsaPubkeyElem,
 			vfyinited :bool,
@@ -269,7 +273,7 @@ macro_rules! decl_rsa_pub {
 				primes.push(rsaBigUint::from_bytes_be(&privkey.elem.val[0].prime2.val.to_bytes_be()));
 				let ores = RsaPrivateKey::from_components(n,d,e,primes);
 				if ores.is_err() {
-					ssllib_new_error!{SslAsn1RsaError,"{} not valid rsa private {:?}",$clsname,ores.err().unwrap()}
+					ssllib_new_error!{SslAsn1RsaError,"{} not valid rsa private {:?}",stringify!($name),ores.err().unwrap()}
 				}
 				let po = ores.unwrap();
 				let nb :rsaBigUint = po.n().clone();
@@ -294,17 +298,17 @@ macro_rules! decl_rsa_pub {
 		}
 
 
-		decl_pub_vfy!{$name,$hashtype,$clsname}
+		decl_pub_vfy!{$name,$hashtype,stringify!($name)}
 	}
 }
 
 
-decl_rsa_pub!{RsaMD5pub,md5::Md5,"RsaMD5pub"}
-decl_rsa_pub!{RsaSHA1pub,sha1::Sha1,"RsaSHA1pub"}
-decl_rsa_pub!{RsaSHA224pub,sha2::Sha224,"RsaSHA224pub"}
-decl_rsa_pub!{RsaSHA256pub,sha2::Sha256,"RsaSHA256pub"}
-decl_rsa_pub!{RsaSHA384pub,sha2::Sha384,"RsaSHA384pub"}
-decl_rsa_pub!{RsaSHA512pub,sha2::Sha512,"RsaSHA512pub"}
+decl_rsa_pub!{RsaMD5pub,Md5}
+decl_rsa_pub!{RsaSHA1pub,Sha1}
+decl_rsa_pub!{RsaSHA224pub,Sha224}
+decl_rsa_pub!{RsaSHA256pub,Sha256}
+decl_rsa_pub!{RsaSHA384pub,Sha384}
+decl_rsa_pub!{RsaSHA512pub,Sha512}
 
 fn get_max_bits(cb :&[u8]) -> usize {
 	let mut retv :usize = cb.len() * 8;
@@ -331,128 +335,252 @@ fn get_max_bits(cb :&[u8]) -> usize {
 	}
 
 	return retv;
-
 }
 
-pub struct RsaPSSSHA256priv {
-	privkey :Asn1RsaPrivateKeyElem,
-	signinited : bool,
-	vfyinited : bool,
-	saltlen : usize,
+macro_rules! expand_rsa_pss_struct {
+	($name:ident) => {
+		pub struct $name {
+			privkey :Asn1RsaPrivateKeyElem,
+			signinited : bool,
+			vfyinited : bool,
+			saltlen : usize,
+		}
+
+	}
 }
 
-impl RsaPSSSHA256priv {
-	pub fn new(privkey :&Asn1RsaPrivateKey,len :usize) -> Result<Self,Box<dyn Error>> {
-		privkey.elem.check_safe_one("Asn1RsaPrivateKeyElem")?;
-		let mut saltlen :usize = len;
-		if saltlen == 0xff {
-			saltlen = 32;
-		} else if saltlen == 0 {
-			let n = rsaBigUint::from_bytes_be(&privkey.elem.val[0].modulus.val.to_bytes_be());
-			let d = rsaBigUint::from_bytes_be(&privkey.elem.val[0].pubexp.val.to_bytes_be());
-			let e = rsaBigUint::from_bytes_be(&privkey.elem.val[0].privexp.val.to_bytes_be());
-			let mut primes :Vec<rsaBigUint> = Vec::new();
-			primes.push(rsaBigUint::from_bytes_be(&privkey.elem.val[0].prime1.val.to_bytes_be()));
-			primes.push(rsaBigUint::from_bytes_be(&privkey.elem.val[0].prime2.val.to_bytes_be()));
-			let ores = RsaPrivateKey::from_components(n,d,e,primes);
-			if ores.is_err() {
-				ssllib_new_error!{SslAsn1RsaError,"{} not valid RsaPrivateKey","RsaPSSSHA256priv"}
+macro_rules! expand_rsa_pss_impl {
+	($name:ident,$clsname:expr,$hashtype:ident) => {
+		impl $name {
+			pub fn new(privkey :&Asn1RsaPrivateKey,len :usize) -> Result<Self,Box<dyn Error>> {
+				privkey.elem.check_safe_one("Asn1RsaPrivateKeyElem")?;
+				let mut saltlen :usize = len;
+				if saltlen == 0xff {
+					saltlen = $hashtype::output_size();
+				} else if saltlen == 0 {
+					let n = rsaBigUint::from_bytes_be(&privkey.elem.val[0].modulus.val.to_bytes_be());
+					let d = rsaBigUint::from_bytes_be(&privkey.elem.val[0].pubexp.val.to_bytes_be());
+					let e = rsaBigUint::from_bytes_be(&privkey.elem.val[0].privexp.val.to_bytes_be());
+					let mut primes :Vec<rsaBigUint> = Vec::new();
+					primes.push(rsaBigUint::from_bytes_be(&privkey.elem.val[0].prime1.val.to_bytes_be()));
+					primes.push(rsaBigUint::from_bytes_be(&privkey.elem.val[0].prime2.val.to_bytes_be()));
+					let ores = RsaPrivateKey::from_components(n,d,e,primes);
+					if ores.is_err() {
+						ssllib_new_error!{SslAsn1RsaError,"{} not valid RsaPrivateKey",$clsname}
+					}
+					let po = ores.unwrap();
+					let pubk = po.to_public_key();
+					let nbytes :Vec<u8> = pubk.n().to_bytes_be().clone();
+					saltlen = ((get_max_bits(&nbytes) - 1 + 7) >> 3) - 2 - $hashtype::output_size();
+				}
+				ssllib_log_trace!("saltlen {}",saltlen);
+				let retv :Self = Self {
+					privkey : privkey.elem.val[0].clone(),
+					signinited : false,
+					vfyinited : false,
+					saltlen : saltlen,
+				};
+				Ok(retv)
 			}
-			let po = ores.unwrap();
-			let pubk = po.to_public_key();
-			let nbytes :Vec<u8> = pubk.n().to_bytes_be().clone();
-			saltlen = ((get_max_bits(&nbytes) - 1 + 7) >> 3) - 2 - 32;
 		}
-		ssllib_log_trace!("saltlen {}",saltlen);
-		let retv :Self = Self {
-			privkey : privkey.elem.val[0].clone(),
-			signinited : false,
-			vfyinited : false,
-			saltlen : saltlen,
-		};
-		Ok(retv)
 	}
 }
 
-impl Asn1SignOp for RsaPSSSHA256priv {
-	fn sign_init(&mut self,_key :&[u8],_initv :&[u8]) -> Result<(),Box<dyn Error>> {
-		self.signinited = true;
-		Ok(())
-	}
-	fn sign_exec(&mut self,data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
-		let retv :Vec<u8>;
-		if !self.signinited {
-			ssllib_new_error!{SslAsn1RsaError,"{} not inited sign","RsaPSSSHA256priv"}
-		}
-		let n = rsaBigUint::from_bytes_be(&self.privkey.modulus.val.to_bytes_be());
-		let d = rsaBigUint::from_bytes_be(&self.privkey.pubexp.val.to_bytes_be());
-		let e = rsaBigUint::from_bytes_be(&self.privkey.privexp.val.to_bytes_be());
-		let mut primes :Vec<rsaBigUint> = Vec::new();
-		primes.push(rsaBigUint::from_bytes_be(&self.privkey.prime1.val.to_bytes_be()));
-		primes.push(rsaBigUint::from_bytes_be(&self.privkey.prime2.val.to_bytes_be()));
-		let ores = RsaPrivateKey::from_components(n,d,e,primes);
-		if ores.is_err() {
-			ssllib_new_error!{SslAsn1RsaError,"{} not valid RsaPrivateKey","RsaPSSSHA256priv"}
-		}
-		let po = ores.unwrap();
-		//let psskey :rsa::pss::Pss = rsa::pss::Pss::new_blinded_with_salt::<sha2::Sha256>(self.saltlen);
-		let psskey :rsa::pss::Pss = rsa::pss::Pss::new_with_salt::<sha2::Sha256>(self.saltlen);
-		//let mut hasher = sha2::Sha256::new();
-		//hasher.update(data);
-		//let hashdata = hasher.finalize().to_vec();
-		let hashdata = data.to_vec().clone();
-		let mut gencore  = rand::thread_rng();
-		let putn = Some(&mut gencore);
-		let ores = psskey.sign::<rand::rngs::ThreadRng>(putn,&po,&hashdata);
-		if ores.is_err() {
-			ssllib_new_error!{SslAsn1RsaError,"{} sign error {:?}","RsaPSSSHA256priv", ores.err().unwrap()}
-		}
-		retv= ores.unwrap();
-		ssllib_buffer_trace!(retv.as_ptr(),retv.len(),"{} sign value","RsaPSSSHA256priv");
-		Ok(retv)
+macro_rules! expand_rsa_pss_sign {
+	($name:ident,$hashtype:ident,$clsname:expr) => {
+		impl Asn1SignOp for $name {
+			fn sign_init(&mut self,_key :&[u8],_initv :&[u8]) -> Result<(),Box<dyn Error>> {
+				self.signinited = true;
+				Ok(())
+			}
+			fn sign_exec(&mut self,data :&[u8]) -> Result<Vec<u8>,Box<dyn Error>> {
+				let retv :Vec<u8>;
+				if !self.signinited {
+					ssllib_new_error!{SslAsn1RsaError,"{} not inited sign",$clsname}
+				}
+				let n = rsaBigUint::from_bytes_be(&self.privkey.modulus.val.to_bytes_be());
+				let d = rsaBigUint::from_bytes_be(&self.privkey.pubexp.val.to_bytes_be());
+				let e = rsaBigUint::from_bytes_be(&self.privkey.privexp.val.to_bytes_be());
+				let mut primes :Vec<rsaBigUint> = Vec::new();
+				primes.push(rsaBigUint::from_bytes_be(&self.privkey.prime1.val.to_bytes_be()));
+				primes.push(rsaBigUint::from_bytes_be(&self.privkey.prime2.val.to_bytes_be()));
+				let ores = RsaPrivateKey::from_components(n,d,e,primes);
+				if ores.is_err() {
+					ssllib_new_error!{SslAsn1RsaError,"{} not valid RsaPrivateKey",$clsname}
+				}
+				let po = ores.unwrap();
+				let psskey :rsa::pss::Pss = rsa::pss::Pss::new_blinded_with_salt::<$hashtype>(self.saltlen);
+				//let psskey :rsa::pss::Pss = rsa::pss::Pss::new_with_salt::<sha2::Sha256>(self.saltlen);
+				let mut hasher = $hashtype::new();
+				hasher.update(data);
+				let hashdata = hasher.finalize().to_vec();
+				//let hashdata = data.to_vec().clone();
+				let mut gencore  = rand::thread_rng();
+				let putn = Some(&mut gencore);
+				let ores = psskey.sign::<rand::rngs::ThreadRng>(putn,&po,&hashdata);
+				if ores.is_err() {
+					ssllib_new_error!{SslAsn1RsaError,"{} sign error {:?}",$clsname, ores.err().unwrap()}
+				}
+				retv= ores.unwrap();
+				ssllib_buffer_trace!(retv.as_ptr(),retv.len(),"{} sign value",$clsname);
+				Ok(retv)
+			}
+		}		
 	}
 }
 
-impl Asn1VerifyOp for RsaPSSSHA256priv {
-	fn verify_init(&mut self,_key :&[u8],_initv :&[u8]) -> Result<(),Box<dyn Error>> {
-		self.vfyinited = true;
-		Ok(())
-	}
-	fn verify_exec(&mut self,origdata:&[u8],signdata :&[u8]) -> Result<bool,Box<dyn Error>> {
-		let retv :bool;
-		if !self.vfyinited {
-			ssllib_new_error!{SslAsn1RsaError,"{} not inited verify","RsaPSSSHA256priv"}
-		}
-		let n = rsaBigUint::from_bytes_be(&self.privkey.modulus.val.to_bytes_be());
-		let d = rsaBigUint::from_bytes_be(&self.privkey.pubexp.val.to_bytes_be());
-		let e = rsaBigUint::from_bytes_be(&self.privkey.privexp.val.to_bytes_be());
-		let mut primes :Vec<rsaBigUint> = Vec::new();
-		primes.push(rsaBigUint::from_bytes_be(&self.privkey.prime1.val.to_bytes_be()));
-		primes.push(rsaBigUint::from_bytes_be(&self.privkey.prime2.val.to_bytes_be()));
-		let ores = RsaPrivateKey::from_components(n,d,e,primes);
-		if ores.is_err() {
-			ssllib_new_error!{SslAsn1RsaError,"{} not valid RsaPrivateKey","RsaPSSSHA256priv"}
-		}
-		let po = ores.unwrap();
-		let pubk = po.to_public_key();
-		//let psskey :rsa::pss::Pss = rsa::pss::Pss::new_blinded_with_salt::<sha2::Sha256>(self.saltlen);
-		let psskey :rsa::pss::Pss = rsa::pss::Pss::new_with_salt::<sha2::Sha256>(self.saltlen);
-		//let mut hasher = sha2::Sha256::new();
-		//hasher.update(origdata);
-		//let hashdata = hasher.finalize().to_vec();
-		let hashdata = origdata.to_vec().clone();
-		ssllib_log_trace!("signdata.len {} pubkey.size {}", signdata.len(), pubk.size());
-		let ores =  psskey.verify(&pubk,&hashdata,signdata);
-		if ores.is_err() {
-			ssllib_new_error!{SslAsn1RsaError,"{} verify failed {:?}","RsaPSSSHA256priv",ores.err().unwrap()}
-		}
-		retv = true;
-		Ok(retv)
+macro_rules! expand_rsa_pss_verify {
+	($name :ident,$hashtype:ident,$clsname:expr) => {
+		impl Asn1VerifyOp for $name {
+			fn verify_init(&mut self,_key :&[u8],_initv :&[u8]) -> Result<(),Box<dyn Error>> {
+				self.vfyinited = true;
+				Ok(())
+			}
+			fn verify_exec(&mut self,origdata:&[u8],signdata :&[u8]) -> Result<bool,Box<dyn Error>> {
+				let retv :bool;
+				if !self.vfyinited {
+					ssllib_new_error!{SslAsn1RsaError,"{} not inited verify",$clsname}
+				}
+				let n = rsaBigUint::from_bytes_be(&self.privkey.modulus.val.to_bytes_be());
+				let d = rsaBigUint::from_bytes_be(&self.privkey.pubexp.val.to_bytes_be());
+				let e = rsaBigUint::from_bytes_be(&self.privkey.privexp.val.to_bytes_be());
+				let mut primes :Vec<rsaBigUint> = Vec::new();
+				primes.push(rsaBigUint::from_bytes_be(&self.privkey.prime1.val.to_bytes_be()));
+				primes.push(rsaBigUint::from_bytes_be(&self.privkey.prime2.val.to_bytes_be()));
+				let ores = RsaPrivateKey::from_components(n,d,e,primes);
+				if ores.is_err() {
+					ssllib_new_error!{SslAsn1RsaError,"{} not valid RsaPrivateKey",$clsname}
+				}
+				let po = ores.unwrap();
+				let pubk = po.to_public_key();
+				let psskey :rsa::pss::Pss = rsa::pss::Pss::new_blinded_with_salt::<$hashtype>(self.saltlen);
+				//let psskey :rsa::pss::Pss = rsa::pss::Pss::new_with_salt::<sha2::Sha256>(self.saltlen);
+				let mut hasher = $hashtype::new();
+				hasher.update(origdata);
+				let hashdata = hasher.finalize().to_vec();
+				//let hashdata = origdata.to_vec().clone();
+				ssllib_log_trace!("signdata.len {} pubkey.size {}", signdata.len(), pubk.size());
+				let ores =  psskey.verify(&pubk,&hashdata,signdata);
+				if ores.is_err() {
+					ssllib_new_error!{SslAsn1RsaError,"{} verify failed {:?}",$clsname,ores.err().unwrap()}
+				}
+				retv = true;
+				Ok(retv)
+			}
+		}		
 	}
 }
 
 
+macro_rules! expand_rsa_pss_priv {
+	($name :ident, $hashtype :ident) => {
 
+		expand_rsa_pss_struct!{$name}
+		expand_rsa_pss_impl!{$name,stringify!($name),$hashtype}
+		expand_rsa_pss_sign!{$name,$hashtype,stringify!($name)}
+		expand_rsa_pss_verify!{$name,$hashtype,stringify!($name)}
+
+	}
+}
+
+expand_rsa_pss_priv!{RsaPSSMD5priv,Md5}
+expand_rsa_pss_priv!{RsaPSSSHA1priv,Sha1}
+expand_rsa_pss_priv!{RsaPSSSHA224priv,Sha224}
+expand_rsa_pss_priv!{RsaPSSSHA256priv,Sha256}
+expand_rsa_pss_priv!{RsaPSSSHA384priv,Sha384}
+expand_rsa_pss_priv!{RsaPSSSHA512priv,Sha512}
+
+
+macro_rules! expand_rsa_pss_pub_struct {
+	($name :ident) => {
+		pub struct $name {
+			pubkey :Asn1RsaPubkeyElem,
+			vfyinited :bool,
+			saltlen :usize,
+		}
+	}
+}
+
+macro_rules! expand_rsa_pss_pub_impl {
+	($name :ident,$hashtype:ident) => {
+		impl $name {
+			pub fn new_from_priv(privkey :&Asn1RsaPrivateKey,len :usize) -> Result<Self,Box<dyn Error>> {
+				let pubkey :Asn1RsaPubkey = privkey.export_public()?;
+				return Self::new_from_pub(&pubkey,len);
+			}
+
+			pub fn new_from_pub(pubkey :&Asn1RsaPubkey,len :usize) -> Result<Self,Box<dyn Error>> {
+				pubkey.elem.check_safe_one("Asn1RsaPubkeyElem")?;
+				let mut saltlen :usize = len;
+				if saltlen == 0xff {
+					saltlen = $hashtype::output_size();
+				} else if saltlen == 0 {
+					let nb = rsaBigUint::from_bytes_be(&pubkey.elem.val[0].n.val.to_bytes_be());
+					let eb = rsaBigUint::from_bytes_be(&pubkey.elem.val[0].e.val.to_bytes_be());
+
+					let pubk = RsaPublicKey::new(nb,eb)?;
+					let nbytes :Vec<u8> = pubk.n().to_bytes_be().clone();
+					saltlen = ((get_max_bits(&nbytes) - 1 + 7) >> 3) - 2 - $hashtype::output_size();
+				}
+				ssllib_log_trace!("saltlen {}",saltlen);
+				let retv :Self = Self {
+					pubkey : pubkey.elem.val[0].clone(),
+					vfyinited : false,
+					saltlen : saltlen,
+				};
+				Ok(retv)
+			}
+		}
+	}
+}
+
+macro_rules! expand_rsa_pss_pub_verify {
+	($name:ident,$hashtype:ident) => {
+		impl Asn1VerifyOp for $name {
+			fn verify_init(&mut self,_key :&[u8],_initv :&[u8]) -> Result<(),Box<dyn Error>> {
+				self.vfyinited = true;
+				Ok(())
+			}
+			fn verify_exec(&mut self,origdata:&[u8],signdata :&[u8]) -> Result<bool,Box<dyn Error>> {
+				let retv :bool;
+				if !self.vfyinited {
+					ssllib_new_error!{SslAsn1RsaError,"{} not inited verify",stringify!($name)}
+				}
+				let nb = rsaBigUint::from_bytes_be(&self.pubkey.n.val.to_bytes_be());
+				let eb = rsaBigUint::from_bytes_be(&self.pubkey.e.val.to_bytes_be());
+
+				let pubk = RsaPublicKey::new(nb,eb)?;
+				let psskey :rsa::pss::Pss = rsa::pss::Pss::new_blinded_with_salt::<$hashtype>(self.saltlen);
+				let mut hasher = $hashtype::new();
+				hasher.update(origdata);
+				let hashdata = hasher.finalize().to_vec();
+				ssllib_log_trace!("signdata.len {} pubkey.size {}", signdata.len(), pubk.size());
+				let ores =  psskey.verify(&pubk,&hashdata,signdata);
+				if ores.is_err() {
+					ssllib_new_error!{SslAsn1RsaError,"{} verify failed {:?}",stringify!($name),ores.err().unwrap()}
+				}
+				retv = true;
+				Ok(retv)
+			}
+		}		
+	}
+}
+
+
+macro_rules! expand_rsa_pss_pub {
+	($name:ident,$hashtype:ident) => {
+		expand_rsa_pss_pub_struct!{$name}
+		expand_rsa_pss_pub_impl!{$name,$hashtype}
+		expand_rsa_pss_pub_verify!{$name,$hashtype}
+	}
+}
+
+expand_rsa_pss_pub!{RsaPSSMD5pub,Md5}
+expand_rsa_pss_pub!{RsaPSSSHA1pub,Sha1}
+expand_rsa_pss_pub!{RsaPSSSHA224pub,Sha224}
+expand_rsa_pss_pub!{RsaPSSSHA256pub,Sha256}
+expand_rsa_pss_pub!{RsaPSSSHA384pub,Sha384}
+expand_rsa_pss_pub!{RsaPSSSHA512pub,Sha512}
 
 impl Asn1RsaPrivateKey {
 	pub fn generate(bitsize :usize, randfile :Option<String>) -> Result<Asn1RsaPrivateKey,Box<dyn Error>> {
