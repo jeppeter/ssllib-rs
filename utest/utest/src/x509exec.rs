@@ -310,8 +310,29 @@ fn x509selfverify_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn Arg
 	Ok(())
 }
 
+fn csrselfverify_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
 
-#[extargs_map_function(x509dec_handler,csrdec_handler,crldec_handler,x509sigdec_handler,x509auxdec_handler,x509auxenc_handler,psstypeenc_handler,pkixnamedec_handler,exportbuild_handler,x509selfverify_handler)]
+	let sarr :Vec<String>;
+	init_log(ns.clone())?;
+
+	sarr = ns.get_array("subnargs");
+	for f in sarr.iter() {
+		let code = read_file_into_der(f)?;
+		debug_buffer_trace!(code.as_ptr(),code.len(),"[{}]code in",f);
+		let mut x509 :Asn1X509Req = Asn1X509Req::init_asn1();
+		let _ = x509.decode_asn1(&code)?;
+		debug_trace!("decode x509req succ");
+		let retv = x509.self_verify()?;
+		if retv {
+			println!("verify {} succ", f);
+		} else {
+			println!("verify {} failed",f);
+		}
+	}
+	Ok(())
+}
+
+#[extargs_map_function(x509dec_handler,csrdec_handler,crldec_handler,x509sigdec_handler,x509auxdec_handler,x509auxenc_handler,psstypeenc_handler,pkixnamedec_handler,exportbuild_handler,x509selfverify_handler,csrselfverify_handler)]
 pub fn load_x509exec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -343,6 +364,9 @@ pub fn load_x509exec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>>
 			"$" : "+"
 		},
 		"x509selfverify<x509selfverify_handler>##binfile .. to self verify x509##" : {
+			"$" : "+"
+		},
+		"csrselfverify<csrselfverify_handler>##binfile ... to check self verify##" : {
 			"$" : "+"
 		}
 	}

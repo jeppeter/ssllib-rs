@@ -126,7 +126,7 @@ impl Asn1RsaPrivateKey {
 }
 
 macro_rules!  expand_priv_sign_op {
-	($ctype:path,$hashtype:path,$clsname:expr) => {
+	($ctype:path,$hashtype:ident,$clsname:expr) => {
 		impl Asn1SignOp for $ctype {
 			fn sign_init(&mut self,_key :&[u8],_initv :&[u8]) -> Result<(),Box<dyn Error>> {
 				self.signinited = true;
@@ -152,7 +152,8 @@ macro_rules!  expand_priv_sign_op {
 				let mut rng = rand::thread_rng();
 				let sig :Signature = signkey.sign_with_rng(&mut rng,data);
 				retv = sig.to_bytes().to_vec();
-				ssllib_buffer_trace!(retv.as_ptr(),retv.len(),"{} sign value",$clsname);
+				ssllib_buffer_trace!(data.as_ptr(),data.len(),"{} indata sign",$clsname);
+				ssllib_buffer_trace!(retv.as_ptr(),retv.len(),"{} signdata sign",$clsname);
 				Ok(retv)
 			}
 		}
@@ -160,7 +161,7 @@ macro_rules!  expand_priv_sign_op {
 }
 
 macro_rules!  expand_priv_vfy_op {
-	($ctype:path,$hashtype:path,$clsname:expr) => {
+	($ctype:path,$hashtype:ident,$clsname:expr) => {
 		impl Asn1VerifyOp for $ctype {
 			fn verify_init(&mut self,_key :&[u8],_initv :&[u8]) -> Result<(),Box<dyn Error>> {
 				self.vfyinited = true;
@@ -190,6 +191,8 @@ macro_rules!  expand_priv_vfy_op {
 					ssllib_new_error!{SslAsn1RsaError,"{} not sign data valid {:?}",$clsname, ores.err().unwrap()}
 				}
 				let sig :Signature = ores.unwrap();
+				ssllib_buffer_trace!(origdata.as_ptr(),origdata.len(),"{} indata vfy",$clsname);
+				ssllib_buffer_trace!(signdata.as_ptr(),signdata.len(),"{} signdata vfy",$clsname);
 				let ores = vfykey.verify(origdata,&sig);
 				if ores.is_ok() {
 					retv = true;
@@ -202,7 +205,7 @@ macro_rules!  expand_priv_vfy_op {
 
 
 macro_rules! decl_rsa_priv {
-	($name :ident,$hashtype:path) => {
+	($name :ident,$hashtype:ident) => {
 		pub struct $name {
 			privkey :Asn1RsaPrivateKeyElem,
 			signinited : bool,
@@ -235,7 +238,7 @@ decl_rsa_priv!{RsaSHA384priv,Sha384}
 decl_rsa_priv!{RsaSHA512priv,Sha512}
 
 macro_rules! decl_pub_vfy {
-	($name:ident,$hashtype:path,$clsname:expr) => {
+	($name:ident,$hashtype:ident,$clsname:expr) => {
 		impl Asn1VerifyOp for $name {
 			fn verify_init(&mut self,_key :&[u8],_initv :&[u8]) -> Result<(),Box<dyn Error>> {
 				self.vfyinited = true;
@@ -257,6 +260,8 @@ macro_rules! decl_pub_vfy {
 					ssllib_new_error!{SslAsn1RsaError,"{} not valid signature {:?}",$clsname,ores.err().unwrap()}
 				}
 				let sig :Signature = ores.unwrap();
+				ssllib_buffer_trace!(origdata.as_ptr(),origdata.len(),"{} indata vfy",$clsname);
+				ssllib_buffer_trace!(signdata.as_ptr(),signdata.len(),"{} signdata vfy",$clsname);
 				let ores = vfykey.verify(origdata,&sig);
 				if ores.is_ok() {
 					retv = true;
@@ -270,7 +275,7 @@ macro_rules! decl_pub_vfy {
 }
 
 macro_rules! decl_rsa_pub {
-	($name:ident,$hashtype:path) => {
+	($name:ident,$hashtype:ident) => {
 		pub struct $name {
 			pubkey :Asn1RsaPubkeyElem,
 			vfyinited :bool,
@@ -432,12 +437,14 @@ macro_rules! expand_rsa_pss_sign {
 				//let hashdata = data.to_vec().clone();
 				let mut gencore  = rand::thread_rng();
 				let putn = Some(&mut gencore);
+				ssllib_buffer_trace!(data.as_ptr(),data.len(),"{} indata sign",$clsname);
+				ssllib_buffer_trace!(hashdata.as_ptr(),hashdata.len(),"{} hashdata sign",$clsname);
 				let ores = psskey.sign::<rand::rngs::ThreadRng>(putn,&po,&hashdata);
 				if ores.is_err() {
 					ssllib_new_error!{SslAsn1RsaError,"{} sign error {:?}",$clsname, ores.err().unwrap()}
 				}
 				retv= ores.unwrap();
-				ssllib_buffer_trace!(retv.as_ptr(),retv.len(),"{} sign value",$clsname);
+				ssllib_buffer_trace!(retv.as_ptr(),retv.len(),"{} signdata sign",$clsname);
 				Ok(retv)
 			}
 		}		
@@ -474,7 +481,9 @@ macro_rules! expand_rsa_pss_verify {
 				hasher.update(origdata);
 				let hashdata = hasher.finalize().to_vec();
 				//let hashdata = origdata.to_vec().clone();
-				ssllib_log_trace!("signdata.len {} pubkey.size {}", signdata.len(), pubk.size());
+				ssllib_buffer_trace!(origdata.as_ptr(),origdata.len(),"{} indata vfy",$clsname);
+				ssllib_buffer_trace!(signdata.as_ptr(),signdata.len(),"{} signdata vfy",$clsname);
+				ssllib_buffer_trace!(hashdata.as_ptr(),hashdata.len(),"{} hashdata vfy",$clsname);
 				let ores =  psskey.verify(&pubk,&hashdata,signdata);
 				if ores.is_err() {
 					ssllib_new_error!{SslAsn1RsaError,"{} verify failed {:?}",$clsname,ores.err().unwrap()}
@@ -569,7 +578,9 @@ macro_rules! expand_rsa_pss_pub_verify {
 				let mut hasher = $hashtype::new();
 				hasher.update(origdata);
 				let hashdata = hasher.finalize().to_vec();
-				ssllib_log_trace!("signdata.len {} pubkey.size {}", signdata.len(), pubk.size());
+				ssllib_buffer_trace!(origdata.as_ptr(),origdata.len(),"{} indata vfy",stringify!($name));
+				ssllib_buffer_trace!(hashdata.as_ptr(),hashdata.len(),"{} hashdata vfy",stringify!($name));
+				ssllib_buffer_trace!(signdata.as_ptr(),signdata.len(),"{} signdata vfy",stringify!($name));
 				let ores =  psskey.verify(&pubk,&hashdata,signdata);
 				if ores.is_err() {
 					ssllib_new_error!{SslAsn1RsaError,"{} verify failed {:?}",stringify!($name),ores.err().unwrap()}
