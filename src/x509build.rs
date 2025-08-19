@@ -317,6 +317,7 @@ fn pkix_attrset_values_default() -> Vec<PkixAttribute> {
 }
 
 
+
 #[derive(Clone,Serialize,Deserialize)]
 pub struct PkixName {
 	#[serde(default = "array_string_default")]
@@ -550,6 +551,78 @@ impl PkixName {
 		Ok(retv)
 	}
 
+}
+
+
+#[derive(Clone,Serialize,Deserialize)]
+pub struct PkixAttribute {
+	#[serde(alias="type", serialize_with="asn1_object_serialize", deserialize_with = "asn1_object_deserialize")]
+	pub types :Asn1Object,
+	#[serde(serialize_with="asn1_any_serialize", deserialize_with = "asn1_any_deserialize")]
+	pub value :Asn1Any,
+}
+
+#[derive(Clone,Serialize,Deserialize)]
+pub struct PkixAttributeSet {
+	#[serde(alias="type", serialize_with="asn1_object_serialize", deserialize_with = "asn1_object_deserialize")]
+	pub types :Asn1Object,
+	pub value :Vec<PkixAttribute>,
+}
+
+
+#[derive(Clone,Serialize,Deserialize)]
+pub struct PkixExtension {
+	#[serde(alias="type", serialize_with="asn1_object_serialize", deserialize_with = "asn1_object_deserialize")]
+	pub types :Asn1Object,
+	#[serde(default="pkix_extension_critical_default")]
+	pub critical :bool,
+	pub value :Vec<u8>,
+}
+
+fn pkix_extension_critical_default() -> bool {
+	false
+}
+
+#[derive(Clone,Serialize,Deserialize)]
+pub struct X509RequestBuildConfig {
+	#[serde(default="x509build_pkixname_default")]
+	pub subject :PkixName,
+	#[serde(alias="signaturealgorithm",default = "x509build_signature_algorithm_default")]	
+	pub signature_algorithm :SignatureAlgorithm,
+	#[serde(default="pkix_attribute_set_default")]
+	pub attributes :Vec<PkixAttributeSet>,
+	#[serde(default="pkix_extension_default")]
+	pub extensions :Vec<PkixExtension>,
+	#[serde(alias="extraextensions",default="pkix_extension_default")]
+	pub extra_extensions :Vec<PkixExtension>,
+	#[serde(alias="dnsnames",default = "array_string_default")]
+	pub dns_names :Vec<String>,
+	#[serde(alias="emailaddresses",default = "array_string_default")]
+	pub email_addresses:Vec<String>,
+	#[serde(alias="ip_addresses",default = "array_string_default")]
+	pub ip_addresses :Vec<String>,
+}
+
+fn pkix_extension_default() -> Vec<PkixExtension> {
+	vec![]
+}
+
+fn pkix_attribute_set_default() -> Vec<PkixAttributeSet> {
+	vec![]
+}
+
+impl X509RequestBuildConfig {
+	pub fn new() -> Self {
+		Self {
+			subject :PkixName::new(),
+			attributes : vec![],
+			extensions : vec![],
+			extra_extensions :vec![],
+			dns_names : vec![],
+			email_addresses :vec![],
+			ip_addresses : vec![],
+		}
+	}
 }
 
 

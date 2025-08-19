@@ -1898,6 +1898,11 @@ impl Asn1X509Sig {
 	}
 }
 
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct Asn1ReqInfos {
+	pub elem :Asn1Seq<Asn1Any>,
+}
 
 #[asn1_sequence()]
 #[derive(Clone)]
@@ -1908,10 +1913,36 @@ pub struct Asn1X509ReqInfoElem {
 	pub attributes : Asn1Opt<Asn1ImpSet<Asn1X509Attribute,0>>,
 }
 
+impl Asn1X509ReqInfoElem {
+	pub fn get_x509_req_config(&self,reqcfg :&mut X509RequestBuildConfig) -> Result<(),Box<dyn Error>> {
+		self.pubkey.elem.check_safe_one("Asn1X509PubkeyElem")?;
+		let oid = self.pubkey.elem.val[0].algor.get_algorithm()?;
+		reqcfg.signature_algorithm = get_sig_algorithm_from_oid(&oid)?;
+		reqcfg.subject = self.subject.to_pkixname()?;
+		/*now to give the attributes for*/
+		if self.attributes.val.is_some() {
+			let cattrs :&Asn1ImpSet<Asn1X509Attribute,0> = self.attributes.val.as_ref().unwrap();
+			if cattrs.val.len() > 0 {
+				let mut idx :usize = 0;
+				while idx < cattrs.val.len() {
+					
+				}
+			}
+		}
+	}
+}
+
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct Asn1X509ReqInfo {
 	pub elem : Asn1Seq<Asn1X509ReqInfoElem>,
+}
+
+impl Asn1X509ReqInfo {
+	pub fn get_x509_req_config(&self,reqcfg :&mut X509RequestBuildConfig) -> Result<(),Box<dyn Error>> {
+		self.elem.check_safe_one("Asn1X509ReqInfoElem")?;
+		return self.elem.val[0].get_x509_req_config(reqcfg);
+	}
 }
 
 #[asn1_sequence()]
@@ -1932,6 +1963,10 @@ impl Asn1X509ReqElem {
 		let signdata = self.signature.data.clone();
 		return vfyop.verify_exec(&origdata,&signdata);
 	}
+
+	pub fn get_x509_req_config(&self,reqcfg :&mut X509RequestBuildConfig) -> Result<(),Box<dyn Error>> {
+		return self.req_info.get_x509_req_config(reqcfg);
+	}
 }
 
 #[asn1_sequence()]
@@ -1944,6 +1979,11 @@ impl Asn1X509Req {
 	pub fn self_verify(&self) -> Result<bool, Box<dyn Error>> {
 		self.elem.check_safe_one("Asn1X509ReqElem")?;
 		return self.elem.val[0].self_verify();
+	}
+
+	pub fn get_x509_req_config(&self,reqcfg :&mut X509RequestBuildConfig) -> Result<(),Box<dyn Error>> {
+		self.elem.check_safe_one("Asn1X509ReqElem")?;
+		return self.elem.val[0].get_x509_req_config(reqcfg);
 	}
 }
 
