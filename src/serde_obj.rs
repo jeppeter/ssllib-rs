@@ -3,9 +3,10 @@ use std::error::Error;
 use num_bigint::{BigInt};
 use num_traits::{zero};
 use crate::*;
-use asn1obj::base::{Asn1Object,Asn1Any};
+use asn1obj::base::{Asn1Object,Asn1Any,Asn1OctData,Asn1Boolean};
 use asn1obj::asn1impl::{Asn1Op};
-use serde::ser::{SerializeStruct};
+use asn1obj::complex::{Asn1Opt};
+use serde::ser::{SerializeStruct,SerializeSeq};
 ssllib_error_class!{SslSerdeObjError}
 
 
@@ -195,3 +196,71 @@ where D: serde::de::Deserializer<'de> {
 	let visitor :Asn1AnyVisitor = Asn1AnyVisitor(Asn1Any::init_asn1());
 	deserializer.deserialize_map(visitor)
 }
+
+
+pub fn asn1_octdata_serialize<S>(oany :&Asn1OctData,serializer: S) -> Result<S::Ok, S::Error> where S: serde::ser::Serializer {
+	let mut seq = serializer.serialize_seq(Some(oany.data.len()))?;
+	for v in oany.data.iter() {
+		seq.serialize_element(v)?;
+	}
+	seq.end()
+}
+
+#[allow(dead_code)]
+struct Asn1OctDataNSeq(Asn1OctData);
+
+impl<'de> serde::de::Visitor<'de> for Asn1OctDataNSeq {
+	type Value = Asn1OctData;
+
+	fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+		write!(formatter, "an array need")
+	}
+
+
+
+	fn visit_seq<A>(self, mut seq: A) -> Result<Asn1OctData, A::Error>
+	where A: serde::de::SeqAccess<'de>,
+	{
+		let mut odata :Asn1OctData= Asn1OctData::init_asn1();
+
+		while let Some(v) = seq.next_element::<u8>()? {
+			odata.data.push(v);
+		}
+		Ok(odata)
+
+	}
+}
+
+
+
+pub fn asn1_octdata_deserialize<'de, D>(deserializer :D) -> Result<Asn1OctData, D::Error> 
+where D: serde::de::Deserializer<'de> {
+	let visitor :Asn1OctDataNSeq = Asn1OctDataNSeq(Asn1OctData::init_asn1());
+	deserializer.deserialize_seq(visitor)
+}
+
+pub fn asn1_opt_boolean_serialize<S>(oany :&Asn1Opt<Asn1Boolean>,serializer: S) -> Result<S::Ok, S::Error> where S: serde::ser::Serializer {
+	if oany.val.is_none() {
+		/*nothing to handle*/
+		return Ok(S::Ok);
+	}
+	let retv:bool = oany.val.as_ref().unwrap().clone();
+	serializer.serialize_bool(retv)
+}
+
+
+
+pub fn asn1_opt_boolean_deserialize<'de, D>(deserializer :D) -> Result<Asn1Opt<Asn1Boolean>, D::Error> 
+where D: serde::de::Deserializer<'de> {
+	let ores = deserializer.deserialize_bool();
+	let mut val :Asn1Opt<Asn1Boolean> = Asn1Opt::init_asn1();
+	if ores.is_err() {
+		return Ok(val);
+	}
+	let bval = ores.unwrap();
+	let mut b :Asn1Boolean = Asn1Boolean::init_asn1();
+	b.val = bval;
+	val.val = Some(b);
+	Ok(val)
+}
+

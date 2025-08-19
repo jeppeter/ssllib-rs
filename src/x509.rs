@@ -244,6 +244,138 @@ pub struct Asn1X509AttributeElem {
 	pub set :Asn1Set<Asn1Any>,
 }
 
+macro_rules! expand_extract_func {
+	($nc:expr,$req:expr,$tagval:ident,$tagc:ident,$member:ident) => {
+		let mut retv :usize = 0;
+		let oid = $nc.object.get_value();
+		if oid == OID_X509_REQ_EXTENSIONS {
+			let mut idx :usize = 0;
+			while idx < $nc.set.val.len() {
+				let mut algo :Asn1X509Algor = Asn1X509Algor::init_asn1();
+				let ores = algo.decode_asn1(&$nc.set.val[idx].content);
+				if ores.is_ok() {
+					let nores = algo.get_algorithm();
+					if nores.is_ok() {
+						let noid = nores.unwrap();
+						if noid == OID_EXTENSION_SUBJECT_ALTNAME {
+							let cores = algo.get_param();
+							if cores.is_ok() {
+								let vp :Option<Asn1Any> = cores.unwrap();
+								if vp.is_some() {
+									let ncode = vp.as_ref().unwrap().encode_asn1()?;
+									let mut coct :Asn1OctData = Asn1OctData::init_asn1();
+
+									let oores = coct.decode_asn1(&ncode);
+									if oores.is_ok()  {
+										let mut cany :Asn1Seq<Asn1Any> = Asn1Seq::init_asn1();
+										let ccores = cany.decode_asn1(&coct.data);
+										if ccores.is_ok() {
+											let mut jdx :usize = 0;
+											while jdx < cany.val.len() {
+												ssllib_log_trace!("[{}].tag 0x{:x}", jdx, cany.val[jdx].tag);
+												if cany.val[jdx].tag == $tagval {
+													let ccode = cany.val[jdx].encode_asn1()?;
+													ssllib_buffer_trace!(ccode.as_ptr(),ccode.len(),"{} ccode",jdx);
+													let mut cstr :Asn1Imp<Asn1PrintableString,$tagc> = Asn1Imp::init_asn1();
+													let nores = cstr.decode_asn1(&ccode);
+													if nores.is_ok() {
+														ssllib_log_trace!("{} {}",stringify!($member),cstr.val.val);
+														$req.$member.push(format!("{}",cstr.val.val));
+														retv += 1;
+													} else {
+														ssllib_buffer_trace!(ccode.as_ptr(),ccode.len(),"{} Asn1ImpSet error",jdx);
+													}
+												}
+												jdx += 1;
+											}
+										} else {
+											ssllib_buffer_trace!(coct.data.as_ptr(),coct.data.len(),"coct not decode ok");
+										}
+
+									} else {
+										ssllib_buffer_trace!(ncode.as_ptr(),ncode.len(),"not decode ok");
+									}
+
+								}
+							}
+						}
+					}
+				}				
+				idx += 1;
+			}
+		}
+		Ok(retv)		
+	}
+}
+
+macro_rules! expand_extract_ip_func {
+	($nc:expr,$req:expr,$tagval:ident,$tagc:ident,$member:ident) => {
+		let mut retv :usize = 0;
+		let oid = $nc.object.get_value();
+		if oid == OID_X509_REQ_EXTENSIONS {
+			let mut idx :usize = 0;
+			while idx < $nc.set.val.len() {
+				let mut algo :Asn1X509Algor = Asn1X509Algor::init_asn1();
+				let ores = algo.decode_asn1(&$nc.set.val[idx].content);
+				if ores.is_ok() {
+					let nores = algo.get_algorithm();
+					if nores.is_ok() {
+						let noid = nores.unwrap();
+						if noid == OID_EXTENSION_SUBJECT_ALTNAME {
+							let cores = algo.get_param();
+							if cores.is_ok() {
+								let vp :Option<Asn1Any> = cores.unwrap();
+								if vp.is_some() {
+									let ncode = vp.as_ref().unwrap().encode_asn1()?;
+									let mut coct :Asn1OctData = Asn1OctData::init_asn1();
+
+									let oores = coct.decode_asn1(&ncode);
+									if oores.is_ok()  {
+										let mut cany :Asn1Seq<Asn1Any> = Asn1Seq::init_asn1();
+										let ccores = cany.decode_asn1(&coct.data);
+										if ccores.is_ok() {
+											let mut jdx :usize = 0;
+											while jdx < cany.val.len() {
+												ssllib_log_trace!("[{}].tag 0x{:x}", jdx, cany.val[jdx].tag);
+												if cany.val[jdx].tag == $tagval {
+													let ccode = cany.val[jdx].encode_asn1()?;
+													ssllib_buffer_trace!(ccode.as_ptr(),ccode.len(),"{} ccode",jdx);
+													let mut cstr :Asn1Imp<Asn1OctData,$tagc> = Asn1Imp::init_asn1();
+													let nores = cstr.decode_asn1(&ccode);
+													if nores.is_ok() {
+														if cstr.val.data.len() == 4 {
+															$req.$member.push(format!("{}.{}.{}.{}",cstr.val.data[0],cstr.val.data[1],cstr.val.data[2],cstr.val.data[3]));
+															retv += 1;
+														} else {
+															ssllib_buffer_trace!(cstr.val.data.as_ptr(),cstr.val.data.len(),"{} not valid",stringify!($member));
+														}
+													} else {
+														ssllib_buffer_trace!(ccode.as_ptr(),ccode.len(),"{} Asn1ImpSet error",jdx);
+													}
+												}
+												jdx += 1;
+											}
+										} else {
+											ssllib_buffer_trace!(coct.data.as_ptr(),coct.data.len(),"coct not decode ok");
+										}
+
+									} else {
+										ssllib_buffer_trace!(ncode.as_ptr(),ncode.len(),"not decode ok");
+									}
+
+								}
+							}
+						}
+					}
+				}				
+				idx += 1;
+			}
+		}
+		Ok(retv)
+	}
+}
+
+
 impl Asn1X509AttributeElem {
 	pub fn set_attr(&mut self, objval :&str, code :&[u8]) -> Result<(),Box<dyn Error>> {
 		self.object.set_value(objval)?;
@@ -259,27 +391,15 @@ impl Asn1X509AttributeElem {
 
 
 	pub fn extract_email_addresses(&self, reqcfg :&mut X509RequestBuildConfig) -> Result<usize,Box<dyn Error>> {
-		let mut retv :usize = 0;
-		let oid = self.object.get_value();
-		if oid == OID_X509_REQ_EXTENSIONS {
-			let mut idx :usize = 0;
-			while idx < self.set.val.len() {
-				let code = self.set.val[idx].encode_asn1()?;
-				ssllib_buffer_trace!(code.as_ptr(),code.len(),"{} set",idx);
-				idx += 1;
-			}
-		}
-		Ok(retv)
+		expand_extract_func!{self,reqcfg,TAG_EMAILS_ADDRESSES,EMAIL_ADDRESS_IMPSET_TAG,email_addresses}
 	}
 
 	pub fn extract_dns_names(&self, reqcfg :&mut X509RequestBuildConfig) -> Result<usize,Box<dyn Error>> {
-		let retv :usize = 0;
-		Ok(retv)
+		expand_extract_func!{self,reqcfg,TAG_DNS_NAMES,DNS_NAMES_IMPSET_TAG,dns_names}
 	}
 
 	pub fn extract_ip_addresses(&self, reqcfg :&mut X509RequestBuildConfig) -> Result<usize,Box<dyn Error>> {
-		let retv :usize = 0;
-		Ok(retv)
+		expand_extract_ip_func!{self,reqcfg,TAG_IP_ADDRESSES,IP_ADDRESSES_IMPSET_TAG,ip_addresses}
 	}
 
 	pub fn extract_extra_extensions(&self,reqcfg :&mut X509RequestBuildConfig) -> Result<usize,Box<dyn Error>> {
@@ -2006,8 +2126,6 @@ pub struct Asn1X509ReqInfoElem {
 impl Asn1X509ReqInfoElem {
 	pub fn get_x509_req_config(&self,reqcfg :&mut X509RequestBuildConfig) -> Result<(),Box<dyn Error>> {
 		self.pubkey.elem.check_safe_one("Asn1X509PubkeyElem")?;
-		let oid = self.pubkey.elem.val[0].algor.get_algorithm()?;
-		reqcfg.signature_algorithm = get_sig_algorithm_from_oid(&oid)?;
 		reqcfg.subject = self.subject.to_pkixname()?;
 		/*now to give the attributes for*/
 		if self.attributes.val.is_some() {

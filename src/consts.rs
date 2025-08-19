@@ -188,6 +188,8 @@ pub const OID_ORGANIZATION :&str = "2.5.4.10";
 pub const OID_ORGANIZATIONAL_UNIT :&str = "2.5.4.11";
 pub const OID_POSTAL_CODE :&str = "2.5.4.17";
 
+pub const OID_EXTENSION_SUBJECT_ALTNAME :&str = "2.5.29.17";
+
 
 pub const KEY_USAGE_DIGITAL_SIGNATURE :u8 = 0x80;
 pub const KEY_USAGE_CONTENT_COMMITMENT :u8 = 0x40;
@@ -214,6 +216,11 @@ pub const TAG_DNS_NAMES :u64 = 0x82;
 pub const TAG_EMAILS_ADDRESSES :u64= 0x81;
 pub const TAG_IP_ADDRESSES :u64 = 0x87;
 pub const TAG_URIS :u64 = 0x86;
+
+pub const EMAIL_ADDRESS_IMPSET_TAG :u8 = (TAG_EMAILS_ADDRESSES & 0xf) as u8;
+pub const DNS_NAMES_IMPSET_TAG :u8 = (TAG_DNS_NAMES & 0xf) as u8;
+pub const IP_ADDRESSES_IMPSET_TAG :u8 = (TAG_IP_ADDRESSES & 0xf) as u8;
+pub const URIS_IMPSET_TAG :u8 = (TAG_URIS & 0xf) as u8;
 
 pub const TAG_PERMITTED :u64 = 0xa0;
 pub const TAG_EXCLUDED :u64 = 0xa1;

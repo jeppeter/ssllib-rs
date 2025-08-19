@@ -9,6 +9,7 @@ use std::error::Error;
 use asn1obj::complex::*;
 use asn1obj::asn1impl::*;
 use asn1obj::base::*;
+use asn1obj_codegen::asn1_sequence;
 
 #[allow(unused_imports)]
 use num_bigint::{BigInt,Sign};
@@ -17,7 +18,7 @@ use num_traits::{zero};
 use chrono::{Utc,DateTime,Datelike,Months};
 
 use serde::{Deserialize, Serialize};
-use crate::serde_obj::{StringVisitor,parse_to_bigint,asn1_object_serialize,asn1_object_deserialize,asn1_any_serialize,asn1_any_deserialize};
+use crate::serde_obj::{StringVisitor,parse_to_bigint,asn1_object_serialize,asn1_object_deserialize,asn1_any_serialize,asn1_any_deserialize,asn1_octdata_serialize,asn1_octdata_deserialize,asn1_opt_boolean_serialize,asn1_opt_boolean_deserialize};
 use serde::ser::{SerializeSeq};
 use std::collections::{HashMap};
 
@@ -580,13 +581,15 @@ impl std::fmt::Debug for PkixAttributeSet {
 }
 
 
+#[asn1_sequence()]
 #[derive(Clone,Serialize,Deserialize)]
 pub struct PkixExtension {
 	#[serde(alias="type", serialize_with="asn1_object_serialize", deserialize_with = "asn1_object_deserialize")]
 	pub types :Asn1Object,
-	#[serde(default="pkix_extension_critical_default")]
-	pub critical :bool,
-	pub value :Vec<u8>,
+	#[serde(default="pkix_extension_critical_default",serialize_with="asn1_opt_boolean_serialize",deserialize_with="asn1_opt_boolean_deserialize")]
+	pub critical :Asn1Opt<Asn1Boolean>,
+	#[serde(default="pkix_extension_value_default",serialize_with="asn1_octdata_serialize", deserialize_with="asn1_octdata_deserialize")]
+	pub value :Asn1OctData,
 }
 
 impl std::fmt::Debug for PkixExtension {
@@ -600,8 +603,12 @@ impl std::fmt::Debug for PkixExtension {
 }
 
 
-fn pkix_extension_critical_default() -> bool {
-	false
+fn pkix_extension_value_default() -> Asn1OctData {
+	Asn1OctData::init_asn1()
+}
+
+fn pkix_extension_critical_default() -> Asn1Opt<Asn1Boolean> {
+	Asn1Opt::init_asn1()
 }
 
 #[derive(Debug,Clone,Serialize,Deserialize)]
