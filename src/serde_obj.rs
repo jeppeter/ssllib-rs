@@ -3,7 +3,9 @@ use std::error::Error;
 use num_bigint::{BigInt};
 use num_traits::{zero};
 use crate::*;
-
+use asn1obj::base::{Asn1Object,Asn1Any};
+use asn1obj::asn1impl::{Asn1Op};
+use serde::ser::{SerializeStruct};
 ssllib_error_class!{SslSerdeObjError}
 
 
@@ -104,4 +106,92 @@ pub fn parse_to_bigint(instr :&str) -> Result<BigInt,Box<dyn Error>> {
 		retv = -retv;
 	}
 	Ok(retv)
+}
+
+
+pub fn asn1_object_serialize<S>(obj :&Asn1Object,serializer: S) -> Result<S::Ok, S::Error> where S: serde::ser::Serializer {
+	serializer.serialize_str(&obj.get_value())
+}
+
+
+
+
+pub fn asn1_object_deserialize<'de, D>(deserializer :D) -> Result<Asn1Object,D::Error> 
+where D: serde::de::Deserializer<'de> {
+	let vs :StringVisitor = StringVisitor("".to_string());
+	let s = format!("{}",deserializer.deserialize_str(vs)?);
+	let mut obj :Asn1Object = Asn1Object::init_asn1();
+	let ores = obj.set_value(&s);
+	if ores.is_err() {
+		let e  : D::Error =  serde::de::Error::custom( ores.err().unwrap().to_string());
+		return Err(e);
+	}
+	Ok(obj)
+}
+
+pub fn asn1_any_serialize<S>(oany :&Asn1Any,serializer: S) -> Result<S::Ok, S::Error> where S: serde::ser::Serializer {
+	let mut map = serializer.serialize_struct("Asn1Any",2)?;
+	map.serialize_field("tag",&oany.tag)?;
+	map.serialize_field("data",&oany.content)?;
+	map.end()
+}
+
+#[allow(dead_code)]
+struct Asn1AnyVisitor(Asn1Any);
+
+impl<'de> serde::de::Visitor<'de> for Asn1AnyVisitor {
+	type Value = Asn1Any;
+
+	fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+		write!(formatter, "a map need")
+	}
+
+
+
+	fn visit_map<A>(self, mut mapv: A) -> Result<Asn1Any, A::Error>
+	where A: serde::de::MapAccess<'de>,
+	{
+		let mut oany :Asn1Any = Asn1Any::init_asn1();
+		let mut tagv :Option<u64> = None;
+		let mut contentv :Option<Vec<u8>> = None;
+
+		while let Some(key) = mapv.next_key::<String>()? {
+			match key.as_str() {
+				"tag" => {
+
+					if tagv.is_some() {
+						return Err(serde::de::Error::duplicate_field("tag"));
+					}
+					tagv = Some(mapv.next_value::<u64>()?);
+				},
+				"content" => {
+					if contentv.is_some() {
+						return Err(serde::de::Error::duplicate_field("content"));
+					}
+					contentv = Some(mapv.next_value::<Vec<u8>>()?);
+				},
+				_ => {
+
+				},
+			}
+		}
+
+		if tagv.is_some() {
+			oany.tag = tagv.as_ref().unwrap().clone();
+		}
+
+		if contentv.is_some() {
+			oany.content = contentv.as_ref().unwrap().clone();
+		}
+
+		Ok(oany)
+	}
+}
+
+
+
+pub fn asn1_any_deserialize<'de, D>(deserializer :D) -> Result<Asn1Any, D::Error> 
+where D: serde::de::Deserializer<'de> {
+	let visitor :Asn1AnyVisitor = Asn1AnyVisitor(Asn1Any::init_asn1());
+	deserializer.deserialize_map(visitor)
 }

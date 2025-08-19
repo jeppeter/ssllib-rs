@@ -10,11 +10,14 @@ use extargsparse_worker::parser::{ExtArgsParser};
 use extargsparse_worker::funccall::{ExtArgsParseFunc};
 use asn1obj::asn1impl::Asn1Op;
 
-use asn1obj_codegen::*;
+use asn1obj_codegen::{asn1_sequence};
 use asn1obj::*;
 use asn1obj::base::*;
 use asn1obj::complex::*;
 use asn1obj::strop::*;
+
+#[allow(unused_imports)]
+use serde::{Deserialize, Serialize};
 
 use ssllib::consts::*;
 
@@ -26,6 +29,7 @@ use std::boxed::Box;
 use regex::Regex;
 #[allow(unused_imports)]
 use std::any::Any;
+
 
 use lazy_static::lazy_static;
 use std::collections::HashMap;
@@ -331,6 +335,25 @@ fn csrselfverify_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgS
 	}
 	Ok(())
 }
+
+#[allow(dead_code)]
+pub struct StringVisitor(pub String);
+
+impl<'de> serde::de::Visitor<'de> for StringVisitor {
+	type Value = String;
+
+	fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+		write!(formatter, "an string")
+	}
+
+	fn visit_str<E>(self, v :&str) -> Result<Self::Value,E>
+	where E :Error
+	{
+		Ok(format!("{}",v))
+	}
+}
+
+
 
 #[extargs_map_function(x509dec_handler,csrdec_handler,crldec_handler,x509sigdec_handler,x509auxdec_handler,x509auxenc_handler,psstypeenc_handler,pkixnamedec_handler,exportbuild_handler,x509selfverify_handler,csrselfverify_handler)]
 pub fn load_x509exec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {

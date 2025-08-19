@@ -34,8 +34,8 @@ use ecsimple::keys::{ECPrivateKey,ECPublicKey};
 use serde::{Deserialize, Serialize};
 
 use lazy_static::lazy_static;
-use crate::serde_obj::{StringVisitor};
-use serde::ser::{SerializeStruct};
+use crate::serde_obj::*;
+
 
 
 ssllib_error_class!{SslX509Error}
@@ -77,99 +77,13 @@ impl Asn1X509NameElement {
 #[asn1_sequence()]
 #[derive(Clone,Serialize,Deserialize)]
 pub struct Asn1X509NameAnyElement {
-	#[serde(serialize_with = "x509name_obj_serialize", deserialize_with = "x509name_obj_deserialize")]
+	#[serde(serialize_with = "asn1_object_serialize", deserialize_with = "asn1_object_deserialize")]
 	pub obj :Asn1Object,
-	#[serde(serialize_with = "x509name_value_serialize" , deserialize_with = "x509name_value_deserialize")]
+	#[serde(serialize_with = "asn1_any_serialize" , deserialize_with = "asn1_any_deserialize")]
 	pub value :Asn1Any,
 }
 
 
-fn x509name_obj_serialize<S>(obj :&Asn1Object,serializer: S) -> Result<S::Ok, S::Error> where S: serde::ser::Serializer {
-	serializer.serialize_str(&obj.get_value())
-}
-
-
-
-
-fn x509name_obj_deserialize<'de, D>(deserializer :D) -> Result<Asn1Object,D::Error> 
-where D: serde::de::Deserializer<'de> {
-	let vs :StringVisitor = StringVisitor("".to_string());
-	let s = format!("{}",deserializer.deserialize_str(vs)?);
-	let mut obj :Asn1Object = Asn1Object::init_asn1();
-	let ores = obj.set_value(&s);
-	if ores.is_err() {
-		let e  : D::Error =  serde::de::Error::custom( ores.err().unwrap().to_string());
-		return Err(e);
-	}
-	Ok(obj)
-}
-
-fn x509name_value_serialize<S>(oany :&Asn1Any,serializer: S) -> Result<S::Ok, S::Error> where S: serde::ser::Serializer {
-	let mut map = serializer.serialize_struct("Asn1Any",2)?;
-	map.serialize_field("tag",&oany.tag)?;
-	map.serialize_field("data",&oany.content)?;
-	map.end()
-}
-
-#[allow(dead_code)]
-struct Asn1AnyVisitor(Asn1Any);
-
-impl<'de> serde::de::Visitor<'de> for Asn1AnyVisitor {
-	type Value = Asn1Any;
-
-	fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(formatter, "a map need")
-	}
-
-
-
-	fn visit_map<A>(self, mut mapv: A) -> Result<Asn1Any, A::Error>
-	where A: serde::de::MapAccess<'de>,
-	{
-		let mut oany :Asn1Any = Asn1Any::init_asn1();
-		let mut tagv :Option<u64> = None;
-		let mut contentv :Option<Vec<u8>> = None;
-
-		while let Some(key) = mapv.next_key::<String>()? {
-			match key.as_str() {
-				"tag" => {
-
-					if tagv.is_some() {
-						return Err(serde::de::Error::duplicate_field("tag"));
-					}
-					tagv = Some(mapv.next_value::<u64>()?);
-				},
-				"content" => {
-					if contentv.is_some() {
-						return Err(serde::de::Error::duplicate_field("content"));
-					}
-					contentv = Some(mapv.next_value::<Vec<u8>>()?);
-				},
-				_ => {
-
-				},
-			}
-		}
-
-		if tagv.is_some() {
-			oany.tag = tagv.as_ref().unwrap().clone();
-		}
-
-		if contentv.is_some() {
-			oany.content = contentv.as_ref().unwrap().clone();
-		}
-
-		Ok(oany)
-	}
-}
-
-
-
-fn x509name_value_deserialize<'de, D>(deserializer :D) -> Result<Asn1Any, D::Error> 
-where D: serde::de::Deserializer<'de> {
-	let visitor :Asn1AnyVisitor = Asn1AnyVisitor(Asn1Any::init_asn1());
-	deserializer.deserialize_map(visitor)
-}
 
 
 

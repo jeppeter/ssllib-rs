@@ -8,6 +8,7 @@ use crate::pemlib::{read_file_into_der};
 use std::error::Error;
 use asn1obj::complex::*;
 use asn1obj::asn1impl::*;
+use asn1obj::base::*;
 
 #[allow(unused_imports)]
 use num_bigint::{BigInt,Sign};
@@ -16,7 +17,7 @@ use num_traits::{zero};
 use chrono::{Utc,DateTime,Datelike,Months};
 
 use serde::{Deserialize, Serialize};
-use crate::serde_obj::{StringVisitor,parse_to_bigint};
+use crate::serde_obj::{StringVisitor,parse_to_bigint,asn1_object_serialize,asn1_object_deserialize,asn1_any_serialize,asn1_any_deserialize};
 use serde::ser::{SerializeSeq};
 use std::collections::{HashMap};
 
@@ -295,7 +296,25 @@ impl PartialEq for KeyUsage {
 	}
 }
 
+#[derive(Clone,Serialize,Deserialize)]
+pub struct PkixAttribute {
+	#[serde(alias = "type",serialize_with = "asn1_object_serialize", deserialize_with = "asn1_object_deserialize")]
+	pub types :Asn1Object,
+	#[serde(alias = "value",serialize_with = "asn1_any_serialize", deserialize_with = "asn1_any_deserialize")]
+	pub values :Asn1Any,
+}
 
+#[derive(Clone,Serialize,Deserialize)]
+pub struct PkixAttributeSet {
+	#[serde(alias = "type",serialize_with = "asn1_object_serialize", deserialize_with = "asn1_object_deserialize")]
+	pub types :Asn1Object,
+	#[serde(alias = "value",default="pkix_attrset_values_default")]
+	pub values :Vec<PkixAttribute>,
+}
+
+fn pkix_attrset_values_default() -> Vec<PkixAttribute> {
+	vec![]
+}
 
 
 #[derive(Clone,Serialize,Deserialize)]
