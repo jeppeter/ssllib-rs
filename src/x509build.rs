@@ -542,11 +542,41 @@ pub struct PkixAttribute {
 	pub value :Asn1Any,
 }
 
+impl std::fmt::Debug for PkixAttribute {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("PkixAttribute {{"))?;
+		f.write_fmt(format_args!("type : {}", self.types.get_value()))?;
+		f.write_fmt(format_args!("value : {{"))?;
+		f.write_fmt(format_args!("tag :{},", self.value.tag))?;
+		f.write_fmt(format_args!("content ["))?;
+		let mut idx :usize = 0;
+		while idx < self.value.content.len() {
+			if idx > 0 {
+				f.write_fmt(format_args!(","))?;
+			}
+			f.write_fmt(format_args!("{}",self.value.content[idx]))?;
+			idx += 1;
+		}
+		f.write_fmt(format_args!("]"))?;
+		f.write_fmt(format_args!("}}"))?;
+		f.write_fmt(format_args!("}}"))
+	}
+}
+
 #[derive(Clone,Serialize,Deserialize)]
 pub struct PkixAttributeSet {
 	#[serde(alias="type", serialize_with="asn1_object_serialize", deserialize_with = "asn1_object_deserialize")]
 	pub types :Asn1Object,
 	pub value :Vec<PkixAttribute>,
+}
+
+impl std::fmt::Debug for PkixAttributeSet {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("PkixAttributeSet{{"))?;
+		f.write_fmt(format_args!("types : {},", self.types.get_value()))?;
+		f.write_fmt(format_args!("value : {:?}", self.value))?;
+		f.write_fmt(format_args!("}}"))
+	}	
 }
 
 
@@ -559,11 +589,22 @@ pub struct PkixExtension {
 	pub value :Vec<u8>,
 }
 
+impl std::fmt::Debug for PkixExtension {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("PkixExtension{{"))?;
+		f.write_fmt(format_args!("types : {},", self.types.get_value()))?;
+		f.write_fmt(format_args!("critical : {},",self.critical))?;
+		f.write_fmt(format_args!("value : {:?}", self.value))?;
+		f.write_fmt(format_args!("}}"))
+	}	
+}
+
+
 fn pkix_extension_critical_default() -> bool {
 	false
 }
 
-#[derive(Clone,Serialize,Deserialize)]
+#[derive(Debug,Clone,Serialize,Deserialize)]
 pub struct X509RequestBuildConfig {
 	#[serde(default="x509build_pkixname_default")]
 	pub subject :PkixName,
