@@ -241,4 +241,4 @@ pub const OID_AUTHORITY_INFO_ACCESS_ISSUER :&str = "1.3.6.1.5.5.7.48.2";
 pub const PSS_LENGTH_TO_HASHSIZE :usize = 0xff;
 pub const PSS_LENGTH_TO_AUTOSIZE :usize = 0;
 
-pub const OID_X509_REQ_EXTENSION :&str = "1.2.840.113549.1.9.14";
+pub const OID_X509_REQ_EXTENSIONS :&str = "1.2.840.113549.1.9.14";

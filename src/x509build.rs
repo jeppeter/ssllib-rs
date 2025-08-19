@@ -296,26 +296,6 @@ impl PartialEq for KeyUsage {
 	}
 }
 
-#[derive(Clone,Serialize,Deserialize)]
-pub struct PkixAttribute {
-	#[serde(alias = "type",serialize_with = "asn1_object_serialize", deserialize_with = "asn1_object_deserialize")]
-	pub types :Asn1Object,
-	#[serde(alias = "value",serialize_with = "asn1_any_serialize", deserialize_with = "asn1_any_deserialize")]
-	pub values :Asn1Any,
-}
-
-#[derive(Clone,Serialize,Deserialize)]
-pub struct PkixAttributeSet {
-	#[serde(alias = "type",serialize_with = "asn1_object_serialize", deserialize_with = "asn1_object_deserialize")]
-	pub types :Asn1Object,
-	#[serde(alias = "value",default="pkix_attrset_values_default")]
-	pub values :Vec<PkixAttribute>,
-}
-
-fn pkix_attrset_values_default() -> Vec<PkixAttribute> {
-	vec![]
-}
-
 
 
 #[derive(Clone,Serialize,Deserialize)]
@@ -615,6 +595,7 @@ impl X509RequestBuildConfig {
 	pub fn new() -> Self {
 		Self {
 			subject :PkixName::new(),
+			signature_algorithm: SignatureAlgorithm::SHA256WithRSA,
 			attributes : vec![],
 			extensions : vec![],
 			extra_extensions :vec![],

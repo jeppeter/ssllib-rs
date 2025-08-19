@@ -16,8 +16,6 @@ use asn1obj::base::*;
 use asn1obj::complex::*;
 use asn1obj::strop::*;
 
-#[allow(unused_imports)]
-use serde::{Deserialize, Serialize};
 
 use ssllib::consts::*;
 
@@ -336,26 +334,28 @@ fn csrselfverify_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgS
 	Ok(())
 }
 
-#[allow(dead_code)]
-pub struct StringVisitor(pub String);
+fn csrcfgexport_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
 
-impl<'de> serde::de::Visitor<'de> for StringVisitor {
-	type Value = String;
+	let sarr :Vec<String>;
+	init_log(ns.clone())?;
 
-	fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(formatter, "an string")
+	sarr = ns.get_array("subnargs");
+	for f in sarr.iter() {
+		let code = read_file_into_der(f)?;
+		debug_buffer_trace!(code.as_ptr(),code.len(),"[{}]code in",f);
+		let mut x509req :Asn1X509Req = Asn1X509Req::init_asn1();
+		let _ = x509req.decode_asn1(&code)?;
+		debug_trace!("decode x509 succ");
+		let build :X509RequestBuildConfig;
+		build = x509req.to_export_build()?;
+		println!("{:?}",build);
 	}
-
-	fn visit_str<E>(self, v :&str) -> Result<Self::Value,E>
-	where E :Error
-	{
-		Ok(format!("{}",v))
-	}
+	Ok(())
 }
 
 
 
-#[extargs_map_function(x509dec_handler,csrdec_handler,crldec_handler,x509sigdec_handler,x509auxdec_handler,x509auxenc_handler,psstypeenc_handler,pkixnamedec_handler,exportbuild_handler,x509selfverify_handler,csrselfverify_handler)]
+#[extargs_map_function(x509dec_handler,csrdec_handler,crldec_handler,x509sigdec_handler,x509auxdec_handler,x509auxenc_handler,psstypeenc_handler,pkixnamedec_handler,exportbuild_handler,x509selfverify_handler,csrselfverify_handler,csrcfgexport_handler)]
 pub fn load_x509exec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -390,6 +390,9 @@ pub fn load_x509exec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>>
 			"$" : "+"
 		},
 		"csrselfverify<csrselfverify_handler>##binfile ... to check self verify##" : {
+			"$" : "+"
+		},
+		"csrcfgexport<csrcfgexport_handler>##binfile ... to export X509 Request Config Build##" : {
 			"$" : "+"
 		}
 	}

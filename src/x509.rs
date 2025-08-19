@@ -256,6 +256,38 @@ impl Asn1X509AttributeElem {
 		}
 		Ok(())
 	}
+
+
+	pub fn extract_email_addresses(&self, reqcfg :&mut X509RequestBuildConfig) -> Result<usize,Box<dyn Error>> {
+		let mut retv :usize = 0;
+		let oid = self.object.get_value();
+		if oid == OID_X509_REQ_EXTENSIONS {
+			let mut idx :usize = 0;
+			while idx < self.set.val.len() {
+				let code = self.set.val[idx].encode_asn1()?;
+				ssllib_buffer_trace!(code.as_ptr(),code.len(),"{} set",idx);
+				idx += 1;
+			}
+		}
+		Ok(retv)
+	}
+
+	pub fn extract_dns_names(&self, reqcfg :&mut X509RequestBuildConfig) -> Result<usize,Box<dyn Error>> {
+		let retv :usize = 0;
+		Ok(retv)
+	}
+
+	pub fn extract_ip_addresses(&self, reqcfg :&mut X509RequestBuildConfig) -> Result<usize,Box<dyn Error>> {
+		let retv :usize = 0;
+		Ok(retv)
+	}
+
+	pub fn extract_extra_extensions(&self,reqcfg :&mut X509RequestBuildConfig) -> Result<usize,Box<dyn Error>> {
+		let retv :usize = 0;
+		Ok(retv)
+	}
+
+
 }
 //#[asn1_sequence(debug=enable)]
 #[asn1_sequence()]
@@ -286,6 +318,64 @@ impl Asn1X509Attribute {
 		retv.elem.val[0].set_attr(objval,code)?;
 		Ok(retv)
 	}
+
+	pub fn extract_email_addresses(&self, reqcfg :&mut X509RequestBuildConfig) -> Result<usize,Box<dyn Error>> {
+		let mut retv :usize = 0;
+		let mut idx :usize = 0;
+		if self.elem.val.len() < 1 {
+			return Ok(retv);
+		}
+		while idx <self.elem.val.len() {
+			retv += self.elem.val[idx].extract_email_addresses(reqcfg)?;
+			idx += 1;
+		}
+
+		Ok(retv)
+	}
+
+	pub fn extract_dns_names(&self, reqcfg :&mut X509RequestBuildConfig) -> Result<usize,Box<dyn Error>> {
+		let mut retv :usize = 0;
+		let mut idx :usize = 0;
+		if self.elem.val.len() < 1 {
+			return Ok(retv);
+		}
+		while idx <self.elem.val.len() {
+			retv += self.elem.val[idx].extract_dns_names(reqcfg)?;
+			idx += 1;
+		}
+
+		Ok(retv)
+
+	}
+
+	pub fn extract_ip_addresses(&self, reqcfg :&mut X509RequestBuildConfig) -> Result<usize,Box<dyn Error>> {
+		let mut retv :usize = 0;
+		let mut idx :usize = 0;
+		if self.elem.val.len() < 1 {
+			return Ok(retv);
+		}
+		while idx <self.elem.val.len() {
+			retv += self.elem.val[idx].extract_ip_addresses(reqcfg)?;
+			idx += 1;
+		}
+		Ok(retv)
+	}
+
+	pub fn extract_extra_extensions(&self,reqcfg :&mut X509RequestBuildConfig) -> Result<usize,Box<dyn Error>> {
+		let mut retv :usize = 0;
+		let mut idx :usize = 0;
+		if self.elem.val.len() < 1 {
+			return Ok(retv);
+		}
+		while idx <self.elem.val.len() {
+			retv += self.elem.val[idx].extract_extra_extensions(reqcfg)?;
+			idx += 1;
+		}
+		Ok(retv)
+
+	}
+
+
 }
 
 //#[asn1_sequence(debug=enable)]
@@ -1925,10 +2015,16 @@ impl Asn1X509ReqInfoElem {
 			if cattrs.val.len() > 0 {
 				let mut idx :usize = 0;
 				while idx < cattrs.val.len() {
-					
+					let attr :&Asn1X509Attribute = &(cattrs.val[idx]);
+					attr.extract_dns_names(reqcfg)?;
+					attr.extract_ip_addresses(reqcfg)?;
+					attr.extract_extra_extensions(reqcfg)?;
+					attr.extract_email_addresses(reqcfg)?;
+					idx += 1;
 				}
 			}
 		}
+		Ok(())
 	}
 }
 
@@ -1984,6 +2080,12 @@ impl Asn1X509Req {
 	pub fn get_x509_req_config(&self,reqcfg :&mut X509RequestBuildConfig) -> Result<(),Box<dyn Error>> {
 		self.elem.check_safe_one("Asn1X509ReqElem")?;
 		return self.elem.val[0].get_x509_req_config(reqcfg);
+	}
+
+	pub fn to_export_build(&self) -> Result<X509RequestBuildConfig,Box<dyn Error>> {
+		let mut retv :X509RequestBuildConfig = X509RequestBuildConfig::new();
+		let _ = self.get_x509_req_config(&mut retv)?;
+		Ok(retv)
 	}
 }
 
