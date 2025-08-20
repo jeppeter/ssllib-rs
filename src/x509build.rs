@@ -636,6 +636,8 @@ pub struct X509RequestBuildConfig {
 	pub email_addresses:Vec<String>,
 	#[serde(alias="ip_addresses",default = "array_string_default")]
 	pub ip_addresses :Vec<String>,
+	#[serde(default = "array_string_default")]
+	pub uris :Vec<String>,
 }
 
 fn pkix_extension_default() -> Vec<PkixExtension> {
@@ -657,6 +659,7 @@ impl X509RequestBuildConfig {
 			dns_names : vec![],
 			email_addresses :vec![],
 			ip_addresses : vec![],
+			uris : vec![],
 		}
 	}
 }

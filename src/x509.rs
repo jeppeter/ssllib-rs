@@ -244,136 +244,7 @@ pub struct Asn1X509AttributeElem {
 	pub set :Asn1Set<Asn1Any>,
 }
 
-macro_rules! expand_extract_func {
-	($nc:expr,$req:expr,$tagval:ident,$tagc:ident,$member:ident) => {
-		let mut retv :usize = 0;
-		let oid = $nc.object.get_value();
-		if oid == OID_X509_REQ_EXTENSIONS {
-			let mut idx :usize = 0;
-			while idx < $nc.set.val.len() {
-				let mut algo :Asn1X509Algor = Asn1X509Algor::init_asn1();
-				let ores = algo.decode_asn1(&$nc.set.val[idx].content);
-				if ores.is_ok() {
-					let nores = algo.get_algorithm();
-					if nores.is_ok() {
-						let noid = nores.unwrap();
-						if noid == OID_EXTENSION_SUBJECT_ALTNAME {
-							let cores = algo.get_param();
-							if cores.is_ok() {
-								let vp :Option<Asn1Any> = cores.unwrap();
-								if vp.is_some() {
-									let ncode = vp.as_ref().unwrap().encode_asn1()?;
-									let mut coct :Asn1OctData = Asn1OctData::init_asn1();
 
-									let oores = coct.decode_asn1(&ncode);
-									if oores.is_ok()  {
-										let mut cany :Asn1Seq<Asn1Any> = Asn1Seq::init_asn1();
-										let ccores = cany.decode_asn1(&coct.data);
-										if ccores.is_ok() {
-											let mut jdx :usize = 0;
-											while jdx < cany.val.len() {
-												ssllib_log_trace!("[{}].tag 0x{:x}", jdx, cany.val[jdx].tag);
-												if cany.val[jdx].tag == $tagval {
-													let ccode = cany.val[jdx].encode_asn1()?;
-													ssllib_buffer_trace!(ccode.as_ptr(),ccode.len(),"{} ccode",jdx);
-													let mut cstr :Asn1Imp<Asn1PrintableString,$tagc> = Asn1Imp::init_asn1();
-													let nores = cstr.decode_asn1(&ccode);
-													if nores.is_ok() {
-														ssllib_log_trace!("{} {}",stringify!($member),cstr.val.val);
-														$req.$member.push(format!("{}",cstr.val.val));
-														retv += 1;
-													} else {
-														ssllib_buffer_trace!(ccode.as_ptr(),ccode.len(),"{} Asn1ImpSet error",jdx);
-													}
-												}
-												jdx += 1;
-											}
-										} else {
-											ssllib_buffer_trace!(coct.data.as_ptr(),coct.data.len(),"coct not decode ok");
-										}
-
-									} else {
-										ssllib_buffer_trace!(ncode.as_ptr(),ncode.len(),"not decode ok");
-									}
-
-								}
-							}
-						}
-					}
-				}				
-				idx += 1;
-			}
-		}
-		Ok(retv)		
-	}
-}
-
-macro_rules! expand_extract_ip_func {
-	($nc:expr,$req:expr,$tagval:ident,$tagc:ident,$member:ident) => {
-		let mut retv :usize = 0;
-		let oid = $nc.object.get_value();
-		if oid == OID_X509_REQ_EXTENSIONS {
-			let mut idx :usize = 0;
-			while idx < $nc.set.val.len() {
-				let mut algo :Asn1X509Algor = Asn1X509Algor::init_asn1();
-				let ores = algo.decode_asn1(&$nc.set.val[idx].content);
-				if ores.is_ok() {
-					let nores = algo.get_algorithm();
-					if nores.is_ok() {
-						let noid = nores.unwrap();
-						if noid == OID_EXTENSION_SUBJECT_ALTNAME {
-							let cores = algo.get_param();
-							if cores.is_ok() {
-								let vp :Option<Asn1Any> = cores.unwrap();
-								if vp.is_some() {
-									let ncode = vp.as_ref().unwrap().encode_asn1()?;
-									let mut coct :Asn1OctData = Asn1OctData::init_asn1();
-
-									let oores = coct.decode_asn1(&ncode);
-									if oores.is_ok()  {
-										let mut cany :Asn1Seq<Asn1Any> = Asn1Seq::init_asn1();
-										let ccores = cany.decode_asn1(&coct.data);
-										if ccores.is_ok() {
-											let mut jdx :usize = 0;
-											while jdx < cany.val.len() {
-												ssllib_log_trace!("[{}].tag 0x{:x}", jdx, cany.val[jdx].tag);
-												if cany.val[jdx].tag == $tagval {
-													let ccode = cany.val[jdx].encode_asn1()?;
-													ssllib_buffer_trace!(ccode.as_ptr(),ccode.len(),"{} ccode",jdx);
-													let mut cstr :Asn1Imp<Asn1OctData,$tagc> = Asn1Imp::init_asn1();
-													let nores = cstr.decode_asn1(&ccode);
-													if nores.is_ok() {
-														if cstr.val.data.len() == 4 {
-															$req.$member.push(format!("{}.{}.{}.{}",cstr.val.data[0],cstr.val.data[1],cstr.val.data[2],cstr.val.data[3]));
-															retv += 1;
-														} else {
-															ssllib_buffer_trace!(cstr.val.data.as_ptr(),cstr.val.data.len(),"{} not valid",stringify!($member));
-														}
-													} else {
-														ssllib_buffer_trace!(ccode.as_ptr(),ccode.len(),"{} Asn1ImpSet error",jdx);
-													}
-												}
-												jdx += 1;
-											}
-										} else {
-											ssllib_buffer_trace!(coct.data.as_ptr(),coct.data.len(),"coct not decode ok");
-										}
-
-									} else {
-										ssllib_buffer_trace!(ncode.as_ptr(),ncode.len(),"not decode ok");
-									}
-
-								}
-							}
-						}
-					}
-				}				
-				idx += 1;
-			}
-		}
-		Ok(retv)
-	}
-}
 
 
 impl Asn1X509AttributeElem {
@@ -389,24 +260,153 @@ impl Asn1X509AttributeElem {
 		Ok(())
 	}
 
+	pub fn extract_req_infos(&self,reqcfg :&mut X509RequestBuildConfig) -> Result<usize,Box<dyn Error>> {
+		let mut retv :usize = 0;
+		let oid = self.object.get_value();
+		if oid == OID_X509_REQ_EXTENSIONS {
+			let mut idx :usize = 0;
+			ssllib_log_trace!("set.val.len {}",self.set.val.len());
+			while idx < self.set.val.len() {
+				let mut algo :Asn1X509Algor = Asn1X509Algor::init_asn1();
+				ssllib_buffer_trace!(self.set.val[idx].content.as_ptr(),self.set.val[idx].content.len(),"self.set.val[{}].content",idx);
+				let mut stepidx :usize = 0;
+				while stepidx < self.set.val[idx].content.len() {
+					let ores = algo.decode_asn1(&self.set.val[idx].content[stepidx..]);
+					if ores.is_ok() {
+						stepidx += ores.unwrap();
+						let nores = algo.get_algorithm();
+						if nores.is_ok() {
+							let noid = nores.unwrap();
+							ssllib_log_trace!("[{}] oid [{}]",stepidx,noid);
+							if noid == OID_EXTENSION_SUBJECT_ALTNAME {
+								let cores = algo.get_param();
+								if cores.is_ok() {
+									let vp :Option<Asn1Any> = cores.unwrap();
+									if vp.is_some() {
+										let ncode :Vec<u8> = vp.as_ref().unwrap().content.clone();
+										let mut cany :Asn1Seq<Asn1Any> = Asn1Seq::init_asn1();
+										let mut nidx :usize = 0;
 
-	pub fn extract_email_addresses(&self, reqcfg :&mut X509RequestBuildConfig) -> Result<usize,Box<dyn Error>> {
-		expand_extract_func!{self,reqcfg,TAG_EMAILS_ADDRESSES,EMAIL_ADDRESS_IMPSET_TAG,email_addresses}
+										ssllib_buffer_trace!(ncode.as_ptr(),ncode.len(),"ncode buffer");
+										while nidx < ncode.len() {
+											let oores = cany.decode_asn1(&ncode[nidx..]);
+											if oores.is_ok()  {
+												nidx += oores.unwrap();
+												ssllib_log_trace!("nidx step {}",nidx);
+												let mut jdx :usize = 0;
+												ssllib_log_trace!("cany.len {}",cany.val.len());
+												while jdx < cany.val.len() {
+													ssllib_log_trace!("[{}].tag 0x{:x}", jdx, cany.val[jdx].tag);
+													if cany.val[jdx].tag == TAG_EMAILS_ADDRESSES {
+														let ccode = cany.val[jdx].encode_asn1()?;
+														ssllib_buffer_trace!(ccode.as_ptr(),ccode.len(),"{} ccode",jdx);
+														let mut cstr :Asn1Imp<Asn1PrintableString,EMAIL_ADDRESS_IMPSET_TAG> = Asn1Imp::init_asn1();
+														let nores = cstr.decode_asn1(&ccode);
+														if nores.is_ok() {
+															ssllib_log_trace!("email_addresses {}",cstr.val.val);
+															reqcfg.email_addresses.push(format!("{}",cstr.val.val));
+															retv += 1;
+														} else {
+															ssllib_buffer_trace!(ccode.as_ptr(),ccode.len(),"{} Asn1ImpSet error",jdx);
+														}
+													} else if cany.val[jdx].tag == TAG_DNS_NAMES {
+														let ccode = cany.val[jdx].encode_asn1()?;
+														ssllib_buffer_trace!(ccode.as_ptr(),ccode.len(),"{} ccode",jdx);
+														let mut cstr :Asn1Imp<Asn1PrintableString,DNS_NAMES_IMPSET_TAG> = Asn1Imp::init_asn1();
+														let nores = cstr.decode_asn1(&ccode);
+														if nores.is_ok() {
+															ssllib_log_trace!("dns_names {}",cstr.val.val);
+															reqcfg.dns_names.push(format!("{}",cstr.val.val));
+															retv += 1;
+														} else {
+															ssllib_buffer_trace!(ccode.as_ptr(),ccode.len(),"{} Asn1ImpSet error",jdx);
+														}
+													} else if cany.val[jdx].tag == TAG_URIS {
+														let ccode = cany.val[jdx].encode_asn1()?;
+														ssllib_buffer_trace!(ccode.as_ptr(),ccode.len(),"{} ccode",jdx);
+														let mut cstr :Asn1Imp<Asn1PrintableString,URIS_IMPSET_TAG> = Asn1Imp::init_asn1();
+														let nores = cstr.decode_asn1(&ccode);
+														if nores.is_ok() {
+															ssllib_log_trace!("uris {}",cstr.val.val);
+															reqcfg.uris.push(format!("{}",cstr.val.val));
+															retv += 1;
+														} else {
+															ssllib_buffer_trace!(ccode.as_ptr(),ccode.len(),"{} Asn1ImpSet error",jdx);
+														}
+													} else if cany.val[jdx].tag == TAG_IP_ADDRESSES {
+														let ccode = cany.val[jdx].encode_asn1()?;
+														ssllib_buffer_trace!(ccode.as_ptr(),ccode.len(),"{} ccode",jdx);
+														let mut cstr :Asn1Imp<Asn1OctData,IP_ADDRESSES_IMPSET_TAG> = Asn1Imp::init_asn1();
+														let nores = cstr.decode_asn1(&ccode);
+														if nores.is_ok() {
+															if cstr.val.data.len() == 4 || cstr.val.data.len() == 16 {
+																if cstr.val.data.len() == 4 {
+																	let cip4 :Vec<u8> = cstr.val.data.clone();
+																	let ipv4addr :std::net::Ipv4Addr = std::net::Ipv4Addr::new(cip4[0],cip4[1],cip4[2],cip4[3]);
+																	ssllib_log_trace!("ip_addresses {}",ipv4addr.to_string());
+																	reqcfg.ip_addresses.push(format!("{}",ipv4addr.to_string()));
+																	retv += 1;
+																} else if cstr.val.data.len() == 16 {
+																	let mut cip6 :[u16;8] = [0;8];
+																	let mut cidx :usize = 0;
+																	let mut didx :usize = 0;																
+																	while cidx < cstr.val.data.len() {
+																		cip6[didx] = cstr.val.data[cidx+1] as u16;
+																		cip6[didx] |= (cstr.val.data[cidx] as u16) << 8;
+																		didx += 1;
+																		cidx += 2;
+																	}
+																	ssllib_buffer_trace!(cstr.val.data.as_ptr(),cstr.val.data.len(),"{} ip_addresses",jdx);
+																	ssllib_buffer_trace!(cip6.as_ptr(),cip6.len(),"{} ip_addresses",jdx);
+																	let ipv6addr :std::net::Ipv6Addr = std::net::Ipv6Addr::new(cip6[0],cip6[1],cip6[2],cip6[3],cip6[4],cip6[5],cip6[6],cip6[7]);
+																	ssllib_log_trace!("ip_addresses {}",ipv6addr.to_string());
+																	reqcfg.ip_addresses.push(format!("{}",ipv6addr.to_string()));
+																	retv += 1;
+																}															
+															} else {
+																ssllib_log_trace!("not valid ip_addresses len {}",cstr.val.data.len());
+															}
+
+														} else {
+															ssllib_buffer_trace!(ccode.as_ptr(),ccode.len(),"{} Asn1ImpSet error",jdx);
+														}
+													} 
+													jdx += 1;
+												}
+											} else {
+												ssllib_buffer_trace!(ncode[nidx..].as_ptr(),ncode[nidx..].len(),"can not decode");
+												nidx = ncode.len();
+											}	
+										}
+									}
+								}
+							}
+						}
+					} else {
+						let mut pkext :Asn1Seq<PkixExtension> = Asn1Seq::init_asn1();
+						let ores = pkext.decode_asn1(&self.set.val[idx].content[stepidx..]);
+						if ores.is_ok() {
+							stepidx += ores.unwrap();
+							let mut pkidx :usize = 0;
+							while pkidx < pkext.val.len() {
+								ssllib_log_trace!("push {} extra_extensions",pkidx);
+								retv += 1;
+								reqcfg.extra_extensions.push(pkext.val[pkidx].clone());
+								pkidx += 1;
+							}
+						} else {
+							ssllib_log_trace!("can not parse on {}" ,stepidx);
+							stepidx = self.set.val[idx].content.len();
+						}
+					}
+
+				}
+				idx += 1;
+			}
+		}
+		Ok(retv)		
+
 	}
-
-	pub fn extract_dns_names(&self, reqcfg :&mut X509RequestBuildConfig) -> Result<usize,Box<dyn Error>> {
-		expand_extract_func!{self,reqcfg,TAG_DNS_NAMES,DNS_NAMES_IMPSET_TAG,dns_names}
-	}
-
-	pub fn extract_ip_addresses(&self, reqcfg :&mut X509RequestBuildConfig) -> Result<usize,Box<dyn Error>> {
-		expand_extract_ip_func!{self,reqcfg,TAG_IP_ADDRESSES,IP_ADDRESSES_IMPSET_TAG,ip_addresses}
-	}
-
-	pub fn extract_extra_extensions(&self,reqcfg :&mut X509RequestBuildConfig) -> Result<usize,Box<dyn Error>> {
-		let retv :usize = 0;
-		Ok(retv)
-	}
-
 
 }
 //#[asn1_sequence(debug=enable)]
@@ -439,63 +439,19 @@ impl Asn1X509Attribute {
 		Ok(retv)
 	}
 
-	pub fn extract_email_addresses(&self, reqcfg :&mut X509RequestBuildConfig) -> Result<usize,Box<dyn Error>> {
+	pub fn extract_req_infos(&self,reqcfg :&mut X509RequestBuildConfig) -> Result<usize,Box<dyn Error>> {
 		let mut retv :usize = 0;
 		let mut idx :usize = 0;
 		if self.elem.val.len() < 1 {
 			return Ok(retv);
 		}
 		while idx <self.elem.val.len() {
-			retv += self.elem.val[idx].extract_email_addresses(reqcfg)?;
+			retv += self.elem.val[idx].extract_req_infos(reqcfg)?;
 			idx += 1;
 		}
 
 		Ok(retv)
 	}
-
-	pub fn extract_dns_names(&self, reqcfg :&mut X509RequestBuildConfig) -> Result<usize,Box<dyn Error>> {
-		let mut retv :usize = 0;
-		let mut idx :usize = 0;
-		if self.elem.val.len() < 1 {
-			return Ok(retv);
-		}
-		while idx <self.elem.val.len() {
-			retv += self.elem.val[idx].extract_dns_names(reqcfg)?;
-			idx += 1;
-		}
-
-		Ok(retv)
-
-	}
-
-	pub fn extract_ip_addresses(&self, reqcfg :&mut X509RequestBuildConfig) -> Result<usize,Box<dyn Error>> {
-		let mut retv :usize = 0;
-		let mut idx :usize = 0;
-		if self.elem.val.len() < 1 {
-			return Ok(retv);
-		}
-		while idx <self.elem.val.len() {
-			retv += self.elem.val[idx].extract_ip_addresses(reqcfg)?;
-			idx += 1;
-		}
-		Ok(retv)
-	}
-
-	pub fn extract_extra_extensions(&self,reqcfg :&mut X509RequestBuildConfig) -> Result<usize,Box<dyn Error>> {
-		let mut retv :usize = 0;
-		let mut idx :usize = 0;
-		if self.elem.val.len() < 1 {
-			return Ok(retv);
-		}
-		while idx <self.elem.val.len() {
-			retv += self.elem.val[idx].extract_extra_extensions(reqcfg)?;
-			idx += 1;
-		}
-		Ok(retv)
-
-	}
-
-
 }
 
 //#[asn1_sequence(debug=enable)]
@@ -2134,10 +2090,7 @@ impl Asn1X509ReqInfoElem {
 				let mut idx :usize = 0;
 				while idx < cattrs.val.len() {
 					let attr :&Asn1X509Attribute = &(cattrs.val[idx]);
-					attr.extract_dns_names(reqcfg)?;
-					attr.extract_ip_addresses(reqcfg)?;
-					attr.extract_extra_extensions(reqcfg)?;
-					attr.extract_email_addresses(reqcfg)?;
+					attr.extract_req_infos(reqcfg)?;
 					idx += 1;
 				}
 			}
