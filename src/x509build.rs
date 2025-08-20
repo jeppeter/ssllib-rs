@@ -9,7 +9,10 @@ use std::error::Error;
 use asn1obj::complex::*;
 use asn1obj::asn1impl::*;
 use asn1obj::base::*;
+use asn1obj::strop::{asn1_format_line};
 use asn1obj_codegen::asn1_sequence;
+use asn1obj::{asn1obj_error_class,asn1obj_new_error};
+use std::io::{Write};
 
 #[allow(unused_imports)]
 use num_bigint::{BigInt,Sign};
@@ -596,8 +599,12 @@ impl std::fmt::Debug for PkixExtension {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.write_fmt(format_args!("PkixExtension{{"))?;
 		f.write_fmt(format_args!("types : {},", self.types.get_value()))?;
-		f.write_fmt(format_args!("critical : {},",self.critical))?;
-		f.write_fmt(format_args!("value : {:?}", self.value))?;
+		let mut bval :bool = false;
+		if self.critical.val.is_some() {
+			bval = self.critical.val.as_ref().unwrap().val;
+		}
+		f.write_fmt(format_args!("critical : {},",bval))?;
+		f.write_fmt(format_args!("value : {:?}", self.value.data))?;
 		f.write_fmt(format_args!("}}"))
 	}	
 }

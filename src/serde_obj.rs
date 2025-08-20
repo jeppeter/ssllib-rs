@@ -242,17 +242,42 @@ where D: serde::de::Deserializer<'de> {
 pub fn asn1_opt_boolean_serialize<S>(oany :&Asn1Opt<Asn1Boolean>,serializer: S) -> Result<S::Ok, S::Error> where S: serde::ser::Serializer {
 	if oany.val.is_none() {
 		/*nothing to handle*/
-		return Ok(S::Ok);
+		return serializer.serialize_none();
 	}
-	let retv:bool = oany.val.as_ref().unwrap().clone();
+	let retv:bool = oany.val.as_ref().unwrap().val;
 	serializer.serialize_bool(retv)
+}
+
+#[allow(dead_code)]
+struct BoolVisitor;
+
+impl BoolVisitor {
+	fn new() -> Self {
+		Self{}
+	}
+}
+
+impl<'de> serde::de::Visitor<'de> for BoolVisitor {
+    type Value = bool;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a boolean")
+    }
+
+    fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E>
+    where
+        E: Error,
+    {
+        Ok(v)
+    }
 }
 
 
 
 pub fn asn1_opt_boolean_deserialize<'de, D>(deserializer :D) -> Result<Asn1Opt<Asn1Boolean>, D::Error> 
 where D: serde::de::Deserializer<'de> {
-	let ores = deserializer.deserialize_bool();
+	let bvisitor :BoolVisitor = BoolVisitor::new();
+	let ores = deserializer.deserialize_bool(bvisitor);
 	let mut val :Asn1Opt<Asn1Boolean> = Asn1Opt::init_asn1();
 	if ores.is_err() {
 		return Ok(val);
