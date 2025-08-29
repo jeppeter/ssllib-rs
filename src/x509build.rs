@@ -21,8 +21,7 @@ use num_traits::{zero};
 use chrono::{Utc,DateTime,Datelike,Months};
 
 use serde::{Deserialize, Serialize};
-use crate::serde_obj::{StringVisitor,parse_to_bigint,asn1_object_serialize,asn1_object_deserialize,asn1_any_serialize,asn1_any_deserialize,asn1_octdata_serialize,asn1_octdata_deserialize,asn1_opt_boolean_serialize,asn1_opt_boolean_deserialize};
-use serde::ser::{SerializeSeq};
+use crate::serde_obj::{StringVisitor,parse_to_bigint};
 use std::collections::{HashMap};
 
 ssllib_error_class!{X509BuildError}
@@ -31,6 +30,7 @@ ssllib_error_class!{X509BuildError}
 
 #[derive(Debug)]
 #[derive(Clone,Serialize,Deserialize)]
+#[serde(rename_all="lowercase")]
 pub enum SignatureAlgorithm {
 	UnknownSignatureAlgorithm,
 	MD2WithRSA,
@@ -203,6 +203,7 @@ impl PartialEq for SignatureAlgorithm {
 
 #[derive(Debug)]
 #[derive(Clone,Serialize,Deserialize)]
+#[serde(rename_all="lowercase")]
 pub enum KeyUsage {
 	KeyUsageDigitalSignature,
 	KeyUsageContentCommitment,
@@ -322,7 +323,7 @@ pub struct PkixName {
 	pub serial_number :Vec<String>,
 	#[serde(default = "array_string_default")]
 	pub common_name :Vec<String>,
-	#[serde(serialize_with="extra_serialize", deserialize_with="extra_deserialize" ,default="extra_default")]
+	#[serde(default="extra_default")]
 	pub extra_names :Vec<Asn1X509NameAnyElement>,
 }
 
@@ -334,47 +335,6 @@ fn extra_default() -> Vec<Asn1X509NameAnyElement> {
 	vec![]
 }
 
-
-fn extra_serialize<S>(oany :&Vec<Asn1X509NameAnyElement>,serializer: S) -> Result<S::Ok, S::Error> where S: serde::ser::Serializer {
-	let mut seq = serializer.serialize_seq(Some(oany.len()))?;
-	for v in oany.iter() {
-		seq.serialize_element(v)?;
-	}
-	seq.end()
-}
-
-#[allow(dead_code)]
-struct Asn1X509NameAnyElementSeq(Vec<Asn1X509NameAnyElement>);
-
-impl<'de> serde::de::Visitor<'de> for Asn1X509NameAnyElementSeq {
-	type Value = Vec<Asn1X509NameAnyElement>;
-
-	fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-		write!(formatter, "an array need")
-	}
-
-
-
-	fn visit_seq<A>(self, mut seq: A) -> Result<Vec<Asn1X509NameAnyElement>, A::Error>
-	where A: serde::de::SeqAccess<'de>,
-	{
-		let mut vec :Vec<Asn1X509NameAnyElement>= Vec::new();
-
-		while let Some(v) = seq.next_element::<Asn1X509NameAnyElement>()? {
-			vec.push(v);
-		}
-		Ok(vec)
-
-	}
-}
-
-
-
-fn extra_deserialize<'de, D>(deserializer :D) -> Result<Vec<Asn1X509NameAnyElement>, D::Error> 
-where D: serde::de::Deserializer<'de> {
-	let visitor :Asn1X509NameAnyElementSeq = Asn1X509NameAnyElementSeq(vec![]);
-	deserializer.deserialize_seq(visitor)
-}
 
 
 macro_rules! expand_pkix_fmt {
@@ -540,9 +500,8 @@ impl PkixName {
 
 #[derive(Clone,Serialize,Deserialize)]
 pub struct PkixAttribute {
-	#[serde(alias="type", serialize_with="asn1_object_serialize", deserialize_with = "asn1_object_deserialize")]
+	#[serde(alias="type")]
 	pub types :Asn1Object,
-	#[serde(serialize_with="asn1_any_serialize", deserialize_with = "asn1_any_deserialize")]
 	pub value :Asn1Any,
 }
 
@@ -569,7 +528,7 @@ impl std::fmt::Debug for PkixAttribute {
 
 #[derive(Clone,Serialize,Deserialize)]
 pub struct PkixAttributeSet {
-	#[serde(alias="type", serialize_with="asn1_object_serialize", deserialize_with = "asn1_object_deserialize")]
+	#[serde(alias="type")]
 	pub types :Asn1Object,
 	pub value :Vec<PkixAttribute>,
 }
@@ -587,11 +546,11 @@ impl std::fmt::Debug for PkixAttributeSet {
 #[asn1_sequence()]
 #[derive(Clone,Serialize,Deserialize)]
 pub struct PkixExtension {
-	#[serde(alias="type", serialize_with="asn1_object_serialize", deserialize_with = "asn1_object_deserialize")]
+	#[serde(alias="type")]
 	pub types :Asn1Object,
-	#[serde(default="pkix_extension_critical_default",serialize_with="asn1_opt_boolean_serialize",deserialize_with="asn1_opt_boolean_deserialize")]
+	#[serde(default="pkix_extension_critical_default")]
 	pub critical :Asn1Opt<Asn1Boolean>,
-	#[serde(default="pkix_extension_value_default",serialize_with="asn1_octdata_serialize", deserialize_with="asn1_octdata_deserialize")]
+	#[serde(default="pkix_extension_value_default")]
 	pub value :Asn1OctData,
 }
 
@@ -667,6 +626,7 @@ impl X509RequestBuildConfig {
 
 #[derive(Clone)]
 #[derive(Debug,Serialize,Deserialize)]
+#[serde(rename_all="lowercase")]
 pub enum ExtKeyUsage {
     ExtKeyUsageAny,
     ExtKeyUsageServerAuth,
@@ -788,7 +748,7 @@ impl PartialEq for ExtKeyUsage {
 pub struct X509BuildConfig {
 	#[serde(default = "x509build_version_default")]
 	pub version :i64,
-	#[serde(default = "x509build_serial_number_default", serialize_with = "bigint_serialize", deserialize_with = "bigint_deserialize")]
+	#[serde(default = "x509build_serial_number_default",serialize_with="bigint_serialize",deserialize_with="bigint_deserialize")]
 	pub serial_number  :BigInt,
 	#[serde(default = "x509build_basic_constraints_valid_default")]
 	pub basic_constraints_valid :bool,

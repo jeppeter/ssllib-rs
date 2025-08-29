@@ -31,10 +31,8 @@ use crate::logger::{ssllib_log_get_timestamp,ssllib_debug_out};
 use crate::config::ConfigValue;
 use crate::x509build::*;
 use ecsimple::keys::{ECPrivateKey,ECPublicKey};
-use serde::{Deserialize, Serialize};
 
 use lazy_static::lazy_static;
-use crate::serde_obj::*;
 
 
 
@@ -74,11 +72,8 @@ impl Asn1X509NameElement {
 
 
 #[asn1_sequence()]
-#[derive(Clone,Serialize,Deserialize)]
 pub struct Asn1X509NameAnyElement {
-	#[serde(serialize_with = "asn1_object_serialize", deserialize_with = "asn1_object_deserialize")]
 	pub obj :Asn1Object,
-	#[serde(serialize_with = "asn1_any_serialize" , deserialize_with = "asn1_any_deserialize")]
 	pub value :Asn1Any,
 }
 
