@@ -143,9 +143,7 @@ fn tsreqdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImp
 		let mut tsreq :TimeStampReq = TimeStampReq::init_asn1();
 		tsreq.decode_asn1(&data)?;
 		let mut outf = std::io::stdout();
-		let mut jval :serde_json::Value = serde_json::from_str("{}")?;
-		tsreq.encode_json("",&mut jval)?;
-		let s = serde_json::to_string_pretty(&jval)?;
+		let s = serde_json::to_string_pretty(&tsreq)?;
 		println!("{}\n{}",f,s);
 		let s = format!("{} file\n",f);
 		tsreq.print_asn1(&s,0,&mut outf)?;
@@ -167,9 +165,7 @@ fn tsrequestdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSe
 		let mut tsreq :TimeStampRequest = TimeStampRequest::init_asn1();
 		tsreq.decode_asn1(&data)?;
 		let mut outf = std::io::stdout();
-		let mut jval :serde_json::Value = serde_json::from_str("{}")?;
-		tsreq.encode_json("",&mut jval)?;
-		let s = serde_json::to_string_pretty(&jval)?;
+		let s = serde_json::to_string_pretty(&tsreq)?;
 		println!("{}\n{}",f,s);
 		let s = format!("{} file\n",f);
 		tsreq.print_asn1(&s,0,&mut outf)?;

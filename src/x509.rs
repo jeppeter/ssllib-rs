@@ -50,7 +50,6 @@ pub struct Asn1X509PubkeyElem {
 	pub public_key :Asn1BitDataFlag,
 }
 
-//#[asn1_sequence(debug=enable)]
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct Asn1X509Pubkey {
@@ -84,10 +83,6 @@ pub struct Asn1X509NameAnyElement {
 }
 
 
-
-
-
-//#[asn1_sequence(debug=enable)]
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct Asn1X509NameEntry {
@@ -2173,28 +2168,28 @@ pub struct Asn1RsaPubkeyForm {
 	pub elem :Asn1Seq<Asn1RsaPubkeyFormElem>,
 }
 
-#[derive(Clone)]
 #[asn1_sequence()]
+#[derive(Clone)]
 pub struct Asn1OtherNameElem {
 	pub typeid :Asn1Object,
 	pub value :Asn1Ndef<Asn1Any,0>,
 }
 
-#[derive(Clone)]
 #[asn1_sequence()]
+#[derive(Clone)]
 pub struct Asn1OtherName {
 	pub elem :Asn1Seq<Asn1OtherNameElem>,
 }
 
-#[derive(Clone)]
 #[asn1_sequence()]
+#[derive(Clone)]
 pub struct Asn1EdiPartyNameElem {
 	pub nameassigner :Asn1Opt<Asn1Ndef<Asn1PrintableString,0>>,
 	pub partyname :Asn1Ndef<Asn1PrintableString,1>,
 }
 
-#[derive(Clone)]
 #[asn1_sequence()]
+#[derive(Clone)]
 pub struct Asn1EdiPartyName {
 	pub elem :Asn1Seq<Asn1EdiPartyNameElem>,
 }
@@ -2522,8 +2517,8 @@ fn get_sign_asn1_code(algo :SignatureAlgorithm) -> Result<(String,Vec<u8>),Box<d
 	ssllib_new_error!{SslX509Error,"no match algo {:?}", algo}
 }
 
-#[derive(Clone)]
 #[asn1_sequence()]
+#[derive(Clone)]
 pub struct Asn1PkixNameElem {
 	pub country :Asn1Opt<Asn1X509NameEntry>,
 	pub province :Asn1Opt<Asn1X509NameEntry>,
@@ -2753,8 +2748,8 @@ impl Asn1PkixNameElem {
 	}
 }
 
-#[derive(Clone)]
 #[asn1_sequence()]
+#[derive(Clone)]
 pub struct Asn1PkixName {
 	pub elem :Asn1Seq<Asn1PkixNameElem>,
 }

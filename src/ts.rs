@@ -4,8 +4,7 @@ use asn1obj::asn1impl::*;
 use asn1obj::complex::*;
 use asn1obj::base::*;
 use asn1obj::strop::{asn1_format_line};
-use serde_json;
-use asn1obj::{asn1obj_error_class,asn1obj_new_error};
+use asn1obj::{asn1obj_error_class};
 use std::error::Error;
 use std::io::Write;
 

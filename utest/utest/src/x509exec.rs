@@ -128,9 +128,8 @@ fn x509auxenc_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 		extargs_new_error!{X509ExecError,"need jsonfile"}
 	}
 	let jsons = read_file(&sarr[0])?;
-	let jval :serde_json::Value = serde_json::from_str(&jsons)?;
-	let mut bag :Asn1X509AuxCert = Asn1X509AuxCert::init_asn1();
-	let _ = bag.decode_json("",&jval)?;
+	let bag :Asn1X509AuxCert ;
+	bag = serde_json::from_str(&jsons)?;
 	let cstr = format!("[{}] format Asn1X509AuxCert\n",sarr[0]);
 	let mut outf = std::io::stdout();
 	let _ = bag.print_asn1(&cstr,0,&mut outf)?;
@@ -153,9 +152,7 @@ fn x509auxdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 		let code = read_file_bytes(f)?;
 		let mut bag :Asn1X509AuxCert = Asn1X509AuxCert::init_asn1();
 		bag.decode_asn1(&code)?;
-		let mut jval :serde_json::Value = serde_json::from_str("{}")?;
-		bag.encode_json("",&mut jval)?;
-		let s = serde_json::to_string_pretty(&jval)?;
+		let s = serde_json::to_string_pretty(&bag)?;
 		let cstr = format!("{} X509AuxCert\n",f);
 		let mut outf = std::io::stdout();
 		let _ = bag.print_asn1(&cstr,0,&mut outf)?;
