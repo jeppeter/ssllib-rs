@@ -2491,13 +2491,6 @@ lazy_static!{
 
 }
 
-pub trait X509PublickKey {
-	fn export_pubkey(&self) -> Result<(Vec<u8>,Asn1X509Algor),Box<dyn Error>>;
-}
-
-pub trait X509Privatekey {
-	fn public_asn1_code(&self) -> Result<(String,Vec<u8>),Box<dyn Error>>;
-}
 
 fn get_sign_asn1_code(algo :SignatureAlgorithm) -> Result<(String,Vec<u8>),Box<dyn Error>> {
 	let mut idx :usize = 0;
@@ -2774,15 +2767,15 @@ pub fn create_x509_from_config_build(template :&X509BuildConfig,parent :&Asn1X50
 	let algocode :Vec<u8>;
 	let puboid :String;
 	let pubcode :Vec<u8>;
-	let mut pubalgo :Asn1X509AlgorElem = Asn1X509AlgorElem::init_asn1();
+	//let mut pubalgo :Asn1X509AlgorElem = Asn1X509AlgorElem::init_asn1();
 	if template.serial_number <  zv {
 		ssllib_new_error!{SslX509Error,"serial number {} must >= 0", template.serial_number}
 	}
 
 	(algooid,algocode) = get_sign_asn1_code(template.signature_algorithm.clone())?;
-	(puboid,pubcode) = privkey.public_asn1_code()?;
+	//(puboid,pubcode) = privkey.public_asn1_code()?;
 
-	let _ = pubalgo.decode_asn1(&pubcode)?;
+	//let _ = pubalgo.decode_asn1(&pubcode)?;
 
 
 	Ok(retv)

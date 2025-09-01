@@ -39,18 +39,24 @@ pub const OID_SAFE_CONTENT_BAG : &str = "1.2.840.113549.1.12.10.1.6";
 pub const OID_PKCS7_ENCRYPTED_DATA :&str = "1.2.840.113549.1.7.6";
 pub const OID_PKCS7_DATA :&str = "1.2.840.113549.1.7.1";
 pub const OID_PKCS12_SAFE_BAG_X509_CERT :&str = "1.2.840.113549.1.9.22.1";
+pub const OID_MD5_DIGEST :&str = "1.2.840.113549.2.5";
+pub const OID_SHA1_DIGEST :&str = "1.3.14.3.2.26";
 pub const OID_SHA256_DIGEST :&str = "2.16.840.1.101.3.4.2.1";
 pub const OID_SHA384_DIGEST :&str = "2.16.840.1.101.3.4.2.2";
 pub const OID_SHA512_DIGEST :&str = "2.16.840.1.101.3.4.2.3";
+pub const OID_SHA224_DIGEST :&str = "2.16.840.1.101.3.4.2.4";
 pub const OID_EC_PUBLICK_KEY :&str = "1.2.840.10045.2.1";
 
 pub const OID_FRIEDLY_NAME :&str = "1.2.840.113549.1.9.20";
 pub const OID_LOCAL_KEY_ID:&str = "1.2.840.113549.1.9.21";
 
+
+pub const OID_MD5_WITH_RSA_ENCRYPTION :&str = "1.2.840.113549.1.1.4";
 pub const OID_SHA1_WITH_RSA_ENCRYPTION :&str = "1.2.840.113549.1.1.5";
 pub const OID_SHA256_WITH_RSA_ENCRYPTION :&str = "1.2.840.113549.1.1.11";
 pub const OID_SHA384_WITH_RSA_ENCRYPTION :&str = "1.2.840.113549.1.1.12";
 pub const OID_SHA512_WITH_RSA_ENCRYPTION :&str = "1.2.840.113549.1.1.13";
+pub const OID_SHA224_WITH_RSA_ENCRYPTION :&str = "1.2.840.113549.1.1.14";
 
 
 pub const OID_X509_CERTIFICATE :&str =  "1.2.840.113549.1.9.22.1";

@@ -33,8 +33,8 @@ use sha2::{Sha224,Sha256,Sha384,Sha512};
 
 use crate::impls::*;
 use crate::fileop::RandFile;
-use crate::consts::{PSS_LENGTH_TO_AUTOSIZE,PSS_LENGTH_TO_HASHSIZE};
-use crate::x509::{Asn1X509Algor};
+use crate::consts::{PSS_LENGTH_TO_AUTOSIZE,PSS_LENGTH_TO_HASHSIZE,OID_MD5_WITH_RSA_ENCRYPTION,OID_RSA_ENCRYPTION,OID_SHA1_WITH_RSA_ENCRYPTION,OID_SHA224_WITH_RSA_ENCRYPTION,OID_SHA256_WITH_RSA_ENCRYPTION,OID_SHA384_WITH_RSA_ENCRYPTION,OID_SHA512_WITH_RSA_ENCRYPTION,OID_MD5_DIGEST,OID_SHA1_DIGEST,OID_SHA224_DIGEST,OID_SHA256_DIGEST,OID_SHA384_DIGEST,OID_SHA512_DIGEST};
+use crate::x509::{Asn1X509Algor,Asn1X509Pubkey,Asn1X509AlgorElem,Asn1X509PubkeyElem};
 
 use crate::{ssllib_new_error,ssllib_error_class,ssllib_buffer_trace,ssllib_log_trace};
 use crate::{ssllib_format_buffer_log};
@@ -125,6 +125,14 @@ impl Asn1RsaPrivateKey {
 	}
 }
 
+#[asn1_sequence()]
+#[derive(Clone)]
+pub struct RsaPssSigInfo {
+	pub algo :Asn1ImpSet<Asn1Seq<Asn1X509Algor>,0>,
+	pub cmplx :Asn1ImpSet<Asn1Seq<Asn1X509Algor>,1>,
+	pub size :Asn1ImpSet<Asn1Seq<Asn1Integer>,2>,
+}
+
 macro_rules!  expand_priv_sign_op {
 	($ctype:path,$hashtype:ident,$clsname:expr) => {
 		impl Asn1SignOp for $ctype {
@@ -200,16 +208,18 @@ macro_rules!  expand_priv_vfy_op {
 				Ok(retv)
 			}
 		}
+
 	};
 }
 
 
 macro_rules! decl_rsa_priv {
-	($name :ident,$hashtype:ident) => {
+	($name :ident,$hashtype:ident,$oid:ident) => {
 		pub struct $name {
 			privkey :Asn1RsaPrivateKeyElem,
 			signinited : bool,
 			vfyinited : bool,
+			sigature_oid :String,
 		}
 
 		impl $name {
@@ -219,10 +229,41 @@ macro_rules! decl_rsa_priv {
 					signinited : false,
 					vfyinited : false,
 					privkey :privkey.elem.val[0].clone(),
+					sigature_oid : format!("{}",$oid),
 				};
 				Ok(retv)
 			}			
 		}
+
+		impl X509Privatekey for $name {
+			fn export_pubkey(&self) -> Result<Asn1X509Pubkey,Box<dyn Error>> {
+				let mut retv :Asn1X509Pubkey = Asn1X509Pubkey::init_asn1();
+				let mut algo :Asn1X509AlgorElem = Asn1X509AlgorElem::init_asn1();
+				let mut retelem :Asn1X509PubkeyElem = Asn1X509PubkeyElem::init_asn1();
+				algo.set_algorithm(OID_RSA_ENCRYPTION)?;
+				algo.set_param_null()?;
+				retelem.algor.elem.val.push(algo);
+
+				let pubkelem :Asn1RsaPubkeyElem = self.privkey.export_public()?;
+				let mut pubk :Asn1RsaPubkey = Asn1RsaPubkey::init_asn1();
+				pubk.elem.val.push(pubkelem);
+				retelem.public_key.data = pubk.encode_asn1()?;
+				/*now to set for the pub data*/
+
+				retv.elem.val.push(retelem);
+				Ok(retv)
+			}
+
+			fn export_signature_algo(&self) -> Result<Asn1X509Algor,Box<dyn Error>> {
+				let mut retelem :Asn1X509AlgorElem = Asn1X509AlgorElem::init_asn1();
+				retelem.set_algorithm(&self.sigature_oid)?;
+				retelem.set_param_null()?;
+				let mut retv :Asn1X509Algor = Asn1X509Algor::init_asn1();
+				retv.elem.val.push(retelem);
+				Ok(retv)
+			}
+		}
+
 
 		expand_priv_sign_op!{$name,$hashtype,stringify!($name)}
 		expand_priv_vfy_op!{$name,$hashtype,stringify!($name)}
@@ -230,12 +271,12 @@ macro_rules! decl_rsa_priv {
 }
 
 
-decl_rsa_priv!{RsaMD5priv,Md5}
-decl_rsa_priv!{RsaSHA1priv,Sha1}
-decl_rsa_priv!{RsaSHA224priv,Sha224}
-decl_rsa_priv!{RsaSHA256priv,Sha256}
-decl_rsa_priv!{RsaSHA384priv,Sha384}
-decl_rsa_priv!{RsaSHA512priv,Sha512}
+decl_rsa_priv!{RsaMD5priv,Md5,OID_MD5_WITH_RSA_ENCRYPTION}
+decl_rsa_priv!{RsaSHA1priv,Sha1,OID_SHA1_WITH_RSA_ENCRYPTION}
+decl_rsa_priv!{RsaSHA224priv,Sha224,OID_SHA224_WITH_RSA_ENCRYPTION}
+decl_rsa_priv!{RsaSHA256priv,Sha256,OID_SHA256_WITH_RSA_ENCRYPTION}
+decl_rsa_priv!{RsaSHA384priv,Sha384,OID_SHA384_WITH_RSA_ENCRYPTION}
+decl_rsa_priv!{RsaSHA512priv,Sha512,OID_SHA512_WITH_RSA_ENCRYPTION}
 
 macro_rules! decl_pub_vfy {
 	($name:ident,$hashtype:ident,$clsname:expr) => {
@@ -275,10 +316,11 @@ macro_rules! decl_pub_vfy {
 }
 
 macro_rules! decl_rsa_pub {
-	($name:ident,$hashtype:ident) => {
+	($name:ident,$hashtype:ident,$oid:ident) => {
 		pub struct $name {
 			pubkey :Asn1RsaPubkeyElem,
 			vfyinited :bool,
+			signature_oid :String,
 		}
 
 		impl $name {
@@ -303,6 +345,7 @@ macro_rules! decl_rsa_pub {
 				let retv :Self = Self {
 					pubkey :pubkey.clone(),
 					vfyinited : false,
+					signature_oid: format!("{}",$oid),
 				};
 				Ok(retv)
 			}
@@ -312,9 +355,39 @@ macro_rules! decl_rsa_pub {
 				let retv :Self = Self {
 					pubkey : pubkey.elem.val[0].clone(),
 					vfyinited : false,
+					signature_oid : format!("{}",$oid),
 				};
 				Ok(retv)
 			}
+		}
+
+		impl X509PublickKey for $name {
+			fn export_pubkey(&self) -> Result<Asn1X509Pubkey,Box<dyn Error>> {
+				let mut retv :Asn1X509Pubkey = Asn1X509Pubkey::init_asn1();
+				let mut algo :Asn1X509AlgorElem = Asn1X509AlgorElem::init_asn1();
+				let mut retelem :Asn1X509PubkeyElem = Asn1X509PubkeyElem::init_asn1();
+				algo.set_algorithm(OID_RSA_ENCRYPTION)?;
+				algo.set_param_null()?;
+				retelem.algor.elem.val.push(algo);
+
+				let mut pubk :Asn1RsaPubkey = Asn1RsaPubkey::init_asn1();
+				pubk.elem.val.push(self.pubkey.clone());
+				retelem.public_key.data = pubk.encode_asn1()?;
+				/*now to set for the pub data*/
+
+				retv.elem.val.push(retelem);
+				Ok(retv)
+			}
+
+			fn export_signature_algo(&self) -> Result<Asn1X509Algor,Box<dyn Error>> {
+				let mut retelem :Asn1X509AlgorElem = Asn1X509AlgorElem::init_asn1();
+				retelem.set_algorithm(&self.signature_oid)?;
+				retelem.set_param_null()?;
+				let mut retv :Asn1X509Algor = Asn1X509Algor::init_asn1();
+				retv.elem.val.push(retelem);
+				Ok(retv)
+			}
+
 		}
 
 
@@ -323,12 +396,12 @@ macro_rules! decl_rsa_pub {
 }
 
 
-decl_rsa_pub!{RsaMD5pub,Md5}
-decl_rsa_pub!{RsaSHA1pub,Sha1}
-decl_rsa_pub!{RsaSHA224pub,Sha224}
-decl_rsa_pub!{RsaSHA256pub,Sha256}
-decl_rsa_pub!{RsaSHA384pub,Sha384}
-decl_rsa_pub!{RsaSHA512pub,Sha512}
+decl_rsa_pub!{RsaMD5pub,Md5,OID_MD5_WITH_RSA_ENCRYPTION}
+decl_rsa_pub!{RsaSHA1pub,Sha1,OID_SHA1_WITH_RSA_ENCRYPTION}
+decl_rsa_pub!{RsaSHA224pub,Sha224,OID_SHA224_WITH_RSA_ENCRYPTION}
+decl_rsa_pub!{RsaSHA256pub,Sha256,OID_SHA256_WITH_RSA_ENCRYPTION}
+decl_rsa_pub!{RsaSHA384pub,Sha384,OID_SHA384_WITH_RSA_ENCRYPTION}
+decl_rsa_pub!{RsaSHA512pub,Sha512,OID_SHA512_WITH_RSA_ENCRYPTION}
 
 fn get_max_bits(cb :&[u8]) -> usize {
 	let mut retv :usize = cb.len() * 8;
@@ -364,13 +437,14 @@ macro_rules! expand_rsa_pss_struct {
 			signinited : bool,
 			vfyinited : bool,
 			saltlen : usize,
+			signature_oid:String,
 		}
 
 	}
 }
 
 macro_rules! expand_rsa_pss_impl {
-	($name:ident,$clsname:expr,$hashtype:ident) => {
+	($name:ident,$clsname:expr,$hashtype:ident,$oid:ident) => {
 		impl $name {
 			pub fn new(privkey :&Asn1RsaPrivateKey,len :usize) -> Result<Self,Box<dyn Error>> {
 				privkey.elem.check_safe_one("Asn1RsaPrivateKeyElem")?;
@@ -399,10 +473,38 @@ macro_rules! expand_rsa_pss_impl {
 					signinited : false,
 					vfyinited : false,
 					saltlen : saltlen,
+					signature_oid : format!("{}",$oid),
 				};
 				Ok(retv)
 			}
 		}
+
+		impl X509Privatekey for $name {
+			fn export_pubkey(&self) -> Result<Asn1X509Pubkey,Box<dyn Error>> {
+				let mut retv :Asn1X509Pubkey = Asn1X509Pubkey::init_asn1();
+				let mut algo :Asn1X509AlgorElem = Asn1X509AlgorElem::init_asn1();
+				let mut retelem :Asn1X509PubkeyElem = Asn1X509PubkeyElem::init_asn1();
+				algo.set_algorithm(OID_RSA_ENCRYPTION)?;
+				algo.set_param_null()?;
+				retelem.algor.elem.val.push(algo);
+
+				let pubkelem :Asn1RsaPubkeyElem = self.privkey.export_public()?;
+				let mut pubk :Asn1RsaPubkey = Asn1RsaPubkey::init_asn1();
+				pubk.elem.val.push(pubkelem);
+				retelem.public_key.data = pubk.encode_asn1()?;
+				/*now to set for the pub data*/
+
+				retv.elem.val.push(retelem);
+				Ok(retv)
+			}
+
+			fn export_signature_algo(&self) -> Result<Asn1X509Algor,Box<dyn Error>> {
+				let retv :Asn1X509Algor = Asn1X509Algor::init_asn1();
+				Ok(retv)
+			}
+
+		}
+
 	}
 }
 
@@ -497,22 +599,22 @@ macro_rules! expand_rsa_pss_verify {
 
 
 macro_rules! expand_rsa_pss_priv {
-	($name :ident, $hashtype :ident) => {
+	($name :ident, $hashtype :ident,$oid:ident) => {
 
 		expand_rsa_pss_struct!{$name}
-		expand_rsa_pss_impl!{$name,stringify!($name),$hashtype}
+		expand_rsa_pss_impl!{$name,stringify!($name),$hashtype,$oid}
 		expand_rsa_pss_sign!{$name,$hashtype,stringify!($name)}
 		expand_rsa_pss_verify!{$name,$hashtype,stringify!($name)}
 
 	}
 }
 
-expand_rsa_pss_priv!{RsaPSSMD5priv,Md5}
-expand_rsa_pss_priv!{RsaPSSSHA1priv,Sha1}
-expand_rsa_pss_priv!{RsaPSSSHA224priv,Sha224}
-expand_rsa_pss_priv!{RsaPSSSHA256priv,Sha256}
-expand_rsa_pss_priv!{RsaPSSSHA384priv,Sha384}
-expand_rsa_pss_priv!{RsaPSSSHA512priv,Sha512}
+expand_rsa_pss_priv!{RsaPSSMD5priv,Md5,OID_MD5_DIGEST}
+expand_rsa_pss_priv!{RsaPSSSHA1priv,Sha1,OID_SHA1_DIGEST}
+expand_rsa_pss_priv!{RsaPSSSHA224priv,Sha224,OID_SHA224_DIGEST}
+expand_rsa_pss_priv!{RsaPSSSHA256priv,Sha256,OID_SHA256_DIGEST}
+expand_rsa_pss_priv!{RsaPSSSHA384priv,Sha384,OID_SHA384_DIGEST}
+expand_rsa_pss_priv!{RsaPSSSHA512priv,Sha512,OID_SHA512_DIGEST}
 
 
 macro_rules! expand_rsa_pss_pub_struct {
@@ -521,12 +623,13 @@ macro_rules! expand_rsa_pss_pub_struct {
 			pubkey :Asn1RsaPubkeyElem,
 			vfyinited :bool,
 			saltlen :usize,
+			signature_oid:String,
 		}
 	}
 }
 
 macro_rules! expand_rsa_pss_pub_impl {
-	($name :ident,$hashtype:ident) => {
+	($name :ident,$hashtype:ident,$oid:ident) => {
 		impl $name {
 			pub fn new_from_priv(privkey :&Asn1RsaPrivateKey,len :usize) -> Result<Self,Box<dyn Error>> {
 				let pubkey :Asn1RsaPubkey = privkey.export_public()?;
@@ -551,10 +654,38 @@ macro_rules! expand_rsa_pss_pub_impl {
 					pubkey : pubkey.elem.val[0].clone(),
 					vfyinited : false,
 					saltlen : saltlen,
+					signature_oid : format!("{}",$oid),
 				};
 				Ok(retv)
 			}
 		}
+
+		impl X509PublickKey for $name {
+			fn export_pubkey(&self) -> Result<Asn1X509Pubkey,Box<dyn Error>> {
+				let mut retv :Asn1X509Pubkey = Asn1X509Pubkey::init_asn1();
+				let mut algo :Asn1X509AlgorElem = Asn1X509AlgorElem::init_asn1();
+				let mut retelem :Asn1X509PubkeyElem = Asn1X509PubkeyElem::init_asn1();
+				algo.set_algorithm(OID_RSA_ENCRYPTION)?;
+				algo.set_param_null()?;
+				retelem.algor.elem.val.push(algo);
+
+				let mut pubk :Asn1RsaPubkey = Asn1RsaPubkey::init_asn1();
+				pubk.elem.val.push(self.pubkey.clone());
+				retelem.public_key.data = pubk.encode_asn1()?;
+				/*now to set for the pub data*/
+
+				retv.elem.val.push(retelem);
+				Ok(retv)
+			}
+
+			fn export_signature_algo(&self) -> Result<Asn1X509Algor,Box<dyn Error>> {
+				let retv :Asn1X509Algor = Asn1X509Algor::init_asn1();
+				Ok(retv)
+			}
+
+		}
+
+
 	}
 }
 
@@ -594,19 +725,19 @@ macro_rules! expand_rsa_pss_pub_verify {
 
 
 macro_rules! expand_rsa_pss_pub {
-	($name:ident,$hashtype:ident) => {
+	($name:ident,$hashtype:ident,$oid:ident) => {
 		expand_rsa_pss_pub_struct!{$name}
-		expand_rsa_pss_pub_impl!{$name,$hashtype}
+		expand_rsa_pss_pub_impl!{$name,$hashtype,$oid}
 		expand_rsa_pss_pub_verify!{$name,$hashtype}
 	}
 }
 
-expand_rsa_pss_pub!{RsaPSSMD5pub,Md5}
-expand_rsa_pss_pub!{RsaPSSSHA1pub,Sha1}
-expand_rsa_pss_pub!{RsaPSSSHA224pub,Sha224}
-expand_rsa_pss_pub!{RsaPSSSHA256pub,Sha256}
-expand_rsa_pss_pub!{RsaPSSSHA384pub,Sha384}
-expand_rsa_pss_pub!{RsaPSSSHA512pub,Sha512}
+expand_rsa_pss_pub!{RsaPSSMD5pub,Md5,OID_MD5_DIGEST}
+expand_rsa_pss_pub!{RsaPSSSHA1pub,Sha1,OID_SHA1_DIGEST}
+expand_rsa_pss_pub!{RsaPSSSHA224pub,Sha224,OID_SHA224_DIGEST}
+expand_rsa_pss_pub!{RsaPSSSHA256pub,Sha256,OID_SHA256_DIGEST}
+expand_rsa_pss_pub!{RsaPSSSHA384pub,Sha384,OID_SHA384_DIGEST}
+expand_rsa_pss_pub!{RsaPSSSHA512pub,Sha512,OID_SHA512_DIGEST}
 
 impl Asn1RsaPrivateKey {
 	pub fn generate(bitsize :usize, randfile :Option<String>) -> Result<Asn1RsaPrivateKey,Box<dyn Error>> {
