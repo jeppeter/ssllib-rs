@@ -33,7 +33,7 @@ use sha2::{Sha224,Sha256,Sha384,Sha512};
 
 use crate::impls::*;
 use crate::fileop::RandFile;
-use crate::consts::{PSS_LENGTH_TO_AUTOSIZE,PSS_LENGTH_TO_HASHSIZE,OID_MD5_WITH_RSA_ENCRYPTION,OID_RSA_ENCRYPTION,OID_SHA1_WITH_RSA_ENCRYPTION,OID_SHA224_WITH_RSA_ENCRYPTION,OID_SHA256_WITH_RSA_ENCRYPTION,OID_SHA384_WITH_RSA_ENCRYPTION,OID_SHA512_WITH_RSA_ENCRYPTION,OID_MD5_DIGEST,OID_SHA1_DIGEST,OID_SHA224_DIGEST,OID_SHA256_DIGEST,OID_SHA384_DIGEST,OID_SHA512_DIGEST};
+use crate::consts::{PSS_LENGTH_TO_AUTOSIZE,PSS_LENGTH_TO_HASHSIZE,OID_MD5_WITH_RSA_ENCRYPTION,OID_RSA_ENCRYPTION,OID_SHA1_WITH_RSA_ENCRYPTION,OID_SHA224_WITH_RSA_ENCRYPTION,OID_SHA256_WITH_RSA_ENCRYPTION,OID_SHA384_WITH_RSA_ENCRYPTION,OID_SHA512_WITH_RSA_ENCRYPTION,OID_MD5_DIGEST,OID_SHA1_DIGEST,OID_SHA224_DIGEST,OID_SHA256_DIGEST,OID_SHA384_DIGEST,OID_SHA512_DIGEST,OID_RSA_PSS,OID_RSA_MGF1};
 use crate::x509::{Asn1X509Algor,Asn1X509Pubkey,Asn1X509AlgorElem,Asn1X509PubkeyElem};
 
 use crate::{ssllib_new_error,ssllib_error_class,ssllib_buffer_trace,ssllib_log_trace};
@@ -127,10 +127,16 @@ impl Asn1RsaPrivateKey {
 
 #[asn1_sequence()]
 #[derive(Clone)]
+pub struct RsaPssSigInfoElem {
+	pub algo :Asn1Opt<Asn1ImpSet<Asn1X509Algor,0>>,
+	pub cmplx :Asn1Opt<Asn1ImpSet<Asn1X509Algor,1>>,
+	pub saltlen :Asn1Opt<Asn1ImpSet<Asn1Integer,2>>,
+	pub trailer :Asn1Opt<Asn1ImpSet<Asn1Integer,3>>,
+}
+
+#[asn1_sequence()]
 pub struct RsaPssSigInfo {
-	pub algo :Asn1ImpSet<Asn1Seq<Asn1X509Algor>,0>,
-	pub cmplx :Asn1ImpSet<Asn1Seq<Asn1X509Algor>,1>,
-	pub size :Asn1ImpSet<Asn1Seq<Asn1Integer>,2>,
+	pub elem :Asn1Seq<RsaPssSigInfoElem>,
 }
 
 macro_rules!  expand_priv_sign_op {
@@ -499,7 +505,50 @@ macro_rules! expand_rsa_pss_impl {
 			}
 
 			fn export_signature_algo(&self) -> Result<Asn1X509Algor,Box<dyn Error>> {
-				let retv :Asn1X509Algor = Asn1X509Algor::init_asn1();
+				let mut retv :Asn1X509Algor = Asn1X509Algor::init_asn1();
+				let mut pssinfo :RsaPssSigInfo = RsaPssSigInfo::init_asn1();
+				let mut psselem :RsaPssSigInfoElem = RsaPssSigInfoElem::init_asn1();
+				let mut algo :Asn1X509Algor = Asn1X509Algor::init_asn1();
+				let mut algoelem :Asn1X509AlgorElem = Asn1X509AlgorElem::init_asn1();
+				let mut naglo :Asn1X509Algor = Asn1X509Algor::init_asn1();
+				let mut nalgoelem :Asn1X509AlgorElem = Asn1X509AlgorElem::init_asn1();
+				let mut cany :Asn1Any = Asn1Any::init_asn1();
+				let mut code :Vec<u8>;
+				algoelem.set_algorithm(&self.signature_oid)?;
+				algoelem.set_param_null()?;
+				algo.elem.val.push(algoelem.clone());
+				let mut impsetalgo :Asn1ImpSet<Asn1X509Algor,0> = Asn1ImpSet::init_asn1();
+				impsetalgo.val.push(algo.clone());
+				psselem.algo.val = Some(impsetalgo);
+
+				algoelem = Asn1X509AlgorElem::init_asn1();
+				algo = Asn1X509Algor::init_asn1();
+				algoelem.set_algorithm(OID_RSA_MGF1)?;
+				nalgoelem.set_algorithm(&self.signature_oid)?;
+				nalgoelem.set_param_null()?;
+				naglo.elem.val.push(nalgoelem.clone());
+				code = naglo.encode_asn1()?;
+				cany.decode_asn1(&code)?;
+				algoelem.set_param(Some(cany.clone()))?;
+				algo.elem.val.push(algoelem.clone());
+				let mut impsetcmplx :Asn1ImpSet<Asn1X509Algor,1> = Asn1ImpSet::init_asn1();
+				impsetcmplx.val.push(algo.clone());
+				psselem.cmplx.val = Some(impsetcmplx);
+
+				let mut xinter :Asn1Integer = Asn1Integer::init_asn1();
+				xinter.val = $hashtype::output_size() as i64;
+				let mut impsetsize :Asn1ImpSet<Asn1Integer,2> = Asn1ImpSet::init_asn1();
+				impsetsize.val.push(xinter.clone());
+				psselem.saltlen.val = Some(impsetsize);
+
+				pssinfo.elem.val.push(psselem);
+
+				algoelem = Asn1X509AlgorElem::init_asn1();
+				algoelem.set_algorithm(OID_RSA_PSS)?;
+				code = pssinfo.encode_asn1()?;
+				cany.decode_asn1(&code)?;
+				algoelem.set_param(Some(cany.clone()))?;
+				retv.elem.val.push(algoelem.clone());
 				Ok(retv)
 			}
 
@@ -679,7 +728,50 @@ macro_rules! expand_rsa_pss_pub_impl {
 			}
 
 			fn export_signature_algo(&self) -> Result<Asn1X509Algor,Box<dyn Error>> {
-				let retv :Asn1X509Algor = Asn1X509Algor::init_asn1();
+				let mut retv :Asn1X509Algor = Asn1X509Algor::init_asn1();
+				let mut pssinfo :RsaPssSigInfo = RsaPssSigInfo::init_asn1();
+				let mut psselem :RsaPssSigInfoElem = RsaPssSigInfoElem::init_asn1();
+				let mut algo :Asn1X509Algor = Asn1X509Algor::init_asn1();
+				let mut algoelem :Asn1X509AlgorElem = Asn1X509AlgorElem::init_asn1();
+				let mut naglo :Asn1X509Algor = Asn1X509Algor::init_asn1();
+				let mut nalgoelem :Asn1X509AlgorElem = Asn1X509AlgorElem::init_asn1();
+				let mut cany :Asn1Any = Asn1Any::init_asn1();
+				let mut code :Vec<u8>;
+				algoelem.set_algorithm(&self.signature_oid)?;
+				algoelem.set_param_null()?;
+				algo.elem.val.push(algoelem.clone());
+				let mut impsetalgo :Asn1ImpSet<Asn1X509Algor,0> = Asn1ImpSet::init_asn1();
+				impsetalgo.val.push(algo.clone());
+				psselem.algo.val = Some(impsetalgo);
+
+				algoelem = Asn1X509AlgorElem::init_asn1();
+				algo = Asn1X509Algor::init_asn1();
+				algoelem.set_algorithm(OID_RSA_MGF1)?;
+				nalgoelem.set_algorithm(&self.signature_oid)?;
+				nalgoelem.set_param_null()?;
+				naglo.elem.val.push(nalgoelem.clone());
+				code = naglo.encode_asn1()?;
+				cany.decode_asn1(&code)?;
+				algoelem.set_param(Some(cany.clone()))?;
+				algo.elem.val.push(algoelem.clone());
+				let mut impsetcmplx :Asn1ImpSet<Asn1X509Algor,1> = Asn1ImpSet::init_asn1();
+				impsetcmplx.val.push(algo.clone());
+				psselem.cmplx.val = Some(impsetcmplx);
+
+				let mut xinter :Asn1Integer = Asn1Integer::init_asn1();
+				xinter.val = $hashtype::output_size() as i64;
+				let mut impsetsize :Asn1ImpSet<Asn1Integer,2> = Asn1ImpSet::init_asn1();
+				impsetsize.val.push(xinter.clone());
+				psselem.saltlen.val = Some(impsetsize);
+
+				pssinfo.elem.val.push(psselem);
+
+				algoelem = Asn1X509AlgorElem::init_asn1();
+				algoelem.set_algorithm(OID_RSA_PSS)?;
+				code = pssinfo.encode_asn1()?;
+				cany.decode_asn1(&code)?;
+				algoelem.set_param(Some(cany.clone()))?;
+				retv.elem.val.push(algoelem.clone());
 				Ok(retv)
 			}
 

@@ -416,11 +416,28 @@ fn rsapssdec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	Ok(())
 }
 
+fn pssinfodec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
+
+	let sarr :Vec<String>;
+	let mut stdout = std::io::stdout();
+
+	init_log(ns.clone())?;
+
+	sarr = ns.get_array("subnargs");
+	for f in sarr.iter() {
+		let code = read_file_into_der(f)?;
+		debug_buffer_trace!(code.as_ptr(),code.len(),"[{}]code in",f);
+		let mut rsapriv :RsaPssSigInfoElem = RsaPssSigInfoElem::init_asn1();
+		let _ = rsapriv.decode_asn1(&code)?;
+		rsapriv.print_asn1("RsaPssSigInfoElem",0,&mut stdout)?;
+	}
+	Ok(())
+}
 
 
 
 
-#[extargs_map_function(rsaprivplaindec_handler,rsasign_handler,rsavfy_handler,rsapssvfy_handler,rsapsssign_handler,rsapssvfypub_handler,rsapssdec_handler)]
+#[extargs_map_function(rsaprivplaindec_handler,rsasign_handler,rsavfy_handler,rsapssvfy_handler,rsapsssign_handler,rsapssvfypub_handler,rsapssdec_handler,pssinfodec_handler)]
 pub fn load_rsaexec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -445,6 +462,9 @@ pub fn load_rsaexec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> 
 			"$" : 3
 		},
 		"rsapssdec<rsapssdec_handler>##to decode RsaPssAlgo##" : {
+			"$" : "+"
+		},
+		"pssinfodec<pssinfodec_handler>##to decode RsaPssSigInfoElem##" : {
 			"$" : "+"
 		}
 	}
