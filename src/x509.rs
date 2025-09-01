@@ -148,6 +148,14 @@ pub struct Asn1X509Name {
 	pub entries : Asn1Seq<Asn1X509NameEntry>,
 }
 
+macro_rules! push_x509_name_value {
+	($retv:ident,$asn1name:ident,$name:ident) => {
+		if $asn1name.elem.val[0].$name.is_some() {
+			$retv.entries.val.push($asn1name.elem.val[0].$name.as_ref().unwrap().clone());
+		}
+	}
+}
+
 impl Asn1X509Name {
 	pub fn to_pkixname(&self) -> Result<PkixName,Box<dyn Error>> {
 		let mut retv :PkixName = PkixName::new();
@@ -157,6 +165,66 @@ impl Asn1X509Name {
 			let ent :Asn1X509NameEntry = self.entries.val[idx].clone();
 			ent_to_pkixname!(ent,retv);
 			idx += 1;
+		}
+
+		Ok(retv)
+	}
+
+	pub fn from_pkixname(name :&PkixName) -> Result<Self,Box<dyn Error>> {
+		let asn1name :Asn1PkixName = Asn1PkixName::from_pkixname(name)?;
+		let mut retv :Asn1X509Name = Asn1X509Name::init_asn1();
+
+		/*now to set the name*/
+		if asn1name.elem.val.len() < 1 {
+			return Ok(retv);
+		}
+
+		push_x509_name_value!(retv,asn1name,country);
+		push_x509_name_value!(retv,asn1name,province);
+		push_x509_name_value!(retv,asn1name,locality);
+		push_x509_name_value!(retv,asn1name,street_address);
+		push_x509_name_value!(retv,asn1name,postal_code);
+		push_x509_name_value!(retv,asn1name,organization);
+		push_x509_name_value!(retv,asn1name,organizational_unit);
+		push_x509_name_value!(retv,asn1name,common_name);
+
+		if asn1name.elem.val[0].extra_names.val.is_some() {
+			let extra_names :Asn1Set<Asn1Seq<Asn1X509NameAnyElement>> = asn1name.elem.val[0].extra_names.val.as_ref().unwrap().clone();
+			let mut idx :usize;
+			let mut jdx :usize;
+			let mut nameent :Asn1X509NameEntry = Asn1X509NameEntry::init_asn1();
+
+			idx = 0;
+			while idx < extra_names.val.len() {
+				jdx = 0;
+				let mut cnew :Asn1Seq<Asn1X509NameElement> = Asn1Seq::init_asn1();
+				while jdx < extra_names.val[idx].val.len() {
+					let curany :&Asn1Any = &extra_names.val[idx].val[jdx].value;
+					if curany.tag == ASN1_UTF8STRING_FLAG ||curany.tag == ASN1_PRINTABLE_FLAG || curany.tag == ASN1_PRINTABLE2_FLAG {
+						let mut nstr :Asn1PrintableString = Asn1PrintableString::init_asn1();
+						let code = curany.encode_asn1();
+						let ores = nstr.decode_asn1(&code);
+						if ores.is_ok() {
+							let mut curname :Asn1X509NameElement = Asn1X509NameElement::init_asn1();
+							curname.obj = extra_names.val[idx].val[idx].obj.clone();
+							curname.name = nstr.clone();
+							cnew.val.push(curname);
+						} else {
+							ssllib_log_warn!("extra_names[{}][{}] not valid {:?}",idx,jdx,ores.err().unwrap());
+						}
+					} else {
+						ssllib_log_warn!("not accept extra_names[{}][{}] tag 0x{:x}",idx,jdx,curany.tag);
+					}
+					jdx += 1;
+				}
+
+				if cnew.val.len() > 0 {
+					nameent.val.push(cnew);
+				}
+				idx += 1;
+			}
+
+			retv.entries.val.push(nameent);
 		}
 
 		Ok(retv)
@@ -2087,6 +2155,25 @@ impl Asn1X509ReqInfoElem {
 		}
 		Ok(())
 	}
+
+	pub fn from_cfg_build(reqcfg :&X509RequestBuildConfig) -> Result<Self,Box<dyn Error>> {
+		let mut retv :Asn1X509ReqInfoElem = Asn1X509ReqInfoElem::init_asn1();
+		let mut attrs :Asn1ImpSet<Asn1X509Attribute,0> = Asn1ImpSet::init_asn1();
+		retv.version.val = 3;
+		retv.subject = Asn1X509Name::from_pkixname(&reqcfg.subject)?;
+
+
+
+		if attrs.val.len() > 0 {
+			retv.attributes.val = Some(attrs);
+		}
+		Ok(retv)
+	}
+
+	pub fn set_public_key(&mut self,privkey :&Box<dyn X509Privatekey>) -> Result<(),Box<dyn Error>> {
+		self.pubkey = privkey.export_pubkey()?;
+		Ok(())
+	}
 }
 
 #[asn1_sequence()]
@@ -2099,6 +2186,18 @@ impl Asn1X509ReqInfo {
 	pub fn get_x509_req_config(&self,reqcfg :&mut X509RequestBuildConfig) -> Result<(),Box<dyn Error>> {
 		self.elem.check_safe_one("Asn1X509ReqInfoElem")?;
 		return self.elem.val[0].get_x509_req_config(reqcfg);
+	}
+
+	pub fn from_cfg_build(reqcfg :&X509RequestBuildConfig) -> Result<Self,Box<dyn Error>> {
+		let mut retv :Asn1X509ReqInfo = Asn1X509ReqInfo::init_asn1();
+		let elem = Asn1X509ReqInfoElem::from_cfg_build(reqcfg)?;
+		retv.elem.val.push(elem);
+		Ok(retv)
+	}
+
+	pub fn set_public_key(&mut self,privkey :&Box<dyn X509Privatekey>) -> Result<(),Box<dyn Error>> {
+		self.elem.check_safe_one("Asn1X509ReqInfoElem")?;
+		return self.elem.val[0].set_public_key(privkey);
 	}
 }
 
@@ -2124,6 +2223,19 @@ impl Asn1X509ReqElem {
 	pub fn get_x509_req_config(&self,reqcfg :&mut X509RequestBuildConfig) -> Result<(),Box<dyn Error>> {
 		return self.req_info.get_x509_req_config(reqcfg);
 	}
+
+	pub fn from_cfg_build(reqcfg:&X509RequestBuildConfig,privkey :&Box<dyn X509Privatekey>) -> Result<Self,Box<dyn Error>> {
+		let mut retv :Asn1X509ReqElem = Asn1X509ReqElem::init_asn1();
+		retv.req_info = Asn1X509ReqInfo::from_cfg_build(reqcfg)?;
+		retv.sig_alg = privkey.export_signature_algo()?;
+		let _ = retv.req_info.set_public_key(privkey)?;
+		let vecempty :Vec<u8> = vec![];
+		let _ = privkey.sign_init(&vecempty,&vecempty)?;
+		sigdata = self.req_info.encode_asn1()?;
+		let signature :Vec<u8> = privkey.sign_exec(&sigdata)?;
+		retv.signature.data = signature;
+		Ok(retv)
+	}
 }
 
 #[asn1_sequence()]
@@ -2146,6 +2258,13 @@ impl Asn1X509Req {
 	pub fn to_export_build(&self) -> Result<X509RequestBuildConfig,Box<dyn Error>> {
 		let mut retv :X509RequestBuildConfig = X509RequestBuildConfig::new();
 		let _ = self.get_x509_req_config(&mut retv)?;
+		Ok(retv)
+	}
+
+	pub fn from_cfg_build(reqcfg :&X509RequestBuildConfig,privkey :&Box<dyn X509Privatekey>) -> Result<Self,Box<dyn Error>> {
+		let mut retv :Asn1X509Req = Asn1X509Req::init_asn1();
+		let elem :Asn1X509ReqElem = Asn1X509ReqElem::from_cfg_build(reqcfg,privkey)?;
+		retv.elem.val.push(elem);
 		Ok(retv)
 	}
 }
