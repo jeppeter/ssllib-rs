@@ -1,7 +1,6 @@
 
 
 use crate::fileop::{read_file,read_file_bytes};
-#[allow(unused_imports)]
 use regex::Regex;
 
 use crate::*;
@@ -19,6 +18,10 @@ fn decode_base64(instr :&str) -> Result<Vec<u8>,Box<dyn Error>> {
 	}
 	let bv = res.unwrap();
 	Ok(bv)
+}
+
+pub fn encode_base64(bb :&[u8]) -> String {
+	return base64::encode(bb);
 }
 
 
@@ -53,7 +56,32 @@ fn pem_to_der(ins :&str) -> Result<(Vec<u8>,String),Box<dyn Error>> {
 	Ok((retv,notice))
 }
 
-pub (crate) fn read_file_into_der(infile :&str) -> Result<Vec<u8>,Box<dyn Error>> {
+
+const DEFAULT_PEM_LENGTH :usize = 64;
+
+pub fn der_to_pem(inb :&[u8],notice :&str) -> Result<String,Box<dyn Error>> {
+	let outs :String;
+	let mut rets :String = "".to_string();
+	let mut idx :usize;
+	let mut perlen :usize;
+
+	outs = encode_base64(inb);
+	rets.push_str(&format!("-----BEGIN {}-----\n",notice));
+	idx = 0;
+	while idx < outs.len() {
+		perlen = DEFAULT_PEM_LENGTH;
+		if (idx + perlen) > outs.len() {
+			perlen = outs.len() - idx;
+		}
+		rets.push_str(&format!("{}\n",&outs[idx..(idx+perlen)]));
+		idx += perlen;
+	}
+	rets.push_str(&format!("-----END {}-----\n",notice));
+	Ok(rets)
+}
+
+
+pub fn read_file_into_der(infile :&str) -> Result<Vec<u8>,Box<dyn Error>> {
 	let ores = read_file(infile);
 	let retdata :Vec<u8>;
 	if ores.is_err() {

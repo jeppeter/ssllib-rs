@@ -37,6 +37,8 @@ use super::loglib::*;
 use super::pemlib::*;
 use ssllib::x509::*;
 use ssllib::x509build::*;
+use ssllib::impls::*;
+use ssllib::rsa::*;
 #[allow(unused_imports)]
 use super::fileop::*;
 #[allow(unused_imports)]
@@ -351,8 +353,49 @@ fn csrcfgexport_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSe
 }
 
 
+fn csrcreate_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
 
-#[extargs_map_function(x509dec_handler,csrdec_handler,crldec_handler,x509sigdec_handler,x509auxdec_handler,x509auxenc_handler,psstypeenc_handler,pkixnamedec_handler,exportbuild_handler,x509selfverify_handler,csrselfverify_handler,csrcfgexport_handler)]
+	let sarr :Vec<String>;
+	let keyfile :String;
+	init_log(ns.clone())?;
+
+	sarr = ns.get_array("subnargs");
+	if sarr.len() < 1 {
+		extargs_new_error!{X509ExecError,"need csr json file"}
+	}
+	keyfile = ns.get_string("keyfile");
+	if keyfile.len() == 0 {
+		extargs_new_error!{X509ExecError,"need specified keyfile"}
+	}
+	let usaltsize :usize;
+	let saltlen = ns.get_int("psslength");
+	if saltlen < 0 {
+		usaltsize = 0xff;
+	} else {
+		usaltsize = saltlen as usize;
+	}
+
+	let keydata = read_file_into_der(&keyfile)?;
+	let csrjson = format!("{}",sarr[0]);
+	let jsons = read_file(&csrjson)?;
+	let build :X509RequestBuildConfig = serde_json::from_str(&jsons)?;
+	let digesttype = ns.get_string("digesttype");
+	let mut privkey :Asn1RsaPrivateKey = Asn1RsaPrivateKey::init_asn1();
+	privkey.decode_asn1(&keydata)?;
+	let mut signop :Box<dyn X509PrivateKey> = get_rsa_x509_privkey(&privkey,&digesttype,usaltsize)?;
+
+	let req :Asn1X509Req = Asn1X509Req::from_cfg_build(&build,&mut signop)?;
+	let code = req.encode_asn1()?;
+	let outs = der_to_pem(&code,"CERTIFICATE REQUEST")?;
+	let output = ns.get_string("output");
+	let _ = write_file(&output,&outs)?;
+
+	Ok(())
+}
+
+
+
+#[extargs_map_function(x509dec_handler,csrdec_handler,crldec_handler,x509sigdec_handler,x509auxdec_handler,x509auxenc_handler,psstypeenc_handler,pkixnamedec_handler,exportbuild_handler,x509selfverify_handler,csrselfverify_handler,csrcfgexport_handler,csrcreate_handler)]
 pub fn load_x509exec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
