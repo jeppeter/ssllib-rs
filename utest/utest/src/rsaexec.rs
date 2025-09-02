@@ -63,7 +63,7 @@ fn rsaprivplaindec_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn Ar
 }
 
 
-fn get_rsa_private_key(keydata :&[u8]) -> Result<Asn1RsaPrivateKey,Box<dyn Error>> {
+pub fn get_rsa_private_key_asn1(keydata :&[u8]) -> Result<Asn1RsaPrivateKey,Box<dyn Error>> {
 	let mut pkcs8v :Asn1Pkcs8PrivKeyInfo = Asn1Pkcs8PrivKeyInfo::init_asn1();
 	pkcs8v.decode_asn1(keydata)?;
 	pkcs8v.elem.check_safe_one("Asn1Pkcs8PrivKeyInfoElem")?;
@@ -102,7 +102,7 @@ fn rsasign_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl
 
 	keydata = read_file_into_der(&keyfile)?;
 	bindata = read_file_bytes(&binfile)?;
-	privkey = get_rsa_private_key(&keydata)?;
+	privkey = get_rsa_private_key_asn1(&keydata)?;
 
 	let digesttype = ns.get_string("digesttype");
 	let initdata :Vec<u8> = vec![];
@@ -151,7 +151,7 @@ fn rsavfy_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>
 
 	keydata = read_file_into_der(&keyfile)?;
 	bindata = read_file_bytes(&binfile)?;
-	privkey = get_rsa_private_key(&keydata)?;
+	privkey = get_rsa_private_key_asn1(&keydata)?;
 	signdata = read_file_bytes(&signfile)?;
 
 	let digesttype = ns.get_string("digesttype");

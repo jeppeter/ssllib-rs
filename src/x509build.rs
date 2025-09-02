@@ -593,7 +593,7 @@ pub struct X509RequestBuildConfig {
 	pub dns_names :Vec<String>,
 	#[serde(alias="emailaddresses",default = "array_string_default")]
 	pub email_addresses:Vec<String>,
-	#[serde(alias="ip_addresses",default = "array_string_default")]
+	#[serde(alias="ipaddresses",default = "array_string_default")]
 	pub ip_addresses :Vec<String>,
 	#[serde(default = "array_string_default")]
 	pub uris :Vec<String>,

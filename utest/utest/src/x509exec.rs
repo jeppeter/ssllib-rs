@@ -41,6 +41,7 @@ use ssllib::impls::*;
 use ssllib::rsa::*;
 #[allow(unused_imports)]
 use super::fileop::*;
+use super::rsaexec::{get_rsa_private_key_asn1};
 #[allow(unused_imports)]
 use std::io::Write;
 
@@ -380,8 +381,7 @@ fn csrcreate_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 	let jsons = read_file(&csrjson)?;
 	let build :X509RequestBuildConfig = serde_json::from_str(&jsons)?;
 	let digesttype = ns.get_string("digesttype");
-	let mut privkey :Asn1RsaPrivateKey = Asn1RsaPrivateKey::init_asn1();
-	privkey.decode_asn1(&keydata)?;
+	let privkey :Asn1RsaPrivateKey = get_rsa_private_key_asn1(&keydata)?;
 	let mut signop :Box<dyn X509PrivateKey> = get_rsa_x509_privkey(&privkey,&digesttype,usaltsize)?;
 
 	let req :Asn1X509Req = Asn1X509Req::from_cfg_build(&build,&mut signop)?;

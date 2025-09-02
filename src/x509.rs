@@ -173,6 +173,8 @@ impl Asn1X509Name {
 	pub fn from_pkixname(name :&PkixName) -> Result<Self,Box<dyn Error>> {
 		let asn1name :Asn1PkixName = Asn1PkixName::from_pkixname(name)?;
 		let mut retv :Asn1X509Name = Asn1X509Name::init_asn1();
+		ssllib_log_trace!("country {:?}", name.country);
+		ssllib_log_trace!("common_name {:?}", name.common_name);
 
 		/*now to set the name*/
 		if asn1name.elem.val.len() < 1 {
@@ -2165,27 +2167,13 @@ impl Asn1X509ReqInfoElem {
 		retv.version.val = 3;
 		retv.subject = Asn1X509Name::from_pkixname(&reqcfg.subject)?;
 
-		if reqcfg.email_addresses.len() > 0 {
-			idx = 0 ;
-			while idx < reqcfg.email_addresses.len() {
-				let mut emailimp :Asn1ImpSet<Asn1PrintableString,EMAIL_ADDRESS_IMPSET_TAG> = Asn1ImpSet::init_asn1();
-				let mut ename :Asn1PrintableString = Asn1PrintableString::init_asn1();
-				ename.val = format!("{}",reqcfg.email_addresses[idx]);
-				emailimp.val.push(ename);
-				let code = emailimp.encode_asn1()?;
-				cany.decode_asn1(&code)?;
-				altattrs.val.push(cany.clone());
-				idx += 1;
-			}	
-		}
-
 		if reqcfg.dns_names.len() > 0 {
 			idx = 0;
 			while idx < reqcfg.dns_names.len() {
-				let mut dnsimp :Asn1ImpSet<Asn1PrintableString,DNS_NAMES_IMPSET_TAG> = Asn1ImpSet::init_asn1();
+				let mut dnsimp :Asn1Imp<Asn1PrintableString,DNS_NAMES_IMPSET_TAG> = Asn1Imp::init_asn1();
 				let mut dname :Asn1PrintableString = Asn1PrintableString::init_asn1();
 				dname.val = format!("{}",reqcfg.dns_names[idx]);
-				dnsimp.val.push(dname);
+				dnsimp.val = dname.clone();
 				let code = dnsimp.encode_asn1()?;
 				cany.decode_asn1(&code)?;
 				altattrs.val.push(cany.clone());
@@ -2193,13 +2181,55 @@ impl Asn1X509ReqInfoElem {
 			}
 		}
 
+
+		if reqcfg.email_addresses.len() > 0 {
+			idx = 0 ;
+			while idx < reqcfg.email_addresses.len() {
+				let mut emailimp :Asn1Imp<Asn1PrintableString,EMAIL_ADDRESS_IMPSET_TAG> = Asn1Imp::init_asn1();
+				let mut ename :Asn1PrintableString = Asn1PrintableString::init_asn1();
+				ename.val = format!("{}",reqcfg.email_addresses[idx]);
+				emailimp.val = ename.clone();
+				let code = emailimp.encode_asn1()?;
+				cany.decode_asn1(&code)?;
+				altattrs.val.push(cany.clone());
+				idx += 1;
+			}	
+		}
+
+		if reqcfg.ip_addresses.len() > 0 {
+			idx = 0;
+			while idx < reqcfg.ip_addresses.len() {
+				let mut ipimp :Asn1Imp<Asn1OctData,IP_ADDRESSES_IMPSET_TAG> = Asn1Imp::init_asn1();
+				let mut ipoct :Asn1OctData = Asn1OctData::init_asn1();
+				let ores = reqcfg.ip_addresses[idx].parse::<std::net::Ipv4Addr>();
+				if ores.is_ok() {
+					let ipv4 :std::net::Ipv4Addr = ores.unwrap();
+					ipoct.data = ipv4.octets().to_vec().clone();
+				} else {
+					let ores = reqcfg.ip_addresses[idx].parse::<std::net::Ipv6Addr>();
+					if ores.is_ok() {
+						let ipv6 :std::net::Ipv6Addr = ores.unwrap();
+						ipoct.data = ipv6.octets().to_vec().clone();
+					} else {
+						ssllib_new_error!{SslX509Error,"not valid ip {}",reqcfg.ip_addresses[idx]}
+					}
+				}
+				ipimp.val = ipoct.clone();
+				let code = ipimp.encode_asn1()?;
+				cany.decode_asn1(&code)?;
+				altattrs.val.push(cany.clone());
+				idx += 1;
+			}
+		}
+
+
 		if reqcfg.uris.len() > 0 {
 			idx = 0;
 			while idx < reqcfg.uris.len() {
-				let mut urisimp :Asn1ImpSet<Asn1PrintableString,URIS_IMPSET_TAG> = Asn1ImpSet::init_asn1();
+				let mut urisimp :Asn1Imp<Asn1PrintableString,URIS_IMPSET_TAG> = Asn1Imp::init_asn1();
 				let mut uname :Asn1PrintableString = Asn1PrintableString::init_asn1();
 				uname.val = format!("{}",reqcfg.uris[idx]);
-				urisimp.val.push(uname);
+				urisimp.val = uname.clone();
 				let code = urisimp.encode_asn1()?;
 				cany.decode_asn1(&code)?;
 				altattrs.val.push(cany.clone());				
@@ -2209,7 +2239,14 @@ impl Asn1X509ReqInfoElem {
 
 		if altattrs.val.len() > 0 {
 			let mut curattr :Asn1X509Attribute =  Asn1X509Attribute::init_asn1();
-			let code = altattrs.encode_asn1()?;
+			let mut code :Vec<u8> = altattrs.encode_asn1()?;
+			let mut compatattr :Asn1Seq<Asn1X509Extension> = Asn1Seq::init_asn1();
+			compatattr.make_safe_one("Asn1X509Extension")?;
+			compatattr.val[0].elem.make_safe_one("Asn1X509ExtensionElem")?;
+			compatattr.val[0].elem.val[0].object.set_value(OID_EXTENSION_SUBJECT_ALTNAME)?;
+			compatattr.val[0].elem.val[0].value.data = code.clone();
+
+			code = compatattr.encode_asn1()?;
 			curattr.elem.make_safe_one("Asn1X509AttributeElem")?;
 			curattr.elem.val[0].set_attr(OID_X509_REQ_EXTENSIONS,&code)?;
 			attrs.val.push(curattr);
