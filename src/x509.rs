@@ -463,6 +463,17 @@ impl Asn1X509AttributeElem {
 				}
 				idx += 1;
 			}
+		} else {
+			let mut curset :PkixAttributeSet = PkixAttributeSet::new();
+			let mut curattr :PkixAttribute;
+			curset.types = self.object.clone();
+			idx = 0;
+			while idx < self.set.val.len() {
+				curattr.
+				idx += 1;
+			}
+
+
 		}
 		Ok(retv)		
 
@@ -2163,6 +2174,7 @@ impl Asn1X509ReqInfoElem {
 		let mut attrs :Asn1ImpSet<Asn1X509Attribute,0> = Asn1ImpSet::init_asn1();
 		let mut altattrs :Asn1Seq<Asn1Any> = Asn1Seq::init_asn1();
 		let mut idx :usize;
+		let mut jdx :usize;
 		let mut cany :Asn1Any = Asn1Any::init_asn1();
 		retv.version.val = 3;
 		retv.subject = Asn1X509Name::from_pkixname(&reqcfg.subject)?;
@@ -2237,7 +2249,51 @@ impl Asn1X509ReqInfoElem {
 			}
 		}
 
-		if altattrs.val.len() > 0 {
+		if reqcfg.extra_extensions.len() > 0 {
+			idx = 0;
+			while idx < reqcfg.extra_extensions.len() {
+				let mut ext :Asn1X509Extension = Asn1X509Extension::init_asn1();
+				ext.elem.make_safe_one("Asn1X509ExtensionElem")?;
+				ext.elem.val[0].object = reqcfg.extra_extensions[idx].types.clone();
+				if reqcfg.extra_extensions[idx].critical.val.is_some() {
+					ext.elem.val[0].critical.val = Some(reqcfg.extra_extensions[idx].critical.val.as_ref().unwrap().clone());
+				}
+				ext.elem.val[0].value = reqcfg.extra_extensions[idx].value.clone();
+				let code = ext.encode_asn1()?;
+				cany.decode_asn1(&code)?;
+				altattrs.val.push(cany.clone());
+				idx += 1;
+			}
+		}
+
+		if reqcfg.attributes.len() > 0 {
+			idx = 0;
+			while idx < reqcfg.attributes.len() {
+				let mut curattr :Asn1X509Attribute = Asn1X509Attribute::init_asn1();
+				let oid :String = reqcfg.attributes[idx].types.get_value();
+				let mut compatattr :Asn1Seq<Asn1X509Algor> = Asn1Seq::init_asn1();
+				let mut curalgo :Asn1X509Algor;
+
+				jdx = 0;
+				while jdx < reqcfg.attributes[idx].value.len() {
+					curalgo = Asn1X509Algor::init_asn1();
+					curalgo.elem.make_safe_one("Asn1X509AlgorElem")?;
+					curalgo.elem.val[0].algorithm = reqcfg.attributes[idx].value[jdx].types.clone();
+					curalgo.elem.val[0].parameters.val = Some(reqcfg.attributes[idx].value[jdx].value.clone());
+					compatattr.val.push(curalgo.clone());
+					jdx += 1;
+				}
+
+				let code = compatattr.encode_asn1()?;
+				curattr.elem.make_safe_one("Asn1X509AttributeElem")?;
+				curattr.elem.val[0].set_attr(&oid,&code)?;
+				attrs.val.push(curattr.clone());
+				idx += 1;
+			}
+		}
+
+
+		if altattrs.val.len() > 0  {
 			let mut curattr :Asn1X509Attribute =  Asn1X509Attribute::init_asn1();
 			let mut code :Vec<u8> = altattrs.encode_asn1()?;
 			let mut compatattr :Asn1Seq<Asn1X509Extension> = Asn1Seq::init_asn1();

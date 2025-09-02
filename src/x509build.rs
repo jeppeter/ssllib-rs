@@ -505,6 +505,15 @@ pub struct PkixAttribute {
 	pub value :Asn1Any,
 }
 
+impl PkixAttribute {
+	pub fn new() -> Self {
+		Self {
+			types :Asn1Object::init_asn1(),
+			value :Asn1Any::init_asn1(),
+		}
+	}
+}
+
 impl std::fmt::Debug for PkixAttribute {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.write_fmt(format_args!("PkixAttribute {{"))?;
@@ -533,6 +542,15 @@ pub struct PkixAttributeSet {
 	pub value :Vec<PkixAttribute>,
 }
 
+impl PkixAttributeSet {
+	pub fn new() -> Self {
+		Self {
+			types :Asn1Object::init_asn1(),
+			value :vec![],
+		}
+	}
+}
+
 impl std::fmt::Debug for PkixAttributeSet {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.write_fmt(format_args!("PkixAttributeSet{{"))?;
@@ -546,7 +564,7 @@ impl std::fmt::Debug for PkixAttributeSet {
 #[asn1_sequence()]
 #[derive(Clone,Serialize,Deserialize)]
 pub struct PkixExtension {
-	#[serde(alias="type")]
+	#[serde(alias="id")]
 	pub types :Asn1Object,
 	#[serde(default="pkix_extension_critical_default")]
 	pub critical :Asn1Opt<Asn1Boolean>,
