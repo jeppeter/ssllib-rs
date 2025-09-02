@@ -130,6 +130,21 @@ pub const DIGEST_SHA224 :&str = "sha224";
 pub const DIGEST_SHA384 :&str = "sha384";
 pub const DIGEST_SHA512 :&str = "sha512";
 
+pub const RSA_DIGEST_MD5 :&str = "md5";
+pub const RSA_DIGEST_SHA1 :&str = "sha1";
+pub const RSA_DIGEST_SHA224 :&str = "sha224";
+pub const RSA_DIGEST_SHA256 :&str = "sha256";
+pub const RSA_DIGEST_SHA384 :&str = "sha384";
+pub const RSA_DIGEST_SHA512 :&str = "sha512";
+
+pub const RSA_PSS_DIGEST_MD5 :&str = "md5-pss";
+pub const RSA_PSS_DIGEST_SHA1 :&str = "sha1-pss";
+pub const RSA_PSS_DIGEST_SHA224 :&str = "sha224-pss";
+pub const RSA_PSS_DIGEST_SHA256 :&str = "sha256-pss";
+pub const RSA_PSS_DIGEST_SHA384 :&str = "sha384-pss";
+pub const RSA_PSS_DIGEST_SHA512 :&str = "sha512-pss";
+
+
 pub const PKCS12_MAC_ID :u8 = 3;
 pub const SHA256_BLOCK_SIZE :usize = 64;
 pub const SHA256_DIGEST_SIZE :usize = 32;

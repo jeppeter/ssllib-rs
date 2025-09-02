@@ -37,7 +37,7 @@ pub trait X509PublickKey : Asn1VerifyOp {
 	fn export_signature_algo(&self) -> Result<Asn1X509Algor,Box<dyn Error>>;
 }
 
-pub trait X509Privatekey : Asn1SignOp {
+pub trait X509PrivateKey : Asn1SignOp {
 	fn export_pubkey(&self) -> Result<Asn1X509Pubkey,Box<dyn Error>>;
 	fn export_signature_algo(&self) -> Result<Asn1X509Algor,Box<dyn Error>>;
 }

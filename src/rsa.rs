@@ -33,7 +33,7 @@ use sha2::{Sha224,Sha256,Sha384,Sha512};
 
 use crate::impls::*;
 use crate::fileop::RandFile;
-use crate::consts::{PSS_LENGTH_TO_AUTOSIZE,PSS_LENGTH_TO_HASHSIZE,OID_MD5_WITH_RSA_ENCRYPTION,OID_RSA_ENCRYPTION,OID_SHA1_WITH_RSA_ENCRYPTION,OID_SHA224_WITH_RSA_ENCRYPTION,OID_SHA256_WITH_RSA_ENCRYPTION,OID_SHA384_WITH_RSA_ENCRYPTION,OID_SHA512_WITH_RSA_ENCRYPTION,OID_MD5_DIGEST,OID_SHA1_DIGEST,OID_SHA224_DIGEST,OID_SHA256_DIGEST,OID_SHA384_DIGEST,OID_SHA512_DIGEST,OID_RSA_PSS,OID_RSA_MGF1};
+use crate::consts::*;
 use crate::x509::{Asn1X509Algor,Asn1X509Pubkey,Asn1X509AlgorElem,Asn1X509PubkeyElem};
 
 use crate::{ssllib_new_error,ssllib_error_class,ssllib_buffer_trace,ssllib_log_trace};
@@ -241,7 +241,7 @@ macro_rules! decl_rsa_priv {
 			}			
 		}
 
-		impl X509Privatekey for $name {
+		impl X509PrivateKey for $name {
 			fn export_pubkey(&self) -> Result<Asn1X509Pubkey,Box<dyn Error>> {
 				let mut retv :Asn1X509Pubkey = Asn1X509Pubkey::init_asn1();
 				let mut algo :Asn1X509AlgorElem = Asn1X509AlgorElem::init_asn1();
@@ -485,7 +485,7 @@ macro_rules! expand_rsa_pss_impl {
 			}
 		}
 
-		impl X509Privatekey for $name {
+		impl X509PrivateKey for $name {
 			fn export_pubkey(&self) -> Result<Asn1X509Pubkey,Box<dyn Error>> {
 				let mut retv :Asn1X509Pubkey = Asn1X509Pubkey::init_asn1();
 				let mut algo :Asn1X509AlgorElem = Asn1X509AlgorElem::init_asn1();
@@ -830,6 +830,66 @@ expand_rsa_pss_pub!{RsaPSSSHA224pub,Sha224,OID_SHA224_DIGEST}
 expand_rsa_pss_pub!{RsaPSSSHA256pub,Sha256,OID_SHA256_DIGEST}
 expand_rsa_pss_pub!{RsaPSSSHA384pub,Sha384,OID_SHA384_DIGEST}
 expand_rsa_pss_pub!{RsaPSSSHA512pub,Sha512,OID_SHA512_DIGEST}
+
+pub fn get_rsa_x509_privkey(privkey :&Asn1RsaPrivateKey,digesttype :&str,usaltsize :usize) -> Result<Box<dyn X509PrivateKey>,Box<dyn Error>> {
+	if digesttype == RSA_DIGEST_MD5 {
+		return Ok(Box::new(RsaMD5priv::new_from_priv(privkey)?));
+	} else if digesttype == RSA_DIGEST_SHA1 {
+		return Ok(Box::new(RsaSHA1priv::new_from_priv(privkey)?));
+	} else if digesttype == RSA_DIGEST_SHA224 {
+		return Ok(Box::new(RsaSHA224priv::new_from_priv(privkey)?));
+	} else if digesttype == RSA_DIGEST_SHA256 {
+		return Ok(Box::new(RsaSHA256priv::new_from_priv(privkey)?));
+	} else if digesttype == RSA_DIGEST_SHA384 {
+		return Ok(Box::new(RsaSHA384priv::new_from_priv(privkey)?));
+	} else if digesttype == RSA_DIGEST_SHA512 {
+		return Ok(Box::new(RsaSHA512priv::new_from_priv(privkey)?));
+	} else if digesttype == RSA_PSS_DIGEST_MD5 {
+		return Ok(Box::new(RsaPSSMD5priv::new(privkey,usaltsize)?));
+	} else if digesttype == RSA_PSS_DIGEST_SHA1 {
+		return Ok(Box::new(RsaPSSSHA1priv::new(privkey,usaltsize)?));
+	} else if digesttype == RSA_PSS_DIGEST_SHA224 {
+		return Ok(Box::new(RsaPSSSHA224priv::new(privkey,usaltsize)?));
+	} else if digesttype == RSA_PSS_DIGEST_SHA256 {
+		return Ok(Box::new(RsaPSSSHA256priv::new(privkey,usaltsize)?));
+	} else if digesttype == RSA_PSS_DIGEST_SHA384 {
+		return Ok(Box::new(RsaPSSSHA384priv::new(privkey,usaltsize)?));
+	} else if digesttype == RSA_PSS_DIGEST_SHA512 {
+		return Ok(Box::new(RsaPSSSHA512priv::new(privkey,usaltsize)?));
+	}
+	ssllib_new_error!{SslAsn1RsaError,"can not find key for digest type {}",digesttype}
+}
+
+pub fn get_rsa_x509_pubkey(pubkey :&Asn1RsaPubkey,digesttype :&str,usaltsize :usize) -> Result<Box<dyn X509PublickKey>,Box<dyn Error>> {
+	if digesttype == RSA_DIGEST_MD5 {
+		return Ok(Box::new(RsaMD5pub::new_from_pub(pubkey)?));
+	} else if digesttype == RSA_DIGEST_SHA1 {
+		return Ok(Box::new(RsaSHA1pub::new_from_pub(pubkey)?));
+	} else if digesttype == RSA_DIGEST_SHA224 {
+		return Ok(Box::new(RsaSHA224pub::new_from_pub(pubkey)?));
+	} else if digesttype == RSA_DIGEST_SHA256 {
+		return Ok(Box::new(RsaSHA256pub::new_from_pub(pubkey)?));
+	} else if digesttype == RSA_DIGEST_SHA384 {
+		return Ok(Box::new(RsaSHA384pub::new_from_pub(pubkey)?));
+	} else if digesttype == RSA_DIGEST_SHA512 {
+		return Ok(Box::new(RsaSHA512pub::new_from_pub(pubkey)?));
+	} else if digesttype == RSA_PSS_DIGEST_MD5 {
+		return Ok(Box::new(RsaPSSMD5pub::new_from_pub(pubkey,usaltsize)?));
+	} else if digesttype == RSA_PSS_DIGEST_SHA1 {
+		return Ok(Box::new(RsaPSSSHA1pub::new_from_pub(pubkey,usaltsize)?));
+	} else if digesttype == RSA_PSS_DIGEST_SHA224 {
+		return Ok(Box::new(RsaPSSSHA224pub::new_from_pub(pubkey,usaltsize)?));
+	} else if digesttype == RSA_PSS_DIGEST_SHA256 {
+		return Ok(Box::new(RsaPSSSHA256pub::new_from_pub(pubkey,usaltsize)?));
+	} else if digesttype == RSA_PSS_DIGEST_SHA384 {
+		return Ok(Box::new(RsaPSSSHA384pub::new_from_pub(pubkey,usaltsize)?));
+	} else if digesttype == RSA_PSS_DIGEST_SHA512 {
+		return Ok(Box::new(RsaPSSSHA512pub::new_from_pub(pubkey,usaltsize)?));
+	}
+	ssllib_new_error!{SslAsn1RsaError,"can not find key for digest type {}",digesttype}
+}
+
+
 
 impl Asn1RsaPrivateKey {
 	pub fn generate(bitsize :usize, randfile :Option<String>) -> Result<Asn1RsaPrivateKey,Box<dyn Error>> {

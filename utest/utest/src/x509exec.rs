@@ -391,6 +391,9 @@ pub fn load_x509exec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>>
 		},
 		"csrcfgexport<csrcfgexport_handler>##binfile ... to export X509 Request Config Build##" : {
 			"$" : "+"
+		},
+		"csrcreate<csrcreate_handler>##jsonfile to create from keyfile get keyfile ##" : {
+			"$" : 1
 		}
 	}
 	"#;

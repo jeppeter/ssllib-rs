@@ -65,10 +65,12 @@ fn main() -> Result<(),Box<dyn Error>> {
 	let parser :ExtArgsParser = ExtArgsParser::new(None,None)?;
 	let commandline = format!(r#"
 	{{
+		"digesttype##support md5[-pss],sha1[-pss],sha224[-pss],sha256[-pss],sha384[-pss],sha512[-pss] default sha256##" : "sha256",
 		"output|o" : null,
 		"input|i" : null,
 		"passin" : null,
 		"passout" : null,
+		"keyfile" : null,
 		"ciphername" : "{}"
 	}}
 	"#,KEY_JSON_AES256CBC);
