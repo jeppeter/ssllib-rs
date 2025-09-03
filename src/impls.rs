@@ -32,7 +32,7 @@ pub trait Asn1DecryptOp   {
 	fn decrypt_final(&mut self) -> Result<Vec<u8>,Box<dyn Error>>;
 }
 
-pub trait X509PublickKey : Asn1VerifyOp {
+pub trait X509PublicKey : Asn1VerifyOp {
 	fn export_pubkey(&self) -> Result<Asn1X509Pubkey,Box<dyn Error>>;
 	fn export_signature_algo(&self) -> Result<Asn1X509Algor,Box<dyn Error>>;
 }

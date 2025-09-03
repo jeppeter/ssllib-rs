@@ -13,7 +13,7 @@ use std::error::Error;
 use std::io::{Write};
 
 use num_bigint::{BigInt,Sign};
-use num_traits::{zero};
+//use num_traits::{zero};
 
 use crate::{ssllib_new_error,ssllib_error_class};
 #[allow(unused_imports)]
@@ -1662,6 +1662,13 @@ impl Asn1X509Elem {
 
 		Ok(build)
 	}
+
+	#[allow(unused_variables)]
+	#[allow(unused_mut)]
+	pub fn from_build(temp :&X509BuildConfig,pubkey :&Box<dyn X509PublicKey>,privkey :&mut Box<dyn X509PrivateKey>) -> Result<Self,Box<dyn Error>> {
+		let mut retv :Asn1X509Elem = Asn1X509Elem::init_asn1();
+		Ok(retv)
+	}
 }
 
 
@@ -1757,6 +1764,13 @@ impl Asn1X509 {
 
 		build = self.elem.val[0].to_export_build()?;
 		Ok(build)
+	}
+
+	pub fn from_build(temp :&X509BuildConfig,pubkey :&Box<dyn X509PublicKey>, privkey :&mut Box<dyn X509PrivateKey>) -> Result<Self,Box<dyn Error>> {
+		let mut retv :Asn1X509 = Asn1X509::init_asn1();
+		let elem :Asn1X509Elem = Asn1X509Elem::from_build(temp,pubkey,privkey)?;
+		retv.elem.val.push(elem);
+		Ok(retv)
 	}
 
 	pub fn self_verify(&self) -> Result<bool, Box<dyn Error>> {
@@ -2777,7 +2791,7 @@ lazy_static!{
 
 }
 
-
+#[allow(dead_code)]
 fn get_sign_asn1_code(algo :SignatureAlgorithm) -> Result<(String,Vec<u8>),Box<dyn Error>> {
 	let mut idx :usize = 0;
 	while idx < SIGNAGURE_ALGORITHM.len() {
@@ -3042,27 +3056,4 @@ impl Asn1PkixName {
 		retv.elem.val.push(Asn1PkixNameElem::from_pkixname(pkixname)?);
 		Ok(retv)
 	}
-}
-
-#[allow(unused_assignments)]
-#[allow(unused_variables)]
-pub fn create_x509_from_config_build(template :&X509BuildConfig,parent :&Asn1X509,_pubkey :Box<dyn X509PublickKey>,privkey :Box<dyn X509PrivateKey>) -> Result<Vec<u8>,Box<dyn Error>> {
-	let zv :BigInt = zero();
-	let retv :Vec<u8> = vec![];
-	let algooid :String;
-	let algocode :Vec<u8>;
-	let puboid :String;
-	let pubcode :Vec<u8>;
-	//let mut pubalgo :Asn1X509AlgorElem = Asn1X509AlgorElem::init_asn1();
-	if template.serial_number <  zv {
-		ssllib_new_error!{SslX509Error,"serial number {} must >= 0", template.serial_number}
-	}
-
-	(algooid,algocode) = get_sign_asn1_code(template.signature_algorithm.clone())?;
-	//(puboid,pubcode) = privkey.public_asn1_code()?;
-
-	//let _ = pubalgo.decode_asn1(&pubcode)?;
-
-
-	Ok(retv)
 }

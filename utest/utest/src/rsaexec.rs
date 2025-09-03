@@ -31,7 +31,7 @@ use ssllib::rsa::*;
 //use ssllib::impls::{Asn1SignOp,Asn1VerifyOp};
 use ssllib::consts::{OID_RSA_ENCRYPTION};
 use ssllib::pkcs8::{Asn1Pkcs8PrivKeyInfo};
-use ssllib::impls::{X509PrivateKey,X509PublickKey};
+use ssllib::impls::{X509PrivateKey,X509PublicKey};
 #[allow(unused_imports)]
 use ssllib::digest::{SHA256Digest,MD5Digest,SHA1Digest,SHA224Digest,SHA384Digest,SHA512Digest};
 #[allow(unused_imports)]
@@ -157,7 +157,7 @@ fn rsavfy_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>
 	let digesttype = ns.get_string("digesttype");
 	let initdata :Vec<u8> = vec![];
 	let ckey :Vec<u8> = vec![];
-	let mut rsadig :Box<dyn X509PublickKey>;
+	let mut rsadig :Box<dyn X509PublicKey>;
 
 	let pubkey :Asn1RsaPubkey = privkey.export_public()?;
 	let usaltsize :usize;

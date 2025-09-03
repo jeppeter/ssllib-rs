@@ -367,7 +367,7 @@ macro_rules! decl_rsa_pub {
 			}
 		}
 
-		impl X509PublickKey for $name {
+		impl X509PublicKey for $name {
 			fn export_pubkey(&self) -> Result<Asn1X509Pubkey,Box<dyn Error>> {
 				let mut retv :Asn1X509Pubkey = Asn1X509Pubkey::init_asn1();
 				let mut algo :Asn1X509AlgorElem = Asn1X509AlgorElem::init_asn1();
@@ -709,7 +709,7 @@ macro_rules! expand_rsa_pss_pub_impl {
 			}
 		}
 
-		impl X509PublickKey for $name {
+		impl X509PublicKey for $name {
 			fn export_pubkey(&self) -> Result<Asn1X509Pubkey,Box<dyn Error>> {
 				let mut retv :Asn1X509Pubkey = Asn1X509Pubkey::init_asn1();
 				let mut algo :Asn1X509AlgorElem = Asn1X509AlgorElem::init_asn1();
@@ -860,7 +860,7 @@ pub fn get_rsa_x509_privkey(privkey :&Asn1RsaPrivateKey,digesttype :&str,usaltsi
 	ssllib_new_error!{SslAsn1RsaError,"can not find key for digest type {}",digesttype}
 }
 
-pub fn get_rsa_x509_pubkey(pubkey :&Asn1RsaPubkey,digesttype :&str,usaltsize :usize) -> Result<Box<dyn X509PublickKey>,Box<dyn Error>> {
+pub fn get_rsa_x509_pubkey(pubkey :&Asn1RsaPubkey,digesttype :&str,usaltsize :usize) -> Result<Box<dyn X509PublicKey>,Box<dyn Error>> {
 	if digesttype == RSA_DIGEST_MD5 {
 		return Ok(Box::new(RsaMD5pub::new_from_pub(pubkey)?));
 	} else if digesttype == RSA_DIGEST_SHA1 {
