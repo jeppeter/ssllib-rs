@@ -1270,9 +1270,9 @@ impl Asn1X509CinfElem {
 	fn _form_ext_key_usage(&mut self,cfg :&X509BuildConfig) -> Result<(),Box<dyn Error>> {
 		let mut objs :Asn1Seq<Asn1Object> = Asn1Seq::init_asn1();
 		let mut idx :usize;
+		let mut curobj :Asn1Object;
 		if cfg.ext_key_usage.len() > 0 {
 			idx = 0;
-			let mut curobj :Asn1Object;
 			while idx < cfg.ext_key_usage.len() {
 				curobj = Asn1Object::init_asn1();
 				match cfg.ext_key_usage[idx] {
@@ -1319,6 +1319,16 @@ impl Asn1X509CinfElem {
 						curobj.set_value(OID_EXT_KEY_USAGE_MICROSOFT_KERNEL_CODE_SIGNING)?;
 					},
 				}
+				objs.val.push(curobj.clone());
+				idx += 1;
+			}
+		}
+
+		if cfg.unknown_ext_key_usage.len() > 0 {
+			idx = 0;
+			while idx < cfg.unknown_ext_key_usage.len() {
+				curobj = Asn1Object::init_asn1();
+				curobj.set_value(&(cfg.unknown_ext_key_usage[idx]))?;
 				objs.val.push(curobj.clone());
 				idx += 1;
 			}
