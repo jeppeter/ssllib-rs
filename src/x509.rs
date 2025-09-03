@@ -832,8 +832,25 @@ impl Asn1X509CinfElem {
 		return get_x509_verifier_from_asn1(&self.signature.elem.val[0],&self.key.elem.val[0]);
 	}
 
+	fn _append_extension(&mut self, ext :&Asn1X509Extension) -> Result<(),Box<dyn Error>> {
+		let mut nval :Asn1ImpSet<Asn1Seq<Asn1X509Extension>,3> = Asn1ImpSet::init_asn1();
+		if self.extensions.val.is_some() {
+			nval = self.extensions.val.as_ref().unwrap().clone();
+		}
 
-	fn _format_key_usage(&mut self,keyusage :&Vec<KeyUsage>) -> Result<(),Box<dyn Error>> {
+		if nval.val.len() == 0 {
+			nval.val.push(Asn1Seq::init_asn1());
+		}
+
+		nval.val[0].val.push(ext.clone());
+		self.extensions.val = Some(nval);
+		Ok(())
+	}
+
+
+
+
+	fn _form_key_usage(&mut self,keyusage :&Vec<KeyUsage>) -> Result<(),Box<dyn Error>> {
 		if keyusage.len() == 0 {
 			/*nothing to do*/
 			return Ok(());
@@ -917,19 +934,46 @@ impl Asn1X509CinfElem {
 		elem.value.data = odata;
 		ext.elem.val.push(elem);
 
-		let mut nval :Asn1ImpSet<Asn1Seq<Asn1X509Extension>,3> = Asn1ImpSet::init_asn1();
-		if self.extensions.val.is_some() {
-			nval = self.extensions.val.as_ref().unwrap().clone();
-		}
-
-		if nval.val.len() == 0 {
-			nval.val.push(Asn1Seq::init_asn1());
-		}
-
-		nval.val[0].val.push(ext);
-		self.extensions.val = Some(nval);
+		self._append_extension(&ext)?;
 		Ok(())
 	}
+
+	fn _form_constraints_valid(&mut self,cfg :&X509BuildConfig) -> Result<(),Box<dyn Error>> {
+		if cfg.basic_constraints_valid {
+			let mut elem :Asn1X509ExtensionElem = Asn1X509ExtensionElem::init_asn1();
+			let mut ext :Asn1X509Extension = Asn1X509Extension::init_asn1();
+			let _ = elem.object.set_value(OID_CONSTRAINTS_VALID)?;
+			let mut cons :Asn1BasicConstraints = Asn1BasicConstraints::init_asn1();
+			cons.elem.make_safe_one("Asn1BasicConstraintsElem")?;
+			cons.elem.val[0].isca.val = cfg.is_ca;
+			if cfg.max_path_len != -1 {
+				let mut intval :Asn1Integer = Asn1Integer::init_asn1();
+				intval.val = cfg.max_path_len as i64;
+				cons.elem.val[0].maxlen.val = Some(intval);
+			}
+
+			elem.value.data = cons.encode_asn1()?;
+			ext.elem.val.push(elem);
+
+			let _ = self._append_extension(&ext)?;
+
+
+		}
+		Ok(())
+	}
+
+	fn _form_subject_key_id(&mut self,cfg :&X509BuildConfig) -> Result<(),Box<dyn Error>> {
+		if cfg.subject_key_id.len() > 0 {
+			let mut elem :Asn1X509ExtensionElem = Asn1X509ExtensionElem::init_asn1();
+			let mut ext :Asn1X509Extension = Asn1X509Extension::init_asn1();
+			let _ = elem.object.set_value(OID_SUBJECT_KEY_ID)?;
+			elem.value.data = cfg.subject_key_id.clone();
+			ext.elem.val.push(elem);
+			self._append_extension(&ext)?;
+		}
+		Ok(())
+	}
+
 
 }
 
