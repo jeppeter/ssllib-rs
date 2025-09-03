@@ -517,7 +517,7 @@ impl PkixAttribute {
 impl std::fmt::Debug for PkixAttribute {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.write_fmt(format_args!("PkixAttribute {{"))?;
-		f.write_fmt(format_args!("type : {}", self.types.get_value()))?;
+		f.write_fmt(format_args!("type : {},", self.types.get_value()))?;
 		f.write_fmt(format_args!("value : {{"))?;
 		f.write_fmt(format_args!("tag :{},", self.value.tag))?;
 		f.write_fmt(format_args!("content ["))?;

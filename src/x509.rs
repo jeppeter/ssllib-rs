@@ -323,9 +323,11 @@ impl Asn1X509AttributeElem {
 	pub fn extract_req_infos(&self,reqcfg :&mut X509RequestBuildConfig) -> Result<usize,Box<dyn Error>> {
 		let mut retv :usize = 0;
 		let oid = self.object.get_value();
+		let mut idx :usize;
+		let mut jdx :usize;
 		if oid == OID_X509_REQ_EXTENSIONS {
-			let mut idx :usize = 0;
 			ssllib_log_trace!("set.val.len {}",self.set.val.len());
+			idx = 0;
 			while idx < self.set.val.len() {
 				let mut algo :Asn1X509Algor = Asn1X509Algor::init_asn1();
 				ssllib_buffer_trace!(self.set.val[idx].content.as_ptr(),self.set.val[idx].content.len(),"self.set.val[{}].content",idx);
@@ -466,14 +468,36 @@ impl Asn1X509AttributeElem {
 		} else {
 			let mut curset :PkixAttributeSet = PkixAttributeSet::new();
 			let mut curattr :PkixAttribute;
+			let mut compatattr :Asn1Seq<Asn1X509Algor> = Asn1Seq::init_asn1();
+
 			curset.types = self.object.clone();
 			idx = 0;
 			while idx < self.set.val.len() {
-				curattr.
+				let code = self.set.val[idx].encode_asn1()?;
+				let ores = compatattr.decode_asn1(&code);
+				if ores.is_err() {
+					ssllib_new_error!{SslX509Error,"can not decode [{}] set value error {:?}",idx,ores.err().unwrap()}
+				}
+				/*now to give the set*/
+				jdx = 0;
+				while jdx < compatattr.val.len() {
+					curattr = PkixAttribute::new();
+					let ores = compatattr.val[jdx].elem.check_safe_one("Asn1X509AlgorElem");
+					if ores.is_err() {
+						ssllib_new_error!{SslX509Error,"[{}][{}] not valid Asn1X509AlgorElem",idx,jdx}
+					}
+
+					curattr.types = compatattr.val[jdx].elem.val[0].algorithm.clone();
+					if compatattr.val[jdx].elem.val[0].parameters.val.is_none() {
+						ssllib_new_error!{SslX509Error,"[{}][{}] parameters none",idx,jdx}
+					}
+					curattr.value = compatattr.val[jdx].elem.val[0].parameters.val.as_ref().unwrap().clone();
+					curset.value.push(curattr.clone());
+					jdx += 1;
+				}
 				idx += 1;
 			}
-
-
+			reqcfg.attributes.push(curset);
 		}
 		Ok(retv)		
 
