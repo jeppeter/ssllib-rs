@@ -226,7 +226,6 @@ pub const KEY_USAGE_DECIPHER_ONLY :u8 = 0x80;
 pub const OID_KEY_USAGE :&str = "2.5.29.15";
 pub const OID_CONSTRAINTS_VALID :&str = "2.5.29.19";
 pub const OID_SUBJECT_KEY_ID :&str = "2.5.29.14";
-pub const OID_URIS :&str = "2.5.29.17";
 pub const OID_PERM_EX :&str = "2.5.29.30";
 pub const OID_EXT_KEY_USAGE :&str = "2.5.29.37";
 pub const OID_POLICIES :&str = "2.5.29.32";

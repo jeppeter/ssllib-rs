@@ -974,6 +974,78 @@ impl Asn1X509CinfElem {
 		Ok(())
 	}
 
+	fn _form_altname(&mut self,cfg :&X509BuildConfig) -> Result<(),Box<dyn Error>> {
+		let mut oanys :Asn1Seq<Asn1Any> = Asn1Seq::init_asn1();
+		let mut curany :Asn1Any;
+		let mut idx :usize;
+
+		if cfg.dns_names.len() > 0 {
+			idx = 0;
+			while idx < cfg.dns_names.len() {
+				curany = Asn1Any::init_asn1();
+				curany.tag = TAG_DNS_NAMES;
+				curany.content = cfg.dns_names[idx].as_bytes().to_vec().clone();
+				oanys.val.push(curany.clone());
+				idx += 1;
+			}
+		}
+
+		if cfg.email_addresses.len() > 0 {
+			idx = 0;
+			while idx < cfg.email_addresses.len() {
+				curany = Asn1Any::init_asn1();
+				curany.tag = TAG_EMAILS_ADDRESSES;
+				curany.content = cfg.email_addresses[idx].as_bytes().to_vec().clone();
+				oanys.val.push(curany.clone());
+				idx += 1;
+			}
+		}
+
+		if cfg.ip_addresses.len() > 0 {
+			idx = 0;
+			while idx < cfg.ip_addresses.len() {
+				curany = Asn1Any::init_asn1();
+				curany.tag = TAG_IP_ADDRESSES;
+				let ores = cfg.ip_addresses[idx].parse::<std::net::Ipv4Addr>();
+				if ores.is_ok() {
+					let ipv4addr :std::net::Ipv4Addr = ores.unwrap();
+					curany.content = ipv4addr.octets().to_vec().clone();
+				} else {
+					let ores = cfg.ip_addresses[idx].parse::<std::net::Ipv6Addr>();
+					if ores.is_err() {
+						ssllib_new_error!{SslX509Error,"ip_addresses[{}] [{}] not valid",idx,cfg.ip_addresses[idx]}
+					}
+					let ipv6addr :std::net::Ipv6Addr = ores.unwrap();
+					curany.content = ipv6addr.octets().to_vec().clone();
+				}
+				oanys.val.push(curany.clone());
+				idx += 1;
+			}
+		}
+
+		if cfg.uris.len() > 0 {
+			idx = 0;
+			while idx < cfg.uris.len() {
+				curany = Asn1Any::init_asn1();
+				curany.tag = TAG_URIS;
+				curany.content = cfg.uris[idx].as_bytes().to_vec().clone();
+				oanys.val.push(curany.clone());
+				idx += 1;
+			}
+		}
+
+
+		if oanys.val.len() > 0 {
+			let mut elem :Asn1X509ExtensionElem = Asn1X509ExtensionElem::init_asn1();
+			let mut ext :Asn1X509Extension = Asn1X509Extension::init_asn1();
+			let _ = elem.object.set_value(OID_EXTENSION_SUBJECT_ALTNAME)?;
+			elem.value.data = oanys.encode_asn1()?;
+			ext.elem.val.push(elem);
+			self._append_extension(&ext)?;
+		}
+		Ok(())
+	}
+
 
 }
 
@@ -1239,7 +1311,7 @@ impl Asn1X509Elem {
 		Ok(retv)
 	}
 
-	fn _get_uris(&self, retv :&mut X509BuildConfig, extensions :&Asn1Seq<Asn1X509Extension>) -> Result<(),Box<dyn Error>> {
+	fn _get_altname(&self, retv :&mut X509BuildConfig, extensions :&Asn1Seq<Asn1X509Extension>) -> Result<(),Box<dyn Error>> {
 		let mut idx :usize = 0;
 		let mut jdx :usize;
 
@@ -1249,7 +1321,7 @@ impl Asn1X509Elem {
 				while jdx < extensions.val[idx].elem.val.len() {
 					let curext :&Asn1X509ExtensionElem = &(extensions.val[idx].elem.val[jdx]);
 					let oid :String = curext.object.get_value();
-					if oid == OID_URIS {
+					if oid == OID_EXTENSION_SUBJECT_ALTNAME {
 						/*now we should get the value*/
 						let mut oanys :Asn1Seq<Asn1Any> = Asn1Seq::init_asn1();
 						let code = curext.value.data.clone();
@@ -1798,7 +1870,7 @@ impl Asn1X509Elem {
 		build.key_usage = self._get_key_usage(&extensions)?;
 		self._get_constraints_valid(&mut build,&extensions)?;
 		build.subject_key_id = self._get_subject_key_id(&extensions)?;
-		self._get_uris(&mut build,&extensions)?;
+		self._get_altname(&mut build,&extensions)?;
 		self._get_perm_exs(&mut build,&extensions)?;
 		self._get_ext_key_usage(&mut build,&extensions)?;
 		self._get_policies(&mut build,&extensions)?;
