@@ -1267,6 +1267,74 @@ impl Asn1X509CinfElem {
 		Ok(())
 	}
 
+	fn _form_ext_key_usage(&mut self,cfg :&X509BuildConfig) -> Result<(),Box<dyn Error>> {
+		let mut objs :Asn1Seq<Asn1Object> = Asn1Seq::init_asn1();
+		let mut idx :usize;
+		if cfg.ext_key_usage.len() > 0 {
+			idx = 0;
+			let mut curobj :Asn1Object;
+			while idx < cfg.ext_key_usage.len() {
+				curobj = Asn1Object::init_asn1();
+				match cfg.ext_key_usage[idx] {
+					ExtKeyUsage::ExtKeyUsageAny => {
+						curobj.set_value(OID_EXT_KEY_USAGE_ANY)?;
+					},
+					ExtKeyUsage::ExtKeyUsageServerAuth => {
+						curobj.set_value(OID_EXT_KEY_USAGE_SERVER_AUTH)?;
+					},
+					ExtKeyUsage::ExtKeyUsageClientAuth => {
+						curobj.set_value(OID_EXT_KEY_USAGE_CLIENT_AUTH)?;
+					},
+					ExtKeyUsage::ExtKeyUsageCodeSigning => {
+						curobj.set_value(OID_EXT_KEY_USAGE_CODE_SIGNING)?;
+					},
+					ExtKeyUsage::ExtKeyUsageEmailProtection => {
+						curobj.set_value(OID_EXT_KEY_USAGE_EMAIL_PROTECTION)?;
+					},
+					ExtKeyUsage::ExtKeyUsageIPSECEndSystem => {
+						curobj.set_value(OID_EXT_KEY_USAGE_IP_SEC_END_SYSTEM)?;
+					},
+					ExtKeyUsage::ExtKeyUsageIPSECTunnel => {
+						curobj.set_value(OID_EXT_KEY_USAGE_IP_SEC_TUNNEL)?;
+					},
+					ExtKeyUsage::ExtKeyUsageIPSECUser => {
+						curobj.set_value(OID_EXT_KEY_USAGE_IP_SEC_USER)?;
+					},
+					ExtKeyUsage::ExtKeyUsageTimeStamping => {
+						curobj.set_value(OID_EXT_KEY_USAGE_TIME_STAMPING)?;
+					},
+					ExtKeyUsage::ExtKeyUsageOCSPSigning => {
+						curobj.set_value(OID_EXT_KEY_USAGE_OCSP_SIGNING)?;
+					},
+					ExtKeyUsage::ExtKeyUsageMicrosoftServerGatedCrypto => {
+						curobj.set_value(OID_EXT_KEY_USAGE_MICROSOFT_SERVER_GATED_CRYPTO)?;
+					},
+					ExtKeyUsage::ExtKeyUsageNetscapeServerGatedCrypto => {
+						curobj.set_value(OID_EXT_KEY_USAGE_NETSCAPE_SERVER_GATED_CRYPTO)?;
+					},
+					ExtKeyUsage::ExtKeyUsageMicrosoftCommercialCodeSigning => {
+						curobj.set_value(OID_EXT_KEY_USAGE_MICROSOFT_COMMERCIAL_CODE_SIGNING)?;
+					},
+					ExtKeyUsage::ExtKeyUsageMicrosoftKernelCodeSigning => {
+						curobj.set_value(OID_EXT_KEY_USAGE_MICROSOFT_KERNEL_CODE_SIGNING)?;
+					},
+				}
+				objs.val.push(curobj.clone());
+				idx += 1;
+			}
+		}
+
+		if objs.val.len() > 0 {
+			let mut elem :Asn1X509ExtensionElem = Asn1X509ExtensionElem::init_asn1();
+			let mut ext :Asn1X509Extension = Asn1X509Extension::init_asn1();
+			let _ = elem.object.set_value(OID_EXT_KEY_USAGE)?;
+			elem.value.data = objs.encode_asn1()?;
+			ext.elem.val.push(elem);
+			self._append_extension(&ext)?;
+		}
+		Ok(())
+	}
+
 
 }
 
