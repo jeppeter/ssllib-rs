@@ -831,6 +831,106 @@ impl Asn1X509CinfElem {
 		self.key.elem.check_safe_one("Asn1X509PubkeyElem")?;
 		return get_x509_verifier_from_asn1(&self.signature.elem.val[0],&self.key.elem.val[0]);
 	}
+
+
+	fn _format_key_usage(&mut self,keyusage :&Vec<KeyUsage>) -> Result<(),Box<dyn Error>> {
+		if keyusage.len() == 0 {
+			/*nothing to do*/
+			return Ok(());
+		}
+
+		let mut elem :Asn1X509ExtensionElem = Asn1X509ExtensionElem::init_asn1();
+		let mut ext :Asn1X509Extension = Asn1X509Extension::init_asn1();
+		let mut data :Vec<u8> = vec![];
+
+		let mut idx :usize;
+		idx = 0;
+		while idx < keyusage.len() {
+			match keyusage[idx] {
+				KeyUsage::KeyUsageDigitalSignature => {
+					if data.len() < 1 {
+						data.push(0);
+					}
+					data[0] |= KEY_USAGE_DIGITAL_SIGNATURE;
+				},
+				KeyUsage::KeyUsageContentCommitment => {
+					if data.len() < 1 {
+						data.push(0);
+					}
+					data[0] |= KEY_USAGE_CONTENT_COMMITMENT;
+				},
+				KeyUsage::KeyUsageKeyEncipherment => {
+					if data.len() < 1 {
+						data.push(0);
+					}
+					data[0] |= KEY_USAGE_KEY_ENCIPHERMENT;
+				},
+				KeyUsage::KeyUsageDataEncipherment => {
+					if data.len() < 1 {
+						data.push(0);
+					}
+					data[0] |= KEY_USAGE_DATA_ENCIPHERMENT;
+				},
+				KeyUsage::KeyUsageKeyAgreement => {
+					if data.len() < 1 {
+						data.push(0);
+					}
+					data[0] |= KEY_USAGE_KEY_AGREEMENT;
+				},
+				KeyUsage::KeyUsageCertSign => {
+					if data.len() < 1 {
+						data.push(0);
+					}
+					data[0] |= KEY_USAGE_CERT_SIGN;
+				},
+				KeyUsage::KeyUsageCRLSign => {
+					if data.len() < 1 {
+						data.push(0);
+					}
+					data[0] |= KEY_USAGE_CRL_SIGN;
+				},
+				KeyUsage::KeyUsageEncipherOnly => {
+					if data.len() < 1 {
+						data.push(0);
+					}
+					data[0] |= KEY_USAGE_ENCIPHER_ONLY;
+				},
+				KeyUsage::KeyUsageDecipherOnly => {
+					while data.len() < 2 {
+						data.push(0);
+					}
+					data[1] |= KEY_USAGE_DECIPHER_ONLY;
+				},
+			}
+			idx += 1;
+		}
+
+		if data.len() == 0 {
+			return Ok(());
+		}
+
+		let mut bitdata :Asn1BitData = Asn1BitData::init_asn1();
+		bitdata.data = data.clone();
+		let odata = bitdata.encode_asn1()?;
+
+		elem.object.set_value(OID_KEY_USAGE)?;
+		elem.value.data = odata;
+		ext.elem.val.push(elem);
+
+		let mut nval :Asn1ImpSet<Asn1Seq<Asn1X509Extension>,3> = Asn1ImpSet::init_asn1();
+		if self.extensions.val.is_some() {
+			nval = self.extensions.val.as_ref().unwrap().clone();
+		}
+
+		if nval.val.len() == 0 {
+			nval.val.push(Asn1Seq::init_asn1());
+		}
+
+		nval.val[0].val.push(ext);
+		self.extensions.val = Some(nval);
+		Ok(())
+	}
+
 }
 
 //#[asn1_sequence(debug=enable)]
@@ -957,6 +1057,7 @@ impl Asn1X509Elem {
 		retv = vfyop.verify_exec(&origdata,&signeddata)?;
 		Ok(retv)
 	}
+
 
 	fn _get_key_usage(&self, extensions :&Asn1Seq<Asn1X509Extension>) -> Result<Vec<KeyUsage>,Box<dyn Error>> {
 		let mut retv :Vec<KeyUsage> = vec![];
