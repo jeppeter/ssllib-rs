@@ -394,8 +394,26 @@ fn csrcreate_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetIm
 }
 
 
+fn x509permex_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
 
-#[extargs_map_function(x509dec_handler,csrdec_handler,crldec_handler,x509sigdec_handler,x509auxdec_handler,x509auxenc_handler,psstypeenc_handler,pkixnamedec_handler,exportbuild_handler,x509selfverify_handler,csrselfverify_handler,csrcfgexport_handler,csrcreate_handler)]
+	let sarr :Vec<String>;
+	init_log(ns.clone())?;
+	let mut fo = std::io::stdout();
+
+	sarr = ns.get_array("subnargs");
+	for f in sarr.iter() {
+		let code = read_file_into_der(f)?;
+		debug_buffer_trace!(code.as_ptr(),code.len(),"[{}]code in",f);
+		let mut x509permex :Asn1PermsExcludes = Asn1PermsExcludes::init_asn1();
+		let _ = x509permex.decode_asn1(&code)?;
+		debug_trace!("decode x509 succ");
+		x509permex.print_asn1("Asn1PermsExcludes",0,&mut fo)?;
+	}
+	Ok(())
+}
+
+
+#[extargs_map_function(x509dec_handler,csrdec_handler,crldec_handler,x509sigdec_handler,x509auxdec_handler,x509auxenc_handler,psstypeenc_handler,pkixnamedec_handler,exportbuild_handler,x509selfverify_handler,csrselfverify_handler,csrcfgexport_handler,csrcreate_handler,x509permex_handler)]
 pub fn load_x509exec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -437,6 +455,9 @@ pub fn load_x509exec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>>
 		},
 		"csrcreate<csrcreate_handler>##jsonfile to create from keyfile get keyfile ##" : {
 			"$" : 1
+		},
+		"x509permex<x509permex_handler>##binfile ... to decode Asn1PermsExcludes##" : {
+			"$" : "+"
 		}
 	}
 	"#;

@@ -1046,6 +1046,227 @@ impl Asn1X509CinfElem {
 		Ok(())
 	}
 
+	fn _form_ip_range(&self, iprange :&str,note :&str) -> Result<Asn1Any,Box<dyn Error>> {
+		let ipsarr :Vec<&str>;
+		let maskbits :i64;
+		let mut ipdata :Vec<u8>;
+		let mut maskdata :Vec<u8>;
+		let mut condata :Vec<u8>;
+		let mut jdx :usize;
+		let mut kdx :usize;
+		let mut shiftbits :usize;
+		let mut curany :Asn1Any;
+		curany = Asn1Any::init_asn1();
+		curany.tag = TAG_IP_ADDRESSES;
+		maskdata = vec![];
+		condata = vec![];
+		ipsarr = iprange.split("/").collect();
+		if ipsarr.len() != 2 {
+			ssllib_new_error!{SslX509Error,"{} {} not valid",note,iprange}
+		}
+		let ores = ipsarr[0].parse::<std::net::Ipv4Addr>();
+		if ores.is_ok() {
+			let ipv4 :std::net::Ipv4Addr = ores.unwrap();
+			let ores = i64::from_str_radix(ipsarr[1],10);
+			if ores.is_err() {
+				ssllib_new_error!{SslX509Error,"{} [{}] mask not right",note, iprange}
+			}
+			maskbits = ores.unwrap();
+			if maskbits >= 32 {
+				ssllib_new_error!{SslX509Error,"{} [{}] maskbits {} >= 32",note,iprange,maskbits}
+			}
+
+			/*now to make datas*/
+			ipdata = ipv4.octets().to_vec().clone();
+			while maskdata.len() < ipdata.len() {
+				maskdata.push(0);
+			}
+
+			jdx = 0;
+			while jdx < maskbits as usize {
+				kdx = jdx >> 3;
+				shiftbits = jdx % 8;
+				shiftbits = 7 - shiftbits;
+				maskdata[kdx] |= 1 << shiftbits;
+				jdx += 1;
+			}
+
+			jdx = 0;
+			while jdx < ipdata.len() {
+				ipdata[jdx] = ipdata[jdx] & maskdata[jdx];
+				jdx += 1;
+			}
+
+			condata.extend(&ipdata);
+			condata.extend(&maskdata);
+			curany.content = condata.clone();
+		} else {
+			let ores = ipsarr[0].parse::<std::net::Ipv6Addr>();
+			if ores.is_err() {
+				ssllib_new_error!{SslX509Error,"{} [{}] not ip address",note,ipsarr[0]}
+			}
+			let ipv6 :std::net::Ipv6Addr = ores.unwrap();
+
+			let ores = i64::from_str_radix(ipsarr[1],10);
+			if ores.is_err() {
+				ssllib_new_error!{SslX509Error,"{} [{}] mask not right",note,iprange}
+			}
+			maskbits = ores.unwrap();
+			if maskbits >= 128 {
+				ssllib_new_error!{SslX509Error,"{} [{}] maskbits {} >= 128",note,iprange,maskbits}
+			}
+
+			/*now to make datas*/
+			ipdata = ipv6.octets().to_vec().clone();
+			while maskdata.len() < ipdata.len() {
+				maskdata.push(0);
+			}
+
+			jdx = 0;
+			while jdx < maskbits as usize {
+				kdx = jdx >> 3;
+				shiftbits = jdx % 8;
+				shiftbits = 7 - shiftbits;
+				maskdata[kdx] |= 1 << shiftbits;
+				jdx += 1;
+			}
+
+			jdx = 0;
+			while jdx < ipdata.len() {
+				ipdata[jdx] = ipdata[jdx] & maskdata[jdx];
+				jdx += 1;
+			}
+
+			condata.extend(&ipdata);
+			condata.extend(&maskdata);
+			curany.content = condata.clone();
+		}
+		Ok(curany)
+	}
+
+	fn _form_perm_ex(&mut self,cfg :&X509BuildConfig) -> Result<(),Box<dyn Error>> {
+		let mut permanys :Asn1Seq<Asn1Any> = Asn1Seq::init_asn1();
+		let mut exanys :Asn1Seq<Asn1Any> = Asn1Seq::init_asn1();
+		let mut curany :Asn1Any;
+		let mut idx :usize;
+
+		if cfg.perm_dns_names.len() > 0 {
+			idx = 0;
+			while idx < cfg.perm_dns_names.len() {
+				curany = Asn1Any::init_asn1();
+				curany.tag = TAG_DNS_NAMES;
+				curany.content = cfg.perm_dns_names[idx].as_bytes().to_vec().clone();
+				permanys.val.push(curany.clone());
+				idx += 1;
+			}
+		}
+
+		if cfg.perm_ip_ranges.len() > 0 {
+			let mut note :String;
+			idx = 0;
+			while idx < cfg.perm_ip_ranges.len() {
+				note = format!("perm_ip_ranges[{}]",idx);
+				curany = self._form_ip_range(&cfg.perm_ip_ranges[idx],&note)?;
+				permanys.val.push(curany.clone());
+				idx += 1;
+			}
+		}
+
+		if cfg.perm_email_addresses.len() > 0 {
+			idx = 0;
+			while idx < cfg.perm_email_addresses.len() {
+				curany = Asn1Any::init_asn1();
+				curany.tag = TAG_EMAILS_ADDRESSES;
+				curany.content = cfg.perm_email_addresses[idx].as_bytes().to_vec().clone();
+				permanys.val.push(curany.clone());
+				idx += 1;
+			}
+		}
+
+		if cfg.perm_uris.len() > 0 {
+			idx = 0;
+			while idx < cfg.perm_uris.len() {
+				curany = Asn1Any::init_asn1();
+				curany.tag = TAG_URIS;
+				curany.content = cfg.perm_uris[idx].as_bytes().to_vec().clone();
+				permanys.val.push(curany.clone());
+				idx += 1;
+			}
+		}
+
+		if cfg.ex_dns_names.len() > 0 {
+			idx = 0;
+			while idx < cfg.ex_dns_names.len() {
+				curany = Asn1Any::init_asn1();
+				curany.tag = TAG_DNS_NAMES;
+				curany.content = cfg.ex_dns_names[idx].as_bytes().to_vec().clone();
+				exanys.val.push(curany.clone());
+				idx += 1;
+			}
+		}
+
+		if cfg.ex_ip_ranges.len() > 0 {
+			let mut note :String;
+			idx = 0;
+			while idx < cfg.ex_ip_ranges.len() {
+				note =format!("ex_ip_ranges[{}]",idx);
+				curany = self._form_ip_range(&cfg.ex_ip_ranges[idx],&note)?;
+				exanys.val.push(curany.clone());
+				idx += 1;
+			}
+		}
+
+
+		if cfg.ex_email_addresses.len() > 0 {
+			idx = 0;
+			while idx < cfg.ex_email_addresses.len() {
+				curany = Asn1Any::init_asn1();
+				curany.tag = TAG_EMAILS_ADDRESSES;
+				curany.content = cfg.ex_email_addresses[idx].as_bytes().to_vec().clone();
+				permanys.val.push(curany.clone());
+				idx += 1;
+			}
+		}
+
+		if cfg.ex_uris.len() > 0 {
+			idx = 0;
+			while idx < cfg.ex_uris.len() {
+				curany = Asn1Any::init_asn1();
+				curany.tag = TAG_URIS;
+				curany.content = cfg.ex_uris[idx].as_bytes().to_vec().clone();
+				permanys.val.push(curany.clone());
+				idx += 1;
+			}
+		}
+
+
+		if permanys.val.len() > 0 || exanys.val.len() > 0 {
+			let mut elem :Asn1X509ExtensionElem = Asn1X509ExtensionElem::init_asn1();
+			let mut ext :Asn1X509Extension = Asn1X509Extension::init_asn1();
+			let _ = elem.object.set_value(OID_PERM_EX)?;
+			let mut permexs :Asn1PermsExcludes = Asn1PermsExcludes::init_asn1();
+			let mut permelem :Asn1PermsExcludesElem = Asn1PermsExcludesElem::init_asn1();
+			if permanys.val.len() > 0 {
+				let mut perm :Asn1ImpSet<Asn1Seq<Asn1Any>,0> = Asn1ImpSet::init_asn1();
+				perm.val.push(permanys.clone());
+				permelem.perms.val = Some(perm.clone());
+			}
+
+			if exanys.val.len() > 0 {
+				let mut exs :Asn1ImpSet<Asn1Seq<Asn1Any>,1> = Asn1ImpSet::init_asn1();
+				exs.val.push(exanys.clone());
+				permelem.excludes.val = Some(exs.clone());
+			}
+
+			permexs.elem.val.push(permelem);
+
+			elem.value.data = permexs.encode_asn1()?;
+			ext.elem.val.push(elem);			
+			self._append_extension(&ext)?;			
+		}
+		Ok(())
+	}
+
 
 }
 
