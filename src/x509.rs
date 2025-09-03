@@ -1345,6 +1345,35 @@ impl Asn1X509CinfElem {
 		Ok(())
 	}
 
+	fn _form_policies(&mut self, cfg:&X509BuildConfig) -> Result<(),Box<dyn Error>> {
+		let mut poobjs :Asn1Seq<Asn1Object> = Asn1Seq::init_asn1();
+		let mut curobj :Asn1Object;
+		let mut idx :usize;
+
+		if cfg.policies.len() > 0 {
+			idx = 0;
+			while idx < cfg.policies.len() {
+				curobj = Asn1Object::init_asn1();
+				curobj.set_value(&cfg.policies[idx])?;
+				poobjs.val.push(curobj.clone());
+				idx += 1;
+			}
+		}
+
+
+		if poobjs.val.len() > 0 {
+			let mut elem :Asn1X509ExtensionElem = Asn1X509ExtensionElem::init_asn1();
+			let mut ext :Asn1X509Extension = Asn1X509Extension::init_asn1();
+			let _ = elem.object.set_value(OID_POLICIES)?;
+			let mut objscon :Asn1Seq<Asn1Seq<Asn1Object>> = Asn1Seq::init_asn1();
+			objscon.val.push(poobjs.clone());
+			elem.value.data = objscon.encode_asn1()?;
+			ext.elem.val.push(elem);
+			self._append_extension(&ext)?;			
+		}
+		Ok(())
+	}
+
 
 }
 
