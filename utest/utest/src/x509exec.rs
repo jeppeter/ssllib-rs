@@ -412,8 +412,64 @@ fn x509permex_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 	Ok(())
 }
 
+fn x509create_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
 
-#[extargs_map_function(x509dec_handler,csrdec_handler,crldec_handler,x509sigdec_handler,x509auxdec_handler,x509auxenc_handler,psstypeenc_handler,pkixnamedec_handler,exportbuild_handler,x509selfverify_handler,csrselfverify_handler,csrcfgexport_handler,csrcreate_handler,x509permex_handler)]
+	let sarr :Vec<String>;
+	init_log(ns.clone())?;
+
+	sarr = ns.get_array("subnargs");
+
+	if sarr.len() < 1 {
+		extargs_new_error!{X509ExecError,"need jsonfile least"}
+	}
+	let jsonfile = format!("{}",sarr[0]);
+	let jsons = read_file(&jsonfile)?;
+	let cfg :X509BuildConfig = serde_json::from_str(&jsons)?;
+	let keyfile = ns.get_string("keyfile");
+	if keyfile.len() == 0 {
+		extargs_new_error!{X509ExecError,"need set keyfile"}
+	}
+	let keydata = read_file_into_der(&keyfile)?;
+
+	let privkey :Asn1RsaPrivateKey = get_rsa_private_key_asn1(&keydata)?;
+
+	let digesttype = ns.get_string("digesttype");
+	let mut privop :Box<dyn X509PrivateKey>;
+	let pubop :Box<dyn X509PublicKey>;
+
+	let usaltsize :usize;
+	let saltlen = ns.get_int("psslength");
+	if saltlen < 0 {
+		usaltsize = 0xff;
+	} else {
+		usaltsize = saltlen as usize;
+	}
+
+	privop = get_rsa_x509_privkey(&privkey,&digesttype,usaltsize)?;
+	if sarr.len() > 1 {
+		let csrkeyfile = format!("{}",sarr[1]);
+		let csrkeydata = read_file_into_der(&csrkeyfile)?;
+		let csrkeypriv :Asn1RsaPrivateKey = get_rsa_private_key_asn1(&csrkeydata)?;
+		let csrkeypub :Asn1RsaPubkey = csrkeypriv.export_public()?;
+		pubop = get_rsa_x509_pubkey(&csrkeypub,&digesttype,usaltsize)?;
+	} else {
+		let pubkey :Asn1RsaPubkey = privkey.export_public()?;
+		pubop = get_rsa_x509_pubkey(&pubkey,&digesttype,usaltsize)?;
+	}
+
+	let x509asn1 :Asn1X509 = Asn1X509::from_build(&cfg,&pubop,&mut privop)?;
+
+	let code = x509asn1.encode_asn1()?;
+	let outs = der_to_pem(&code,"CERTIFICATE")?;
+	let output = ns.get_string("output");
+	let _ = write_file(&output,&outs)?;
+
+	Ok(())
+}
+
+
+
+#[extargs_map_function(x509dec_handler,csrdec_handler,crldec_handler,x509sigdec_handler,x509auxdec_handler,x509auxenc_handler,psstypeenc_handler,pkixnamedec_handler,exportbuild_handler,x509selfverify_handler,csrselfverify_handler,csrcfgexport_handler,csrcreate_handler,x509permex_handler,x509create_handler)]
 pub fn load_x509exec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -457,6 +513,9 @@ pub fn load_x509exec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>>
 			"$" : 1
 		},
 		"x509permex<x509permex_handler>##binfile ... to decode Asn1PermsExcludes##" : {
+			"$" : "+"
+		},
+		"x509create<x509create_handler>##jsonfile [child.rsa] to encode Asn1X509##" : {
 			"$" : "+"
 		}
 	}

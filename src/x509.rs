@@ -33,6 +33,7 @@ use crate::x509build::*;
 use ecsimple::keys::{ECPrivateKey,ECPublicKey};
 
 use lazy_static::lazy_static;
+use num_bigint::{BigUint};
 
 
 
@@ -850,8 +851,8 @@ impl Asn1X509CinfElem {
 
 
 
-	fn _form_key_usage(&mut self,keyusage :&Vec<KeyUsage>) -> Result<(),Box<dyn Error>> {
-		if keyusage.len() == 0 {
+	fn _form_key_usage(&mut self,cfg :&X509BuildConfig) -> Result<(),Box<dyn Error>> {
+		if cfg.key_usage.len() == 0 {
 			/*nothing to do*/
 			return Ok(());
 		}
@@ -862,8 +863,8 @@ impl Asn1X509CinfElem {
 
 		let mut idx :usize;
 		idx = 0;
-		while idx < keyusage.len() {
-			match keyusage[idx] {
+		while idx < cfg.key_usage.len() {
+			match cfg.key_usage[idx] {
 				KeyUsage::KeyUsageDigitalSignature => {
 					if data.len() < 1 {
 						data.push(0);
@@ -1374,6 +1375,118 @@ impl Asn1X509CinfElem {
 		Ok(())
 	}
 
+	fn _form_authority_key_id(&mut self,cfg :&X509BuildConfig) -> Result<(),Box<dyn Error>> {
+		if cfg.authority_key_id.len() > 0 {
+			let mut elem :Asn1X509ExtensionElem = Asn1X509ExtensionElem::init_asn1();
+			let mut ext :Asn1X509Extension = Asn1X509Extension::init_asn1();
+			let _ = elem.object.set_value(OID_AUTHORITY_KEY_ID)?;
+			let mut authid :Asn1Seq<Asn1Imp<Asn1OctData,0x80>> = Asn1Seq::init_asn1();
+			authid.make_safe_one("Asn1Imp")?;
+			authid.val[0].val.data = cfg.authority_key_id.clone();			
+			elem.value.data = authid.encode_asn1()?;
+			ext.elem.val.push(elem);
+			self._append_extension(&ext)?;
+		}
+		Ok(())
+	}
+
+	fn _form_ocsp_servers_and_issuer_certificate_urls(&mut self,cfg:&X509BuildConfig) -> Result<(),Box<dyn Error>> {
+		let mut certobjs :Asn1Seq<Asn1AuthorityObjElem> = Asn1Seq::init_asn1();
+		let mut curelem :Asn1AuthorityObjElem;
+		let mut idx :usize;
+
+		if cfg.ocsp_servers.len() > 0 {
+			idx = 0 ;
+			while idx < cfg.ocsp_servers.len() {
+				curelem = Asn1AuthorityObjElem::init_asn1();
+				curelem.obj.set_value(OID_AUTHORITY_INFO_ACCESS_OCSP)?;
+				curelem.value.tag = TAG_URIS;
+				curelem.value.content = cfg.ocsp_servers[idx].as_bytes().to_vec().clone();
+				certobjs.val.push(curelem.clone());
+				idx += 1;
+			}
+		}
+
+		if cfg.issuer_certificate_urls.len() > 0 {
+			idx = 0;
+			while idx < cfg.issuer_certificate_urls.len() {
+				curelem = Asn1AuthorityObjElem::init_asn1();
+				curelem.obj.set_value(OID_AUTHORITY_INFO_ACCESS_ISSUER)?;
+				curelem.value.tag = TAG_URIS;
+				curelem.value.content = cfg.issuer_certificate_urls[idx].as_bytes().to_vec().clone();
+				certobjs.val.push(curelem.clone());
+				idx += 1;
+			}
+		}
+
+
+		if certobjs.val.len() > 0 {
+			let mut elem :Asn1X509ExtensionElem = Asn1X509ExtensionElem::init_asn1();
+			let mut ext :Asn1X509Extension = Asn1X509Extension::init_asn1();
+			let _ = elem.object.set_value(OID_AUTHORITY_INFO_ACCESS)?;
+			let mut authid :Asn1AuthorityObj = Asn1AuthorityObj::init_asn1();
+			authid.elem.val.push(certobjs.clone());
+			elem.value.data = authid.encode_asn1()?;
+			ext.elem.val.push(elem);
+			self._append_extension(&ext)?;
+		}
+		Ok(())
+	}
+
+	fn _form_issuer_and_subject(&mut self, cfg:&X509BuildConfig) -> Result<(),Box<dyn Error>> {
+		self.issuer = Asn1X509Name::from_pkixname(&cfg.issuer)?;
+		self.subject = Asn1X509Name::from_pkixname(&cfg.subject)?;
+		Ok(())
+	}
+
+	fn _form_cfg_time(&mut self,cfg :&X509BuildConfig) -> Result<(),Box<dyn Error>> {
+		self.validity.elem.make_safe_one("Asn1X509ValElem")?;
+		self.validity.elem.val[0].notBefore.set_value_time(&cfg.not_before)?;
+		self.validity.elem.val[0].notAfter.set_value_time(&cfg.not_after)?;
+		Ok(())
+	}
+
+	fn _form_cfg_serial_number(&mut self, cfg :&X509BuildConfig) -> Result<(),Box<dyn Error>> {
+		let (_,cbytes) = cfg.serial_number.to_bytes_be();
+		self.serial_number.val = BigUint::from_bytes_be(&cbytes);
+		Ok(())
+	}
+
+	fn _form_cfg_version(&mut self,cfg :&X509BuildConfig) -> Result<(),Box<dyn Error>> {
+		let mut impver :Asn1ImpSet<Asn1Integer,0> = Asn1ImpSet::init_asn1();
+		let mut intval :Asn1Integer = Asn1Integer::init_asn1();
+		if cfg.version > 0 {
+			intval.val = (cfg.version - 1) as i64;
+			impver.val.push(intval.clone());
+			self.version.val = Some(impver);	
+		} else {
+			self.version.val = None;
+		}		
+		Ok(())
+	}
+
+	pub fn from_x509_build_cfg(cfg :&X509BuildConfig,pubkey :&Box<dyn X509PublicKey>, privkey :&Box<dyn X509PrivateKey>) -> Result<Self,Box<dyn Error>> {
+		let mut retv :Asn1X509CinfElem = Asn1X509CinfElem::init_asn1();
+		retv._form_cfg_version(cfg)?;
+		retv._form_cfg_serial_number(cfg)?;
+		retv.signature = privkey.export_signature_algo()?;
+		retv._form_issuer_and_subject(cfg)?;
+		retv._form_cfg_time(cfg)?;
+		retv.key = pubkey.export_pubkey()?;
+
+		retv._form_key_usage(cfg)?;
+		retv._form_subject_key_id(cfg)?;
+		retv._form_altname(cfg)?;
+		retv._form_ext_key_usage(cfg)?;
+		retv._form_policies(cfg)?;
+		retv._form_authority_key_id(cfg)?;
+		retv._form_ocsp_servers_and_issuer_certificate_urls(cfg)?;
+
+		Ok(retv)
+	}
+
+
+
 
 }
 
@@ -1393,6 +1506,12 @@ impl Asn1X509Cinf {
 	pub fn get_verifier(&self) -> Result<Box<dyn Asn1VerifyOp>,Box<dyn Error>> {
 		self.elem.check_safe_one("Asn1X509CinfElem")?;
 		return self.elem.val[0].get_verifier();
+	}
+
+	pub fn from_x509_build_cfg(cfg :&X509BuildConfig,pubkey :&Box<dyn X509PublicKey>, privkey :&Box<dyn X509PrivateKey>) -> Result<Self,Box<dyn Error>> {
+		let mut retv :Asn1X509Cinf = Asn1X509Cinf::init_asn1();
+		retv.elem.val.push(Asn1X509CinfElem::from_x509_build_cfg(cfg,pubkey,privkey)?);
+		Ok(retv)
 	}
 }
 
@@ -1435,6 +1554,7 @@ pub struct Asn1X509Elem {
 	pub sig_alg : Asn1X509Algor,
 	pub signature : Asn1BitDataFlag,
 }
+
 
 #[asn1_sequence()]
 #[derive(Clone)]
@@ -2208,12 +2328,18 @@ impl Asn1X509Elem {
 		Ok(build)
 	}
 
-	#[allow(unused_variables)]
-	#[allow(unused_mut)]
-	pub fn from_build(temp :&X509BuildConfig,pubkey :&Box<dyn X509PublicKey>,privkey :&mut Box<dyn X509PrivateKey>) -> Result<Self,Box<dyn Error>> {
+	pub fn from_build(cfg :&X509BuildConfig,pubkey :&Box<dyn X509PublicKey>, privkey :&mut Box<dyn X509PrivateKey>) -> Result<Self,Box<dyn Error>> {
 		let mut retv :Asn1X509Elem = Asn1X509Elem::init_asn1();
+		retv.cert_info = Asn1X509Cinf::from_x509_build_cfg(cfg,pubkey,privkey)?;
+		retv.sig_alg = privkey.export_signature_algo()?;
+		/*now we should give the */
+		let code = retv.cert_info.encode_asn1()?;
+		let emptyvec :Vec<u8> = vec![];
+		privkey.sign_init(&emptyvec,&emptyvec)?;
+		retv.signature.data = privkey.sign_exec(&code)?;
 		Ok(retv)
 	}
+
 }
 
 
