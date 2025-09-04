@@ -766,65 +766,65 @@ impl PartialEq for ExtKeyUsage {
 pub struct X509BuildConfig {
 	#[serde(default = "x509build_version_default")]
 	pub version :i64,
-	#[serde(default = "x509build_serial_number_default",serialize_with="bigint_serialize",deserialize_with="bigint_deserialize")]
+	#[serde(default = "x509build_serial_number_default",serialize_with="bigint_serialize",deserialize_with="bigint_deserialize",alias="serialnumber")]
 	pub serial_number  :BigInt,
-	#[serde(default = "x509build_basic_constraints_valid_default")]
+	#[serde(default = "x509build_basic_constraints_valid_default",alias="basicconstraintsvalid")]
 	pub basic_constraints_valid :bool,
-	#[serde(default = "x509build_is_ca_default")]
+	#[serde(default = "x509build_is_ca_default",alias="isca")]
 	pub is_ca :bool,
-	#[serde(default = "x509build_max_path_len_default")]
+	#[serde(default = "x509build_max_path_len_default",alias="maxpathlen")]
 	pub max_path_len : i64,
-	#[serde(default = "x509build_max_path_zero_default")]
+	#[serde(default = "x509build_max_path_zero_default",alias="maxpathlenzero")]
 	pub max_path_zero :bool,
-	#[serde(default = "x509build_signature_algorithm_default")]
+	#[serde(default = "x509build_signature_algorithm_default",alias="signaturealgorithm")]
 	pub signature_algorithm :SignatureAlgorithm,
 	#[serde(default = "x509build_pkixname_default")]
 	pub issuer :PkixName,
 	#[serde(default = "x509build_pkixname_default")]
 	pub subject : PkixName,
-	#[serde(default = "x509build_before_default", serialize_with= "date_time_serialize", deserialize_with = "date_time_deserialize")]
+	#[serde(default = "x509build_before_default", serialize_with= "date_time_serialize", deserialize_with = "date_time_deserialize",alias="notbefore")]
 	pub not_before :DateTime<Utc>,
-	#[serde(default = "x509build_after_default", serialize_with= "date_time_serialize", deserialize_with = "date_time_deserialize")]
+	#[serde(default = "x509build_after_default", serialize_with= "date_time_serialize", deserialize_with = "date_time_deserialize",alias="notafter")]
 	pub not_after :DateTime<Utc>,
-	#[serde(default = "x509build_key_usage_default")]
+	#[serde(default = "x509build_key_usage_default",alias="keyusage")]
 	pub key_usage :Vec<KeyUsage>,
-	#[serde(default = "x509build_subject_key_id_default")]
+	#[serde(default = "x509build_subject_key_id_default",alias="subjectkeyid")]
 	pub subject_key_id :Vec<u8>,
-	#[serde(default = "array_string_default")]
+	#[serde(default = "array_string_default",alias="ipaddresses")]
 	pub ip_addresses :Vec<String>,
-	#[serde(default = "array_string_default")]
+	#[serde(default = "array_string_default",alias="emailaddresses")]
 	pub email_addresses :Vec<String>,
-	#[serde(default = "array_string_default")]
+	#[serde(default = "array_string_default",alias="dnsnames")]
 	pub dns_names :Vec<String>,
 	#[serde(default = "array_string_default")]
 	pub uris :Vec<String>,
-	#[serde(default = "array_string_default")]
+	#[serde(default = "array_string_default",alias="excludedipranges")]
 	pub ex_ip_ranges :Vec<String>,
-	#[serde(default = "array_string_default")]
+	#[serde(default = "array_string_default",alias="excludedemailaddresses")]
 	pub ex_email_addresses :Vec<String>,
-	#[serde(default = "array_string_default")]
+	#[serde(default = "array_string_default",alias="excludeddnsdomains")]
 	pub ex_dns_names :Vec<String>,
-	#[serde(default = "array_string_default")]
+	#[serde(default = "array_string_default",alias="excludeduridomains")]
 	pub ex_uris :Vec<String>,
-	#[serde(default = "array_string_default")]
+	#[serde(default = "array_string_default",alias="permittedipranges")]
 	pub perm_ip_ranges :Vec<String>,
-	#[serde(default = "array_string_default")]
+	#[serde(default = "array_string_default",alias="permittedemailaddresses")]
 	pub perm_email_addresses:Vec<String>,
-	#[serde(default = "array_string_default")]
+	#[serde(default = "array_string_default",alias="permitteddnsdomains")]
 	pub perm_dns_names :Vec<String>,
-	#[serde(default = "array_string_default")]
+	#[serde(default = "array_string_default",alias="permitteduridomains")]
 	pub perm_uris :Vec<String>,
-	#[serde(default = "x509build_ext_key_usage_default")]
+	#[serde(default = "x509build_ext_key_usage_default",alias="extkeyusage")]
 	pub ext_key_usage :Vec<ExtKeyUsage>,
-	#[serde(default = "array_string_default")]
+	#[serde(default = "array_string_default",alias="unknownextkeyusage")]
 	pub unknown_ext_key_usage :Vec<String>,
 	#[serde(default = "array_string_default")]
 	pub policies :Vec<String>,
-	#[serde(default = "x509build_authority_key_id_default")]
+	#[serde(default = "x509build_authority_key_id_default",alias="authoritykeyid")]
 	pub authority_key_id :Vec<u8>,
-	#[serde(default = "array_string_default")]
+	#[serde(default = "array_string_default",alias="ocspserver")]
 	pub ocsp_servers :Vec<String>,
-	#[serde(default = "array_string_default")]
+	#[serde(default = "array_string_default",alias="issuingcertificateurl")]
 	pub issuer_certificate_urls:Vec<String>,
 }
 

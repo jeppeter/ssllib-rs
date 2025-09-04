@@ -425,6 +425,7 @@ fn x509create_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 	let jsonfile = format!("{}",sarr[0]);
 	let jsons = read_file(&jsonfile)?;
 	let cfg :X509BuildConfig = serde_json::from_str(&jsons)?;
+	debug_trace!("{:?}",cfg);
 	let keyfile = ns.get_string("keyfile");
 	if keyfile.len() == 0 {
 		extargs_new_error!{X509ExecError,"need set keyfile"}

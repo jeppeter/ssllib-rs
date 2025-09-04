@@ -968,7 +968,9 @@ impl Asn1X509CinfElem {
 			let mut elem :Asn1X509ExtensionElem = Asn1X509ExtensionElem::init_asn1();
 			let mut ext :Asn1X509Extension = Asn1X509Extension::init_asn1();
 			let _ = elem.object.set_value(OID_SUBJECT_KEY_ID)?;
-			elem.value.data = cfg.subject_key_id.clone();
+			let mut keyidoct :Asn1OctData = Asn1OctData::init_asn1();
+			keyidoct.data = cfg.subject_key_id.clone();
+			elem.value.data = keyidoct.encode_asn1()?;
 			ext.elem.val.push(elem);
 			self._append_extension(&ext)?;
 		}
@@ -1391,18 +1393,21 @@ impl Asn1X509CinfElem {
 	}
 
 	fn _form_ocsp_servers_and_issuer_certificate_urls(&mut self,cfg:&X509BuildConfig) -> Result<(),Box<dyn Error>> {
-		let mut certobjs :Asn1Seq<Asn1AuthorityObjElem> = Asn1Seq::init_asn1();
+		let mut certobjs :Asn1AuthorityObj = Asn1AuthorityObj::init_asn1();
 		let mut curelem :Asn1AuthorityObjElem;
+		let mut curobj :Asn1Seq<Asn1AuthorityObjElem>;
 		let mut idx :usize;
 
 		if cfg.ocsp_servers.len() > 0 {
 			idx = 0 ;
 			while idx < cfg.ocsp_servers.len() {
 				curelem = Asn1AuthorityObjElem::init_asn1();
+				curobj = Asn1Seq::init_asn1();
 				curelem.obj.set_value(OID_AUTHORITY_INFO_ACCESS_OCSP)?;
 				curelem.value.tag = TAG_URIS;
 				curelem.value.content = cfg.ocsp_servers[idx].as_bytes().to_vec().clone();
-				certobjs.val.push(curelem.clone());
+				curobj.val.push(curelem.clone());
+				certobjs.elem.val.push(curobj.clone());
 				idx += 1;
 			}
 		}
@@ -1411,22 +1416,22 @@ impl Asn1X509CinfElem {
 			idx = 0;
 			while idx < cfg.issuer_certificate_urls.len() {
 				curelem = Asn1AuthorityObjElem::init_asn1();
+				curobj = Asn1Seq::init_asn1();
 				curelem.obj.set_value(OID_AUTHORITY_INFO_ACCESS_ISSUER)?;
 				curelem.value.tag = TAG_URIS;
 				curelem.value.content = cfg.issuer_certificate_urls[idx].as_bytes().to_vec().clone();
-				certobjs.val.push(curelem.clone());
+				curobj.val.push(curelem.clone());
+				certobjs.elem.val.push(curobj.clone());
 				idx += 1;
 			}
 		}
 
 
-		if certobjs.val.len() > 0 {
+		if certobjs.elem.val.len() > 0 {
 			let mut elem :Asn1X509ExtensionElem = Asn1X509ExtensionElem::init_asn1();
 			let mut ext :Asn1X509Extension = Asn1X509Extension::init_asn1();
 			let _ = elem.object.set_value(OID_AUTHORITY_INFO_ACCESS)?;
-			let mut authid :Asn1AuthorityObj = Asn1AuthorityObj::init_asn1();
-			authid.elem.val.push(certobjs.clone());
-			elem.value.data = authid.encode_asn1()?;
+			elem.value.data = certobjs.encode_asn1()?;
 			ext.elem.val.push(elem);
 			self._append_extension(&ext)?;
 		}
