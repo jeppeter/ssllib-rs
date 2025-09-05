@@ -1522,11 +1522,11 @@ impl Asn1X509CinfElem {
 		retv._form_cfg_version(cfg)?;
 		retv.key = pubkey.export_pubkey()?;
 		retv._form_cfg_serial_number(cfg)?;
+		retv._form_key_usage(cfg)?;
 		retv._form_constraints_valid(cfg)?;
 		retv.signature = privkey.export_signature_algo()?;
 		retv._form_issuer_and_subject(cfg)?;
 		retv._form_cfg_time(cfg)?;
-		retv._form_key_usage(cfg)?;
 		retv._form_subject_key_id(cfg)?;
 		retv._form_altname(cfg)?;
 		retv._form_ext_key_usage(cfg)?;
