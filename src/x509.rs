@@ -932,8 +932,11 @@ impl Asn1X509CinfElem {
 		let mut bitdata :Asn1BitData = Asn1BitData::init_asn1();
 		bitdata.data = data.clone();
 		let odata = bitdata.encode_asn1()?;
+		let mut bval :Asn1Boolean = Asn1Boolean::init_asn1();
+		bval.val = true;
 
 		elem.object.set_value(OID_KEY_USAGE)?;
+		elem.critical.val = Some(bval);
 		elem.value.data = odata;
 		ext.elem.val.push(elem);
 
@@ -1396,15 +1399,16 @@ impl Asn1X509CinfElem {
 	}
 
 	fn _form_policies(&mut self, cfg:&X509BuildConfig) -> Result<(),Box<dyn Error>> {
-		let mut poobjs :Asn1Seq<Asn1Object> = Asn1Seq::init_asn1();
-		let mut curobj :Asn1Object;
+		let mut poobjs :Asn1Seq<Asn1Seq<Asn1Object>> = Asn1Seq::init_asn1();
+		let mut curobj :Asn1Seq<Asn1Object>;
 		let mut idx :usize;
 
 		if cfg.policies.len() > 0 {
 			idx = 0;
 			while idx < cfg.policies.len() {
-				curobj = Asn1Object::init_asn1();
-				curobj.set_value(&cfg.policies[idx])?;
+				curobj = Asn1Seq::init_asn1();
+				curobj.make_safe_one("Asn1Object")?;
+				curobj.val[0].set_value(&cfg.policies[idx])?;
 				poobjs.val.push(curobj.clone());
 				idx += 1;
 			}
@@ -1415,9 +1419,7 @@ impl Asn1X509CinfElem {
 			let mut elem :Asn1X509ExtensionElem = Asn1X509ExtensionElem::init_asn1();
 			let mut ext :Asn1X509Extension = Asn1X509Extension::init_asn1();
 			let _ = elem.object.set_value(OID_POLICIES)?;
-			let mut objscon :Asn1Seq<Asn1Seq<Asn1Object>> = Asn1Seq::init_asn1();
-			objscon.val.push(poobjs.clone());
-			elem.value.data = objscon.encode_asn1()?;
+			elem.value.data = poobjs.encode_asn1()?;
 			ext.elem.val.push(elem);
 			self._append_extension(&ext)?;			
 		}
@@ -1529,10 +1531,10 @@ impl Asn1X509CinfElem {
 		retv._form_issuer_and_subject(cfg)?;
 		retv._form_cfg_time(cfg)?;
 		retv._form_subject_key_id(cfg)?;
-		retv._form_altname(cfg)?;
-		retv._form_policies(cfg)?;
 		retv._form_authority_key_id(cfg)?;
 		retv._form_ocsp_servers_and_issuer_certificate_urls(cfg)?;
+		retv._form_altname(cfg)?;
+		retv._form_policies(cfg)?;
 
 		Ok(retv)
 	}
