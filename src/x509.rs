@@ -11,6 +11,8 @@ use asn1obj::consts::*;
 
 use std::error::Error;
 use std::io::{Write};
+use std::sync::Arc;
+use std::cell::RefCell;
 
 use num_bigint::{BigInt,Sign};
 //use num_traits::{zero};
@@ -944,13 +946,39 @@ impl Asn1X509CinfElem {
 			let mut elem :Asn1X509ExtensionElem = Asn1X509ExtensionElem::init_asn1();
 			let mut ext :Asn1X509Extension = Asn1X509Extension::init_asn1();
 			let _ = elem.object.set_value(OID_CONSTRAINTS_VALID)?;
+			let mut conselem :Asn1BasicConstraintsElem = Asn1BasicConstraintsElem::init_asn1();
 			let mut cons :Asn1BasicConstraints = Asn1BasicConstraints::init_asn1();
-			cons.elem.make_safe_one("Asn1BasicConstraintsElem")?;
-			cons.elem.val[0].isca.val = cfg.is_ca;
-			if cfg.max_path_len != -1 {
+			let mut setted :bool = false;
+			let mut maxpathlen :i64 = cfg.max_path_len;
+			let mut bval :Asn1Boolean ;
+
+			if maxpathlen == 0 && !cfg.max_path_zero {
+				maxpathlen = -1;
+			}
+
+			if !cfg.is_ca && (maxpathlen != 0 && maxpathlen != -1) {
+				ssllib_new_error!{SslX509Error,"not CA so maxpath must 0 or -1"}
+			}
+
+			bval = Asn1Boolean::init_asn1();
+			bval.val = true;
+			elem.critical.val = Some(bval.clone());
+
+			if cfg.is_ca {
+				bval =Asn1Boolean::init_asn1();
+				bval.val = cfg.is_ca;
+				conselem.isca.val = Some(bval.clone());
+				setted = true;
+			}
+			if maxpathlen != -1 {
 				let mut intval :Asn1Integer = Asn1Integer::init_asn1();
 				intval.val = cfg.max_path_len as i64;
-				cons.elem.val[0].maxlen.val = Some(intval);
+				conselem.maxlen.val = Some(intval);
+				setted = true;
+			}
+
+			if setted {
+				cons.elem.val.push(conselem.clone());
 			}
 
 			elem.value.data = cons.encode_asn1()?;
@@ -964,12 +992,31 @@ impl Asn1X509CinfElem {
 	}
 
 	fn _form_subject_key_id(&mut self,cfg :&X509BuildConfig) -> Result<(),Box<dyn Error>> {
-		if cfg.subject_key_id.len() > 0 {
+		if cfg.subject_key_id.len() > 0 || cfg.is_ca {
 			let mut elem :Asn1X509ExtensionElem = Asn1X509ExtensionElem::init_asn1();
 			let mut ext :Asn1X509Extension = Asn1X509Extension::init_asn1();
 			let _ = elem.object.set_value(OID_SUBJECT_KEY_ID)?;
 			let mut keyidoct :Asn1OctData = Asn1OctData::init_asn1();
-			keyidoct.data = cfg.subject_key_id.clone();
+
+			if cfg.subject_key_id.len() > 0 {
+				keyidoct.data = cfg.subject_key_id.clone();	
+			} else {
+				let odigop :Option<Arc<RefCell<dyn Asn1DigestOp>>> = ssllib_get_digest_operator("sha1");
+				if odigop.is_none() {
+					ssllib_new_error!{SslX509Error,"no sha1 digest"}
+				}
+				let digop :Arc<RefCell<dyn Asn1DigestOp>> = odigop.unwrap();
+				let initv :Vec<u8> = vec![];
+				let ores = self.key.elem.check_safe_one("Asn1X509PubkeyElem");
+				if ores.is_err() {
+					ssllib_new_error!{SslX509Error,"not set public key before isca to subject key id"}
+				}
+				digop.borrow_mut().init_digest(0,&initv)?;
+				let pubdata :Vec<u8> = self.key.elem.val[0].public_key.data.clone();
+				digop.borrow_mut().digest_update(&pubdata)?;
+				keyidoct.data = digop.borrow_mut().digest_final()?;
+			}
+			
 			elem.value.data = keyidoct.encode_asn1()?;
 			ext.elem.val.push(elem);
 			self._append_extension(&ext)?;
@@ -1473,12 +1520,12 @@ impl Asn1X509CinfElem {
 	pub fn from_x509_build_cfg(cfg :&X509BuildConfig,pubkey :&Box<dyn X509PublicKey>, privkey :&Box<dyn X509PrivateKey>) -> Result<Self,Box<dyn Error>> {
 		let mut retv :Asn1X509CinfElem = Asn1X509CinfElem::init_asn1();
 		retv._form_cfg_version(cfg)?;
+		retv.key = pubkey.export_pubkey()?;
 		retv._form_cfg_serial_number(cfg)?;
+		retv._form_constraints_valid(cfg)?;
 		retv.signature = privkey.export_signature_algo()?;
 		retv._form_issuer_and_subject(cfg)?;
 		retv._form_cfg_time(cfg)?;
-		retv.key = pubkey.export_pubkey()?;
-
 		retv._form_key_usage(cfg)?;
 		retv._form_subject_key_id(cfg)?;
 		retv._form_altname(cfg)?;
@@ -1564,7 +1611,7 @@ pub struct Asn1X509Elem {
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct Asn1BasicConstraintsElem {
-	pub isca :Asn1Boolean,
+	pub isca :Asn1Opt<Asn1Boolean>,
 	pub maxlen :Asn1Opt<Asn1Integer>,
 }
 
@@ -1705,21 +1752,24 @@ impl Asn1X509Elem {
 						let mut cons :Asn1BasicConstraints = Asn1BasicConstraints::init_asn1();
 						let code = curext.value.data.clone();
 						cons.decode_asn1(&code)?;
-						if cons.elem.val.len() < 1 {
-							ssllib_new_error!{SslX509Error,"Basic Constrains not valid"}
-						}
 
-						retv.is_ca = cons.elem.val[0].isca.val;
-						if cons.elem.val[0].maxlen.val.is_some() {
-							retv.max_path_len = cons.elem.val[0].maxlen.val.as_ref().unwrap().val;							
-							if retv.max_path_len == 0 {
-								retv.max_path_zero = true;
+						if cons.elem.val.len() > 0 {
+							retv.is_ca = false;
+							if cons.elem.val[0].isca.val.is_some() {
+								retv.is_ca = cons.elem.val[0].isca.val.as_ref().unwrap().val;	
+							}
+							
+							if cons.elem.val[0].maxlen.val.is_some() {
+								retv.max_path_len = cons.elem.val[0].maxlen.val.as_ref().unwrap().val;							
+								if retv.max_path_len == 0 {
+									retv.max_path_zero = true;
+								} else {
+									retv.max_path_zero = false;
+								}
 							} else {
+								retv.max_path_len = -1;
 								retv.max_path_zero = false;
 							}
-						} else {
-							retv.max_path_len = -1;
-							retv.max_path_zero = false;
 						}
 						
 						retv.basic_constraints_valid = true;					
