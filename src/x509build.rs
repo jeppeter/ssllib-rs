@@ -990,6 +990,8 @@ pub struct X509VerifyOption {
 	rootcerts :HashMap<String,Asn1X509>,
 	#[serde(skip)]
 	interncerts :HashMap<String,Asn1X509>,
+	#[serde(skip)]
+	issuermap :HashMap<String,String>,
 	#[serde(default = "x509build_before_default", serialize_with = "date_time_serialize", deserialize_with = "date_time_deserialize")]
 	currenttime :DateTime<Utc>,
 	#[serde(default = "x509build_key_usage_default")]
@@ -1010,6 +1012,7 @@ impl X509VerifyOption {
 			interns :vec![],
 			rootcerts :HashMap::new(),
 			interncerts : HashMap::new(),
+			issuermap :HashMap::new(),
 			currenttime : Utc::now(),
 			key_usage : vec![],
 			max_constraints_comparisons : 0,
@@ -1020,6 +1023,9 @@ impl X509VerifyOption {
 		self.roots.push(format!("{}",fname));
 
 		let x = self._get_x509(fname)?;
+		/*now to check for x509 map*/
+		let (hashidx,_) = x.get_subject_name()?;
+		self.issuermap.insert(hashidx,format!("{}",fname));
 		self.rootcerts.insert(format!("{}",fname),x);
 		Ok(())
 	}
@@ -1034,6 +1040,8 @@ impl X509VerifyOption {
 	pub fn add_interns(&mut self, fname :&str) -> Result<(),Box<dyn Error>> {
 		self.interns.push(format!("{}",fname));
 		let x = self._get_x509(fname)?;
+		let (hashidx,_) = x.get_subject_name()?;
+		self.issuermap.insert(hashidx,format!("{}",fname));
 		self.interncerts.insert(format!("{}",fname),x);
 		Ok(())
 	}

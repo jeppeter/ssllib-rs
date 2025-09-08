@@ -20,7 +20,7 @@ use num_bigint::{BigInt,Sign};
 use crate::{ssllib_new_error,ssllib_error_class};
 #[allow(unused_imports)]
 use crate::{ssllib_buffer_trace,ssllib_buffer_error,ssllib_format_buffer_log,ssllib_log_trace,ssllib_log_warn};
-//use crate::rsa::*;
+use crate::rsa::*;
 use crate::consts::*;
 use crate::digest::*;
 use crate::impls::*;
@@ -51,10 +51,23 @@ pub struct Asn1X509PubkeyElem {
 	pub public_key :Asn1BitDataFlag,
 }
 
+impl Asn1X509PubkeyElem {
+	pub fn get_algorithm(&self) -> Result<String,Box<dyn Error>> {
+		return self.algor.get_algorithm();
+	}
+}
+
 #[asn1_sequence()]
 #[derive(Clone)]
 pub struct Asn1X509Pubkey {
 	pub elem :Asn1Seq<Asn1X509PubkeyElem>,
+}
+
+impl Asn1X509Pubkey {
+	pub fn get_algorithm(&self) -> Result<String,Box<dyn Error>> {
+		self.elem.check_safe_one("Asn1X509PubkeyElem")?;
+		return self.elem.val[0].get_algorithm();
+	}
 }
 
 
@@ -1540,6 +1553,28 @@ impl Asn1X509CinfElem {
 	}
 
 
+	pub fn get_subject_name(&self) -> Result<(String,Asn1X509Name),Box<dyn Error>> {
+		/*now we should get the */
+		let retname :Asn1X509Name = self.subject.clone();
+		let code = retname.encode_asn1()?;
+		let odigop = ssllib_get_digest_operator("sha256");
+		if odigop.is_none() {
+			ssllib_new_error!{SslX509Error,"can not find sha256 digest"}
+		}
+		let digop = odigop.unwrap();
+		let initv :Vec<u8>= vec![];
+		digop.borrow_mut().init_digest(0,&initv)?;
+		digop.borrow_mut().digest_update(&code)?;
+		let hashcode = digop.borrow_mut().digest_final()?;
+		let bn :BigUint = BigUint::from_bytes_be(&hashcode);
+		let rets = format!("0x{:x}",bn);
+		Ok((rets,retname))
+
+	}
+
+	pub fn get_x509_pubkey(&self) -> Result<Box<dyn X509PublicKey>, Box<dyn Error>> {
+		return get_x509_pubkey_from_algo(&self.key,&self.signature);
+	}
 
 
 }
@@ -1567,6 +1602,17 @@ impl Asn1X509Cinf {
 		retv.elem.val.push(Asn1X509CinfElem::from_x509_build_cfg(cfg,pubkey,privkey)?);
 		Ok(retv)
 	}
+
+	pub fn get_subject_name(&self) -> Result<(String,Asn1X509Name),Box<dyn Error>> {
+		self.elem.check_safe_one("Asn1X509CinfElem")?;
+		return self.elem.val[0].get_subject_name();
+	}
+
+	pub fn get_x509_pubkey(&self) -> Result<Box<dyn X509PublicKey>, Box<dyn Error>> {
+		self.elem.check_safe_one("Asn1X509CinfElem")?;
+		return self.elem.val[0].get_x509_pubkey();
+	}
+
 }
 
 //#[asn1_sequence(debug=enable)]
@@ -2397,6 +2443,15 @@ impl Asn1X509Elem {
 		Ok(retv)
 	}
 
+	pub fn get_subject_name(&self) -> Result<(String,Asn1X509Name),Box<dyn Error>> {
+		return self.cert_info.get_subject_name();
+	}
+
+	pub fn get_x509_pubkey(&self) -> Result<Box<dyn X509PublicKey>, Box<dyn Error>> {
+		return self.cert_info.get_x509_pubkey();
+	}
+
+
 }
 
 
@@ -2425,8 +2480,17 @@ impl Asn1X509 {
 			}
 		}
 
-
 		return false;
+	}
+
+	pub fn get_subject_name(&self) -> Result<(String,Asn1X509Name),Box<dyn Error>> {
+		self.elem.check_safe_one("Asn1X509Elem")?;
+		return self.elem.val[0].get_subject_name();
+	}
+
+	pub fn get_x509_pubkey(&self) -> Result<Box<dyn X509PublicKey>, Box<dyn Error>> {
+		self.elem.check_safe_one("Asn1X509Elem")?;
+		return self.elem.val[0].get_x509_pubkey();
 	}
 
 	pub fn get_x509_name0(&self) -> Option<Asn1X509Name> {
@@ -3784,4 +3848,16 @@ impl Asn1PkixName {
 		retv.elem.val.push(Asn1PkixNameElem::from_pkixname(pkixname)?);
 		Ok(retv)
 	}
+}
+
+
+pub fn get_x509_pubkey_from_algo(pubkey :&Asn1X509Pubkey,algo :&Asn1X509Algor) -> Result<Box<dyn X509PublicKey>,Box<dyn Error>> {
+	let pubtype :String = pubkey.get_algorithm()?;
+
+	if pubtype == OID_RSA_ENCRYPTION {
+		let mut rsapub :Asn1RsaPubkey = Asn1RsaPubkey::init_asn1();
+		rsapub.decode_asn1(&pubkey.elem.val[0].public_key.data)?;
+		return get_rsa_x509_pubkey_algo(&rsapub,algo);
+	}
+	ssllib_new_error!{SslX509Error,"not support pubtype [{}]",pubtype}
 }

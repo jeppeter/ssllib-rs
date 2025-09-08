@@ -889,6 +889,79 @@ pub fn get_rsa_x509_pubkey(pubkey :&Asn1RsaPubkey,digesttype :&str,usaltsize :us
 	ssllib_new_error!{SslAsn1RsaError,"can not find key for digest type {}",digesttype}
 }
 
+pub fn get_rsa_x509_pubkey_algo(pubkey :&Asn1RsaPubkey, algo :&Asn1X509Algor) -> Result<Box<dyn X509PublicKey>,Box<dyn Error>> {
+	let oid :String = algo.get_algorithm()?;
+
+	if oid == OID_MD5_WITH_RSA_ENCRYPTION {
+		return Ok(Box::new(RsaMD5pub::new_from_pub(pubkey)?));
+	} else if oid == OID_SHA1_WITH_RSA_ENCRYPTION {
+		return Ok(Box::new(RsaSHA1pub::new_from_pub(pubkey)?));
+	} else if oid == OID_SHA256_WITH_RSA_ENCRYPTION {
+		return Ok(Box::new(RsaSHA256pub::new_from_pub(pubkey)?));
+	} else if oid == OID_SHA224_WITH_RSA_ENCRYPTION {
+		return Ok(Box::new(RsaSHA224pub::new_from_pub(pubkey)?));
+	} else if oid == OID_SHA384_WITH_RSA_ENCRYPTION {
+		return Ok(Box::new(RsaSHA384pub::new_from_pub(pubkey)?));
+	} else if oid == OID_SHA512_WITH_RSA_ENCRYPTION {
+		return Ok(Box::new(RsaSHA512pub::new_from_pub(pubkey)?));
+	}
+
+	let mut pssinfo :RsaPssSigInfo = RsaPssSigInfo::init_asn1();
+	let oparam = algo.get_param()?;
+	if oparam.is_none() {
+		ssllib_new_error!{SslAsn1RsaError,"not support param for [{}]",oid}
+	}
+	let param :Asn1Any = oparam.unwrap();
+	let code = param.encode_asn1()?;
+	pssinfo.decode_asn1(&code)?;
+	pssinfo.elem.check_safe_one("RsaPssSigInfoElem")?;
+	if pssinfo.elem.val[0].algo.val.is_none() {
+		ssllib_new_error!{SslAsn1RsaError,"no algo in RsaPssSigInfo"}
+	}
+	if pssinfo.elem.val[0].cmplx.val.is_none() {
+		ssllib_new_error!{SslAsn1RsaError,"no cmplx in RsaPssSigInfo"}
+	}
+
+	let algo :Asn1ImpSet<Asn1X509Algor,0> = pssinfo.elem.val[0].algo.val.as_ref().unwrap().clone();
+	let cmplx :Asn1ImpSet<Asn1X509Algor,1> = pssinfo.elem.val[0].cmplx.val.as_ref().unwrap().clone();
+
+	if algo.val.len() == 0 {
+		ssllib_new_error!{SslAsn1RsaError,"no algo in pssinfo"}
+	}
+
+	if cmplx.val.len() == 0 {
+		ssllib_new_error!{SslAsn1RsaError,"no cmplx in pssinfo"}
+	}
+
+	algo.val[0].elem.check_safe_one("Asn1X509AlgorElem")?;
+	cmplx.val[0].elem.check_safe_one("Asn1X509AlgorElem")?;
+
+	let digoid :String = algo.val[0].get_algorithm()?;
+	let mgf1 :String = cmplx.val[0].get_algorithm()?;
+
+	if mgf1 != OID_RSA_MGF1 {
+		ssllib_new_error!{SslAsn1RsaError,"not [{}] type [{}]",OID_RSA_MGF1,mgf1}
+	}
+
+	if digoid == OID_MD5_DIGEST {
+		return Ok(Box::new(RsaPSSMD5pub::new_from_pub(pubkey,PSS_LENGTH_TO_HASHSIZE)?));
+	} else if digoid == OID_SHA1_DIGEST {
+		return Ok(Box::new(RsaPSSSHA1pub::new_from_pub(pubkey,PSS_LENGTH_TO_HASHSIZE)?));
+	} else if digoid == OID_SHA256_DIGEST {
+		return Ok(Box::new(RsaPSSSHA256pub::new_from_pub(pubkey,PSS_LENGTH_TO_HASHSIZE)?));
+	} else if digoid == OID_SHA384_DIGEST {
+		return Ok(Box::new(RsaPSSSHA384pub::new_from_pub(pubkey,PSS_LENGTH_TO_HASHSIZE)?));
+	} else if digoid == OID_SHA512_DIGEST {
+		return Ok(Box::new(RsaPSSSHA512pub::new_from_pub(pubkey,PSS_LENGTH_TO_HASHSIZE)?));
+	} else if digoid == OID_SHA224_DIGEST {
+		return Ok(Box::new(RsaPSSSHA224pub::new_from_pub(pubkey,PSS_LENGTH_TO_HASHSIZE)?));
+	}
+
+	ssllib_new_error!{SslAsn1RsaError,"not supported rsa type [{}]",digoid}
+}
+
+
+
 
 
 impl Asn1RsaPrivateKey {
