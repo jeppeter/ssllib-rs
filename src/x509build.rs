@@ -981,22 +981,43 @@ impl X509BuildConfig {
 
 
 #[derive(Clone,Serialize,Deserialize)]
-pub struct X509VerifyOption {
+pub struct X509VerifyOptionJson {
 	#[serde(default = "array_string_default")]
-	roots :Vec<String>,
+	pub roots :Vec<String>,
 	#[serde(default = "array_string_default")]
-	interns :Vec<String>,
-	#[serde(skip)]
-	rootcerts :HashMap<String,Asn1X509>,
-	#[serde(skip)]
-	interncerts :HashMap<String,Asn1X509>,
-	#[serde(skip)]
-	issuermap :HashMap<String,String>,
+	pub interns :Vec<String>,
 	#[serde(default = "x509build_before_default", serialize_with = "date_time_serialize", deserialize_with = "date_time_deserialize")]
-	currenttime :DateTime<Utc>,
+	pub currenttime :DateTime<Utc>,
 	#[serde(default = "x509build_key_usage_default")]
-	key_usage :Vec<KeyUsage>,
+	pub key_usage :Vec<KeyUsage>,
 	#[serde(default = "x509_vfy_opt_max_constraints_comparisons_default")]
+	pub max_constraints_comparisons :i32,
+}
+
+impl X509VerifyOptionJson {
+	pub fn new() -> Self {
+		Self {
+			roots :vec![],
+			interns :vec![],
+			currenttime :Utc::now(),
+			key_usage :vec![],
+			max_constraints_comparisons : 0,
+		}
+	}
+}
+
+impl Into for X509VerifyOptionJson {
+	fn into()
+}
+
+#[derive(Clone)]
+pub struct X509VerifyOption {
+	rootcerts :HashMap<String,Asn1X509>,
+	interncerts :HashMap<String,Asn1X509>,
+	issuermap :HashMap<String,String>,
+	verified :HashMap<String,bool>,
+	currenttime :DateTime<Utc>,
+	key_usage :Vec<KeyUsage>,	
 	max_constraints_comparisons :i32,
 }
 
@@ -1013,16 +1034,15 @@ impl X509VerifyOption {
 			rootcerts :HashMap::new(),
 			interncerts : HashMap::new(),
 			issuermap :HashMap::new(),
+			verified :HashMap::new(),
 			currenttime : Utc::now(),
 			key_usage : vec![],
 			max_constraints_comparisons : 0,
 		}
 	}
 
-	pub fn add_root(&mut self, fname :&str) -> Result<(),Box<dyn Error>> {
-		self.roots.push(format!("{}",fname));
-
-		let x = self._get_x509(fname)?;
+	pub fn add_root(&mut self, fname :&str,code :&[u8]) -> Result<(),Box<dyn Error>> {	
+		let x = self._get_x509(fname,code)?;
 		/*now to check for x509 map*/
 		let (hashidx,_) = x.get_subject_name()?;
 		self.issuermap.insert(hashidx,format!("{}",fname));
@@ -1030,16 +1050,14 @@ impl X509VerifyOption {
 		Ok(())
 	}
 
-	fn _get_x509(&self, fname :&str) -> Result<Asn1X509,Box<dyn Error>> {
-		let bs = read_file_into_der(fname)?;
+	fn _get_x509(&self, fname :&str,code :&[u8]) -> Result<Asn1X509,Box<dyn Error>> {
 		let mut x :Asn1X509 = Asn1X509::init_asn1();
-		let _ = x.decode_asn1(&bs)?;
+		let _ = x.decode_asn1(code)?;
 		return Ok(x);
 	}
 
-	pub fn add_interns(&mut self, fname :&str) -> Result<(),Box<dyn Error>> {
-		self.interns.push(format!("{}",fname));
-		let x = self._get_x509(fname)?;
+	pub fn add_interns(&mut self, fname :&str,code :&[u8]) -> Result<(),Box<dyn Error>> {
+		let x = self._get_x509(fname,code)?;
 		let (hashidx,_) = x.get_subject_name()?;
 		self.issuermap.insert(hashidx,format!("{}",fname));
 		self.interncerts.insert(format!("{}",fname),x);
