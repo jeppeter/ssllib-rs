@@ -1171,4 +1171,9 @@ impl X509VerifyOption {
 	pub fn get_current_time(&self) -> DateTime<Utc> {
 		return self.currenttime.clone();
 	}
+
+	pub fn verify_cert(&mut self,cert :&Asn1X509) -> Result<Vec<Asn1X509>,Box<dyn Error>> {
+		let retv :Vec<Asn1X509> = vec![];
+		Ok(retv)
+	}
 }

@@ -1572,8 +1572,12 @@ impl Asn1X509CinfElem {
 
 	}
 
-	pub fn get_x509_pubkey(&self) -> Result<Box<dyn X509PublicKey>, Box<dyn Error>> {
-		return get_x509_pubkey_from_algo(&self.key,&self.signature);
+	pub fn get_x509_sign_algo(&self) -> Result<Asn1X509Algor,Box<dyn Error>> {
+		Ok(self.signature.clone())
+	}
+
+	pub fn get_x509_pubkey(&self) -> Result<Asn1X509Pubkey, Box<dyn Error>> {
+		Ok(self.key.clone())
 	}
 
 
@@ -1608,7 +1612,12 @@ impl Asn1X509Cinf {
 		return self.elem.val[0].get_subject_name();
 	}
 
-	pub fn get_x509_pubkey(&self) -> Result<Box<dyn X509PublicKey>, Box<dyn Error>> {
+	pub fn get_x509_sign_algo(&self) -> Result<Asn1X509Algor,Box<dyn Error>> {
+		self.elem.check_safe_one("Asn1X509CinfElem")?;
+		return self.elem.val[0].get_x509_sign_algo();
+	}
+
+	pub fn get_x509_pubkey(&self) -> Result<Asn1X509Pubkey, Box<dyn Error>> {
 		self.elem.check_safe_one("Asn1X509CinfElem")?;
 		return self.elem.val[0].get_x509_pubkey();
 	}
@@ -2447,7 +2456,12 @@ impl Asn1X509Elem {
 		return self.cert_info.get_subject_name();
 	}
 
-	pub fn get_x509_pubkey(&self) -> Result<Box<dyn X509PublicKey>, Box<dyn Error>> {
+	pub fn get_x509_sign_algo(&self) -> Result<Asn1X509Algor,Box<dyn Error>> {
+		return self.cert_info.get_x509_sign_algo();
+	}
+
+
+	pub fn get_x509_pubkey(&self) -> Result<Asn1X509Pubkey, Box<dyn Error>> {
 		return self.cert_info.get_x509_pubkey();
 	}
 
@@ -2488,7 +2502,13 @@ impl Asn1X509 {
 		return self.elem.val[0].get_subject_name();
 	}
 
-	pub fn get_x509_pubkey(&self) -> Result<Box<dyn X509PublicKey>, Box<dyn Error>> {
+	pub fn get_x509_sign_algo(&self) -> Result<Asn1X509Algor,Box<dyn Error>> {
+		self.elem.check_safe_one("Asn1X509Elem")?;
+		return self.elem.val[0].get_x509_sign_algo();
+	}
+	
+
+	pub fn get_x509_pubkey(&self) -> Result<Asn1X509Pubkey, Box<dyn Error>> {
 		self.elem.check_safe_one("Asn1X509Elem")?;
 		return self.elem.val[0].get_x509_pubkey();
 	}
