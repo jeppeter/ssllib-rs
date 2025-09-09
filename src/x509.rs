@@ -1552,6 +1552,24 @@ impl Asn1X509CinfElem {
 		Ok(retv)
 	}
 
+	pub fn get_issuer_name(&self) -> Result<(String,Asn1X509Name),Box<dyn Error>> {
+		/*now we should get the */
+		let retname :Asn1X509Name = self.issuer.clone();
+		let code = retname.encode_asn1()?;
+		let odigop = ssllib_get_digest_operator("sha256");
+		if odigop.is_none() {
+			ssllib_new_error!{SslX509Error,"can not find sha256 digest"}
+		}
+		let digop = odigop.unwrap();
+		let initv :Vec<u8>= vec![];
+		digop.borrow_mut().init_digest(0,&initv)?;
+		digop.borrow_mut().digest_update(&code)?;
+		let hashcode = digop.borrow_mut().digest_final()?;
+		let bn :BigUint = BigUint::from_bytes_be(&hashcode);
+		let rets = format!("0x{:x}",bn);
+		Ok((rets,retname))
+	}
+
 
 	pub fn get_subject_name(&self) -> Result<(String,Asn1X509Name),Box<dyn Error>> {
 		/*now we should get the */
@@ -2465,6 +2483,13 @@ impl Asn1X509Elem {
 		return self.cert_info.get_x509_pubkey();
 	}
 
+	pub fn verify_cert(&self, vfyop :&mut Box<dyn X509PublicKey>) -> Result<bool,Box<dyn Error>> {
+		let code = self.cert_info.encode_asn1()?;
+		let emptyvec :Vec<u8> =vec![];
+		vfyop.verify_init(&emptyvec,&emptyvec)?;
+		let retv :bool = vfyop.verify_exec(&code,&self.signature.data)?;
+		Ok(retv)
+	}
 
 }
 
@@ -2481,6 +2506,15 @@ impl Asn1X509 {
 	pub fn match_priv_data(&self,signtype :&str,pktype :&str,privdata:&[u8]) -> Result<bool, Box<dyn Error>> {
 		let  _ = self.elem.check_safe_one("Asn1X509")?;
 		return self.elem.val[0].match_priv_data(signtype,pktype,privdata);
+	}
+
+	pub fn verify_cert(&self, parent :&Asn1X509) -> Result<bool,Box<dyn Error>> {
+		/*first to */
+		let pubkey :Asn1X509Pubkey = parent.get_x509_pubkey()?;
+		let algo :Asn1X509Algor = self.get_x509_sign_algo()?;
+		let mut vfyop :Box<dyn X509PublicKey> = get_x509_pubkey_from_algo(&pubkey,&algo)?;
+		self.elem.check_safe_one("Asn1X509Elem")?;
+		return self.elem.val[0].verify_cert(&mut vfyop);
 	}
 
 	pub fn is_self_signed(&self) -> bool {
@@ -2506,7 +2540,7 @@ impl Asn1X509 {
 		self.elem.check_safe_one("Asn1X509Elem")?;
 		return self.elem.val[0].get_x509_sign_algo();
 	}
-	
+
 
 	pub fn get_x509_pubkey(&self) -> Result<Asn1X509Pubkey, Box<dyn Error>> {
 		self.elem.check_safe_one("Asn1X509Elem")?;

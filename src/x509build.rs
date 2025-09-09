@@ -646,117 +646,117 @@ impl X509RequestBuildConfig {
 #[derive(Debug,Serialize,Deserialize)]
 #[serde(rename_all="lowercase")]
 pub enum ExtKeyUsage {
-    ExtKeyUsageAny,
-    ExtKeyUsageServerAuth,
-    ExtKeyUsageClientAuth,
-    ExtKeyUsageCodeSigning,
-    ExtKeyUsageEmailProtection,
-    ExtKeyUsageIPSECEndSystem,
-    ExtKeyUsageIPSECTunnel,
-    ExtKeyUsageIPSECUser,
-    ExtKeyUsageTimeStamping,
-    ExtKeyUsageOCSPSigning,
-    ExtKeyUsageMicrosoftServerGatedCrypto,
-    ExtKeyUsageNetscapeServerGatedCrypto,
-    ExtKeyUsageMicrosoftCommercialCodeSigning,
-    ExtKeyUsageMicrosoftKernelCodeSigning,
+	ExtKeyUsageAny,
+	ExtKeyUsageServerAuth,
+	ExtKeyUsageClientAuth,
+	ExtKeyUsageCodeSigning,
+	ExtKeyUsageEmailProtection,
+	ExtKeyUsageIPSECEndSystem,
+	ExtKeyUsageIPSECTunnel,
+	ExtKeyUsageIPSECUser,
+	ExtKeyUsageTimeStamping,
+	ExtKeyUsageOCSPSigning,
+	ExtKeyUsageMicrosoftServerGatedCrypto,
+	ExtKeyUsageNetscapeServerGatedCrypto,
+	ExtKeyUsageMicrosoftCommercialCodeSigning,
+	ExtKeyUsageMicrosoftKernelCodeSigning,
 }
 
 impl PartialEq for ExtKeyUsage {
-    fn ne(&self,other :&Self) -> bool {
-        return !self.eq(other);
-    }
-    
-    fn eq(&self,other :&Self) -> bool{
-        let mut retval :bool = false;
-        match self {
-            ExtKeyUsage::ExtKeyUsageAny => {
-                match other {
-                    ExtKeyUsage::ExtKeyUsageAny => {retval = true;},
-                    _ => {},
-                }
-            },
-            ExtKeyUsage::ExtKeyUsageServerAuth => {
-                match other {
-                    ExtKeyUsage::ExtKeyUsageServerAuth => {retval = true;},
-                    _ => {},
-                }
-            },
-            ExtKeyUsage::ExtKeyUsageClientAuth => {
-                match other {
-                    ExtKeyUsage::ExtKeyUsageClientAuth => {retval = true;},
-                    _ => {},
-                }
-            },
-            ExtKeyUsage::ExtKeyUsageCodeSigning => {
-                match other {
-                    ExtKeyUsage::ExtKeyUsageCodeSigning => {retval = true;},
-                    _ => {},
-                }
-            },
-            ExtKeyUsage::ExtKeyUsageEmailProtection => {
-                match other {
-                    ExtKeyUsage::ExtKeyUsageEmailProtection => {retval = true;},
-                    _ => {},
-                }
-            },
-            ExtKeyUsage::ExtKeyUsageIPSECEndSystem => {
-                match other {
-                    ExtKeyUsage::ExtKeyUsageIPSECEndSystem => {retval = true;},
-                    _ => {},
-                }
-            },
-            ExtKeyUsage::ExtKeyUsageIPSECTunnel => {
-                match other {
-                    ExtKeyUsage::ExtKeyUsageIPSECTunnel => {retval = true;},
-                    _ => {},
-                }
-            },
-            ExtKeyUsage::ExtKeyUsageIPSECUser => {
-                match other {
-                    ExtKeyUsage::ExtKeyUsageIPSECUser => {retval = true;},
-                    _ => {},
-                }
-            },
-            ExtKeyUsage::ExtKeyUsageTimeStamping => {
-                match other {
-                    ExtKeyUsage::ExtKeyUsageTimeStamping => {retval = true;},
-                    _ => {},
-                }
-            },
-            ExtKeyUsage::ExtKeyUsageOCSPSigning => {
-                match other {
-                    ExtKeyUsage::ExtKeyUsageOCSPSigning => {retval = true;},
-                    _ => {},
-                }
-            },
-            ExtKeyUsage::ExtKeyUsageMicrosoftServerGatedCrypto => {
-                match other {
-                    ExtKeyUsage::ExtKeyUsageMicrosoftServerGatedCrypto => {retval = true;},
-                    _ => {},
-                }
-            },
-            ExtKeyUsage::ExtKeyUsageNetscapeServerGatedCrypto => {
-                match other {
-                    ExtKeyUsage::ExtKeyUsageNetscapeServerGatedCrypto => {retval = true;},
-                    _ => {},
-                }
-            },
-            ExtKeyUsage::ExtKeyUsageMicrosoftCommercialCodeSigning => {
-                match other {
-                    ExtKeyUsage::ExtKeyUsageMicrosoftCommercialCodeSigning => {retval = true;},
-                    _ => {},
-                }
-            },
-            ExtKeyUsage::ExtKeyUsageMicrosoftKernelCodeSigning => {
-                match other {
-                    ExtKeyUsage::ExtKeyUsageMicrosoftKernelCodeSigning => {retval = true;},
-                    _ => {},
-                }
-            },
-        }
-        return retval;
-    }
+	fn ne(&self,other :&Self) -> bool {
+		return !self.eq(other);
+	}
+
+	fn eq(&self,other :&Self) -> bool{
+		let mut retval :bool = false;
+		match self {
+			ExtKeyUsage::ExtKeyUsageAny => {
+				match other {
+					ExtKeyUsage::ExtKeyUsageAny => {retval = true;},
+					_ => {},
+				}
+			},
+			ExtKeyUsage::ExtKeyUsageServerAuth => {
+				match other {
+					ExtKeyUsage::ExtKeyUsageServerAuth => {retval = true;},
+					_ => {},
+				}
+			},
+			ExtKeyUsage::ExtKeyUsageClientAuth => {
+				match other {
+					ExtKeyUsage::ExtKeyUsageClientAuth => {retval = true;},
+					_ => {},
+				}
+			},
+			ExtKeyUsage::ExtKeyUsageCodeSigning => {
+				match other {
+					ExtKeyUsage::ExtKeyUsageCodeSigning => {retval = true;},
+					_ => {},
+				}
+			},
+			ExtKeyUsage::ExtKeyUsageEmailProtection => {
+				match other {
+					ExtKeyUsage::ExtKeyUsageEmailProtection => {retval = true;},
+					_ => {},
+				}
+			},
+			ExtKeyUsage::ExtKeyUsageIPSECEndSystem => {
+				match other {
+					ExtKeyUsage::ExtKeyUsageIPSECEndSystem => {retval = true;},
+					_ => {},
+				}
+			},
+			ExtKeyUsage::ExtKeyUsageIPSECTunnel => {
+				match other {
+					ExtKeyUsage::ExtKeyUsageIPSECTunnel => {retval = true;},
+					_ => {},
+				}
+			},
+			ExtKeyUsage::ExtKeyUsageIPSECUser => {
+				match other {
+					ExtKeyUsage::ExtKeyUsageIPSECUser => {retval = true;},
+					_ => {},
+				}
+			},
+			ExtKeyUsage::ExtKeyUsageTimeStamping => {
+				match other {
+					ExtKeyUsage::ExtKeyUsageTimeStamping => {retval = true;},
+					_ => {},
+				}
+			},
+			ExtKeyUsage::ExtKeyUsageOCSPSigning => {
+				match other {
+					ExtKeyUsage::ExtKeyUsageOCSPSigning => {retval = true;},
+					_ => {},
+				}
+			},
+			ExtKeyUsage::ExtKeyUsageMicrosoftServerGatedCrypto => {
+				match other {
+					ExtKeyUsage::ExtKeyUsageMicrosoftServerGatedCrypto => {retval = true;},
+					_ => {},
+				}
+			},
+			ExtKeyUsage::ExtKeyUsageNetscapeServerGatedCrypto => {
+				match other {
+					ExtKeyUsage::ExtKeyUsageNetscapeServerGatedCrypto => {retval = true;},
+					_ => {},
+				}
+			},
+			ExtKeyUsage::ExtKeyUsageMicrosoftCommercialCodeSigning => {
+				match other {
+					ExtKeyUsage::ExtKeyUsageMicrosoftCommercialCodeSigning => {retval = true;},
+					_ => {},
+				}
+			},
+			ExtKeyUsage::ExtKeyUsageMicrosoftKernelCodeSigning => {
+				match other {
+					ExtKeyUsage::ExtKeyUsageMicrosoftKernelCodeSigning => {retval = true;},
+					_ => {},
+				}
+			},
+		}
+		return retval;
+	}
 }
 
 
@@ -1011,8 +1011,7 @@ impl X509VerifyOptionJson {
 pub struct X509VerifyOption {
 	rootcerts :HashMap<String,Asn1X509>,
 	interncerts :HashMap<String,Asn1X509>,
-	issuermap :HashMap<String,String>,
-	verified :HashMap<String,bool>,
+	issuermap :HashMap<String,Vec<String>>,
 	currenttime :DateTime<Utc>,
 	key_usage :Vec<KeyUsage>,	
 	max_constraints_comparisons :i32,
@@ -1066,20 +1065,13 @@ impl X509VerifyOption {
 			rootcerts :HashMap::new(),
 			interncerts : HashMap::new(),
 			issuermap :HashMap::new(),
-			verified :HashMap::new(),
 			currenttime : Utc::now(),
 			key_usage : vec![],
 			max_constraints_comparisons : 0,
 		}
 	}
 
-	fn _check_insert(&self,fname :&str,hashidx :&str) -> Result<(),Box<dyn Error>> {
-		match self.issuermap.get(hashidx) {
-			Some(_v) => {
-				ssllib_new_error!{X509BuildError,"has already in {}",fname}
-			},
-			None => {},
-		}
+	fn _check_insert(&self,fname :&str) -> Result<(),Box<dyn Error>> {
 
 		match self.rootcerts.get(fname) {
 			Some(_v) => {
@@ -1094,9 +1086,23 @@ impl X509VerifyOption {
 		let x = self._get_x509(fname,code)?;
 		/*now to check for x509 map*/
 		let (hashidx,_) = x.get_subject_name()?;
-		self._check_insert(fname,&hashidx)?;
+		let mut insertvec:Vec<String> = vec![];
+		self._check_insert(fname)?;
 
-		self.issuermap.insert(hashidx,format!("{}",fname));
+		if !x.is_self_signed() {
+			ssllib_new_error!{X509BuildError,"[{}] not root", fname}
+		}
+
+		match self.issuermap.get(&hashidx) {
+			Some(_v) => {
+				insertvec = _v.clone();
+			},
+			None => {
+			}
+		}
+
+		insertvec.push(format!("{}",fname));
+		self.issuermap.insert(format!("{}",hashidx),insertvec);
 		self.rootcerts.insert(format!("{}",fname),x);
 		Ok(())
 	}
@@ -1111,8 +1117,22 @@ impl X509VerifyOption {
 	pub fn add_intern(&mut self, fname :&str,code :&[u8]) -> Result<(),Box<dyn Error>> {
 		let x = self._get_x509(fname,code)?;
 		let (hashidx,_) = x.get_subject_name()?;
-		self._check_insert(fname,&hashidx)?;
-		self.issuermap.insert(hashidx,format!("{}",fname));
+		let mut insertvec:Vec<String>=vec![];
+		self._check_insert(fname)?;
+		if x.is_self_signed() {
+			ssllib_new_error!{X509BuildError,"[{}] self signed for root",fname}
+		}
+
+		match self.issuermap.get(&hashidx) {
+			Some(_v) => {
+				insertvec = _v.clone();
+			},
+			None => {
+			}
+		}
+
+		insertvec.push(format!("{}",fname));
+		self.issuermap.insert(format!("{}",hashidx),insertvec);
 		self.interncerts.insert(format!("{}",fname),x);
 		Ok(())
 	}
@@ -1172,8 +1192,83 @@ impl X509VerifyOption {
 		return self.currenttime.clone();
 	}
 
-	pub fn verify_cert(&mut self,cert :&Asn1X509) -> Result<Vec<Asn1X509>,Box<dyn Error>> {
-		let retv :Vec<Asn1X509> = vec![];
-		Ok(retv)
+	fn _check_cert(&self,cert :&Asn1X509,parent :&Asn1X509) -> Result<(),Box<dyn Error>> {
+		Ok(())
+	}
+
+
+	pub fn verify_cert(&self,cert :&Asn1X509) -> Result<Vec<Asn1X509>,Box<dyn Error>> {
+		let mut retv :Vec<Asn1X509> = vec![];
+		let mut scaned :Vec<Asn1X509>;
+		let mut curcert :Asn1X509 = cert.clone();
+		let mut matched :bool;
+
+		loop {
+			let retb :bool = curcert.is_self_signed();
+			if retb {
+				retv.push(curcert.clone());
+				return Ok(retv);
+			}
+
+			retv.push(curcert.clone());
+			scaned = vec![];
+
+			/*now to check */
+			let (hashidx,_) = curcert.get_issuer_name()?;
+			match self.issuermap.get(&hashidx) {
+				Some(_v) => {
+					for _k in _v.iter() {
+						match self.rootcerts.get(_k) {
+							Some(_x509) => {
+								let ores = curcert.verify_cert(_x509);
+								if ores.is_ok() {
+									let retb = ores.unwrap();
+									if retb {
+										scaned.push(_x509.clone());
+									}
+								}
+							},
+							None => {},
+						}
+
+						match self.interncerts.get(_k) {
+							Some(_x509) => {
+								let ores = curcert.verify_cert(_x509);
+								if ores.is_ok() {
+									let retb = ores.unwrap();
+									if retb {
+										scaned.push(_x509.clone());
+									}
+								}
+							},
+							None => {},
+						}
+					}
+
+				},
+				None => {
+					ssllib_new_error!{X509BuildError,"can not find cert for [{}]",hashidx}
+				}
+			}
+
+			if scaned.len() == 0 {
+				ssllib_new_error!{X509BuildError,"no candidate for cert"}
+			}
+
+			/*now to give*/
+			matched = false;
+			for sx509 in scaned.iter() {
+				let ores = self._check_cert(&curcert,sx509);
+				if ores.is_ok() {
+					curcert = sx509.clone();
+					matched = true;
+					break;
+				}
+			}
+
+			if !matched {
+				ssllib_new_error!{X509BuildError,"no matched"}
+			}
+		}
 	}
 }
