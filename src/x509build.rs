@@ -1006,9 +1006,6 @@ impl X509VerifyOptionJson {
 	}
 }
 
-impl Into for X509VerifyOptionJson {
-	fn into()
-}
 
 #[derive(Clone)]
 pub struct X509VerifyOption {
@@ -1021,6 +1018,43 @@ pub struct X509VerifyOption {
 	max_constraints_comparisons :i32,
 }
 
+impl std::convert::TryFrom<X509VerifyOptionJson> for X509VerifyOption {
+	type Error = Box<dyn std::error::Error>;
+	fn try_from(val :X509VerifyOptionJson) -> Result<Self,Box<dyn std::error::Error>> {
+		let mut retv :Self = Self::new();
+
+		/*now we should give the */
+		for f in val.roots.iter() {
+			let code = read_file_into_der(f)?;
+			let ores = std::fs::canonicalize(f);
+			if ores.is_err() {
+				ssllib_new_error!{X509BuildError,"can not convert [{}] abspath error {:?}",f,ores.err().unwrap()}
+			}
+			let abspath = format!("{}",ores.unwrap().display());
+			retv.add_root(&abspath,&code)?;
+		}
+
+		for f in val.interns.iter() {
+			let code = read_file_into_der(f)?;
+			let ores = std::fs::canonicalize(f);
+			if ores.is_err() {
+				ssllib_new_error!{X509BuildError,"can not convert [{}] abspath error {:?}",f,ores.err().unwrap()}
+			}
+			let abspath = format!("{}",ores.unwrap().display());
+			retv.add_intern(&abspath,&code)?;
+		}
+
+		retv.set_current_time(&val.currenttime);
+		for k in val.key_usage.iter() {
+			retv.add_key_usage(k);
+		}
+
+		retv.set_max_comparison(val.max_constraints_comparisons);
+
+		Ok(retv)
+	}
+}
+
 fn x509_vfy_opt_max_constraints_comparisons_default() -> i32 {
 	0
 }
@@ -1029,8 +1063,6 @@ fn x509_vfy_opt_max_constraints_comparisons_default() -> i32 {
 impl X509VerifyOption {
 	pub fn new() -> Self {
 		Self {
-			roots :vec![],
-			interns :vec![],
 			rootcerts :HashMap::new(),
 			interncerts : HashMap::new(),
 			issuermap :HashMap::new(),
@@ -1041,24 +1073,45 @@ impl X509VerifyOption {
 		}
 	}
 
+	fn _check_insert(&self,fname :&str,hashidx :&str) -> Result<(),Box<dyn Error>> {
+		match self.issuermap.get(hashidx) {
+			Some(_v) => {
+				ssllib_new_error!{X509BuildError,"has already in {}",fname}
+			},
+			None => {},
+		}
+
+		match self.rootcerts.get(fname) {
+			Some(_v) => {
+				ssllib_new_error!{X509BuildError,"has already add {}",fname}
+			},
+			None=>{},
+		}
+		Ok(())
+	}
+
 	pub fn add_root(&mut self, fname :&str,code :&[u8]) -> Result<(),Box<dyn Error>> {	
 		let x = self._get_x509(fname,code)?;
 		/*now to check for x509 map*/
 		let (hashidx,_) = x.get_subject_name()?;
+		self._check_insert(fname,&hashidx)?;
+
 		self.issuermap.insert(hashidx,format!("{}",fname));
 		self.rootcerts.insert(format!("{}",fname),x);
 		Ok(())
 	}
 
-	fn _get_x509(&self, fname :&str,code :&[u8]) -> Result<Asn1X509,Box<dyn Error>> {
+
+	fn _get_x509(&self, _fname :&str,code :&[u8]) -> Result<Asn1X509,Box<dyn Error>> {
 		let mut x :Asn1X509 = Asn1X509::init_asn1();
 		let _ = x.decode_asn1(code)?;
 		return Ok(x);
 	}
 
-	pub fn add_interns(&mut self, fname :&str,code :&[u8]) -> Result<(),Box<dyn Error>> {
+	pub fn add_intern(&mut self, fname :&str,code :&[u8]) -> Result<(),Box<dyn Error>> {
 		let x = self._get_x509(fname,code)?;
 		let (hashidx,_) = x.get_subject_name()?;
+		self._check_insert(fname,&hashidx)?;
 		self.issuermap.insert(hashidx,format!("{}",fname));
 		self.interncerts.insert(format!("{}",fname),x);
 		Ok(())
@@ -1066,26 +1119,9 @@ impl X509VerifyOption {
 
 	pub fn get_root_certs(&mut self) -> Result<Vec<Asn1X509>,Box<dyn Error>> {
 		let mut retv :Vec<Asn1X509> = vec![];
-		let mut i :usize = 0;
-		if self.roots.len() == 0 {
-			return Ok(retv);
-		}
 
-		while i < self.roots.len() {
-			let k :String = format!("{}",self.roots[i]);
-
-			match self.rootcerts.get(&k) {
-				Some(v) => {
-					retv.push(v.clone());
-				},
-				None => {
-					/*now we should get the inserts*/
-					let x = self._get_x509(&k)?;
-					self.rootcerts.insert(format!("{}",k),x.clone());
-					retv.push(x);
-				},
-			}
-			i += 1;
+		for (_,v) in self.rootcerts.iter() {
+			retv.push(v.clone());
 		}
 
 		return Ok(retv);
@@ -1093,26 +1129,11 @@ impl X509VerifyOption {
 
 	pub fn get_intern_certs(&mut self) -> Result<Vec<Asn1X509>,Box<dyn Error>> {
 		let mut retv :Vec<Asn1X509> = vec![];
-		if self.interns.len()  == 0 {
-			return Ok(retv);
-		}
-		let mut i :usize = 0;
 
-		while i < self.interns.len() {
-			let k :String = format!("{}",self.interns[i]);
-
-			match self.interncerts.get(&k) {
-				Some(v) => {
-					retv.push(v.clone());
-				},
-				None => {
-					let x = self._get_x509(&k)?;
-					self.interncerts.insert(format!("{}",k),x.clone());
-					retv.push(x);
-				},
-			}
-			i += 1;
+		for (_,v) in self.interncerts.iter() {
+			retv.push(v.clone());
 		}
+
 
 		return Ok(retv);
 	}
@@ -1120,6 +1141,12 @@ impl X509VerifyOption {
 	pub fn add_key_usage(&mut self, usage :&KeyUsage) -> usize {
 		self.key_usage.push(usage.clone());
 		return self.key_usage.len();
+	}
+
+	pub fn set_max_comparison(&mut self, val :i32) -> i32 {
+		let retv :i32 = self.max_constraints_comparisons;
+		self.max_constraints_comparisons = val;
+		retv
 	}
 
 	pub fn key_usage_in(&self, usage :&KeyUsage) -> i32 {
