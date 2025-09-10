@@ -1192,10 +1192,171 @@ impl X509VerifyOption {
 		return self.currenttime.clone();
 	}
 
+	fn _check_email_address_match(&self, email :&str , filters :&Vec<String>, okval :bool) -> Result<bool,Box<dyn Error>> {
+		if email.len() == 0 {
+			if okval {
+				return Ok(true);	
+			} else {
+				return Ok(false);
+			}		
+		}
+
+		let local :String;
+		let domain :String;
+
+		let esarr :Vec<&str> = email.split("@").collect();
+		if esarr.len() > 1 {
+			local = format!("{}",esarr[0]);
+			domain = format!("{}",esarr[1]);
+		} else {
+			local = "".to_string();
+			domain = format!("{}",esarr[0]);
+		}
+
+		for f in filters {
+			let sarr :Vec<&str> = f.split("@").collect();
+			if sarr.len() > 1 {
+				if sarr[0] == local && sarr[1]  == domain {
+					return Ok(true);
+				}
+			} else {
+				if sarr[0] == domain {
+					return Ok(true);
+				}
+			}
+		}
+		return Ok(false);
+	}
+
+	fn _revers_domain_names(&self, name :&str) -> Result<Vec<String>,Box<dyn Error>> {
+		let mut retv :Vec<String> = vec![];
+		let cbytes :Vec<u8> = name.as_bytes().to_vec().into_iter().collect();
+		let mut idx :usize;
+		let mut lastidx :usize;
+		idx = cbytes.len() - 1;
+		lastidx = idx;
+
+		loop {
+			if cbytes[idx] == '.' as u8 {
+				let curs :String = String::from_utf8_lossy(&cbytes[idx..lastidx]).to_string();
+				retv.push(curs);
+				if idx == 0 {
+					break;
+				}
+				lastidx = idx - 1;
+			}
+
+			if idx == 0 {
+				break;
+			}
+
+			idx -= 1;
+		}
+
+		if lastidx > idx {
+			let curs :String = String::from_utf8_lossy(&cbytes[idx..lastidx]).to_string();
+			retv.push(curs);
+		}
+
+		if retv.len() > 0 && retv[0].len() == 0 {
+			ssllib_new_error!{X509BuildError,"[{}] not valid dns name",name}
+		}
+		Ok(retv)
+	}
+
+	fn _check_dns_name(&self,dnsname :&str , filters :&Vec<String>,okval :bool) -> Result<bool,Box<dyn Error>> {
+		let domainlabels :Vec<String> = self._revers_domain_names(dnsname)?;
+		let mut idx :usize;
+		if domainlabels.len() == 0  {
+			if okval {
+				return Ok(true);
+			} else {
+				return Ok(false);
+			}
+		}
+		for f in filters.iter() {
+			let mut nf :String = format!("{}",f);
+			let mut musthassub :bool = false;
+			if nf.starts_with(".") {
+				nf = nf[1..].to_string();
+				musthassub = true;
+			}
+
+			let filterlable = self._revers_domain_names(&nf)?;
+
+			if domainlabels.len() < filterlable.len() || (
+				musthassub && domainlabels.len() == filterlable.len()) {
+				continue;
+			}
+
+
+			idx = 0;
+			let mut matched :bool = true;
+			while idx < filterlable.len() {
+				if filterlable[idx] != domainlabels[idx] {
+					matched = false;
+					break;
+				}
+				idx += 1;
+			}
+
+			if matched {
+				return Ok(true);
+			}
+		}
+		return Ok(false);
+	}
+
 	fn _check_cert(&self,cert :&Asn1X509,parent :&Asn1X509) -> Result<(),Box<dyn Error>> {
 		let certbuild = cert.to_export_build()?;
 		let parentbuild = parent.to_export_build()?;
 		/*now to */
+		if self.currenttime < certbuild.not_before || self.currenttime > certbuild.not_after {
+			ssllib_new_error!{X509BuildError,"current time {} not in {} => {}  time", self.currenttime.format("%Y-%m-%d %H:%M:%S"),certbuild.not_before.format("%Y-%m-%d %H:%M:%S"),certbuild.not_after.format("%Y-%m-%d %H:%M:%S")}
+		}
+
+		if self.currenttime < parentbuild.not_before || self.currenttime > parentbuild.not_after {
+			ssllib_new_error!{X509BuildError,"current time {} not in {} => {}  time", self.currenttime.format("%Y-%m-%d %H:%M:%S"),parentbuild.not_before.format("%Y-%m-%d %H:%M:%S"),parentbuild.not_after.format("%Y-%m-%d %H:%M:%S")}
+		}
+
+		/*now to check for value*/
+		if parentbuild.ex_email_addresses.len() > 0 {
+			for f in certbuild.email_addresses.iter() {
+				let retb = self._check_email_address_match(f, &parentbuild.ex_email_addresses,false)?;
+				if retb {
+					ssllib_new_error!{X509BuildError,"{} email in ex_email_addresses {:?}", f, parentbuild.ex_email_addresses}
+				}
+			}
+		}
+
+		if parentbuild.perm_email_addresses.len() > 0 {
+			for f in certbuild.email_addresses.iter() {
+				let retb = self._check_email_address_match(f,&parentbuild.perm_email_addresses,true)?;
+				if !retb {
+					ssllib_new_error!{X509BuildError,"{} email not in perm_email_addresses {:?}",f,parentbuild.perm_email_addresses}
+				}
+			}
+		}
+
+		if parentbuild.ex_dns_names.len() > 0 {
+			for f in certbuild.dns_names.iter() {
+				let retb = self._check_dns_name(f,&parentbuild.ex_dns_names,false)?;
+				if retb {
+					ssllib_new_error!{X509BuildError,"{} dns in ex_dns_names {:?}",f, parentbuild.ex_dns_names}
+				}
+			}
+		}
+
+		if parentbuild.perm_dns_names.len() > 0 {
+			for f in certbuild.dns_names.iter() {
+				let retb = self._check_dns_name(f,&parentbuild.perm_dns_names,true)?;
+				if !retb {
+					ssllib_new_error!{X509BuildError,"{} dns not in perm_dns_names {:?}",f, parentbuild.perm_dns_names}
+				}
+			}
+		}
+
+
 
 		Ok(())
 	}

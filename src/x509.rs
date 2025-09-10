@@ -2643,15 +2643,6 @@ impl Asn1X509 {
 	}
 
 
-	pub fn verify_opt(&self, opt :&mut X509VerifyOption) -> Result<bool, Box<dyn Error>> {
-		/*now to get verify*/
-		let mut retv :bool = false;
-
-		/*now first to give */
-		
-
-		Ok(retv)
-	}
 
 }
 
