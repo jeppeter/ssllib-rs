@@ -1193,6 +1193,10 @@ impl X509VerifyOption {
 	}
 
 	fn _check_cert(&self,cert :&Asn1X509,parent :&Asn1X509) -> Result<(),Box<dyn Error>> {
+		let certbuild = cert.to_export_build()?;
+		let parentbuild = parent.to_export_build()?;
+		/*now to */
+
 		Ok(())
 	}
 

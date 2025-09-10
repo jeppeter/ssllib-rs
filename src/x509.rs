@@ -1630,6 +1630,11 @@ impl Asn1X509Cinf {
 		return self.elem.val[0].get_subject_name();
 	}
 
+	pub fn get_issuer_name(&self) -> Result<(String,Asn1X509Name),Box<dyn Error>> {
+		self.elem.check_safe_one("Asn1X509CinfElem")?;
+		return self.elem.val[0].get_issuer_name();
+	}
+
 	pub fn get_x509_sign_algo(&self) -> Result<Asn1X509Algor,Box<dyn Error>> {
 		self.elem.check_safe_one("Asn1X509CinfElem")?;
 		return self.elem.val[0].get_x509_sign_algo();
@@ -2474,6 +2479,11 @@ impl Asn1X509Elem {
 		return self.cert_info.get_subject_name();
 	}
 
+	pub fn get_issuer_name(&self) -> Result<(String,Asn1X509Name),Box<dyn Error>> {		
+		return self.cert_info.get_issuer_name();
+	}
+
+
 	pub fn get_x509_sign_algo(&self) -> Result<Asn1X509Algor,Box<dyn Error>> {
 		return self.cert_info.get_x509_sign_algo();
 	}
@@ -2535,6 +2545,12 @@ impl Asn1X509 {
 		self.elem.check_safe_one("Asn1X509Elem")?;
 		return self.elem.val[0].get_subject_name();
 	}
+
+	pub fn get_issuer_name(&self) -> Result<(String,Asn1X509Name),Box<dyn Error>> {		
+		self.elem.check_safe_one("Asn1X509Elem")?;
+		return self.elem.val[0].get_issuer_name();
+	}
+
 
 	pub fn get_x509_sign_algo(&self) -> Result<Asn1X509Algor,Box<dyn Error>> {
 		self.elem.check_safe_one("Asn1X509Elem")?;
