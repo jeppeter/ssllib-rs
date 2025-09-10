@@ -1307,6 +1307,59 @@ impl X509VerifyOption {
 		return Ok(false);
 	}
 
+	fn _check_uri(&self, uri :&str, filters:&Vec<String>, okval :bool) -> Result<bool, Box<dyn Error>> {
+		let nurl :url::Url = url::Url::parse(uri)?;
+		let nhost :String;
+		if nurl.host_str().is_some() {
+			nhost = format!("{}",nurl.host_str().unwrap());
+		} else {
+			nhost = "".to_string();
+		}
+		let domainlabels :Vec<String> = self._revers_domain_names(&nhost)?;
+
+		if domainlabels.len() == 0 {
+			if okval {
+				return Ok(true);
+			} else {
+				return Ok(false);
+			}
+		}
+
+		let mut idx :usize;
+
+		for f in filters.iter() {
+			let curl :url::Url = url::Url::parse(f)?;
+			let chost :String ;
+			if curl.host_str().is_some() {
+				chost = format!("{}",curl.host_str().unwrap());
+			} else {
+				continue;
+			}
+			let filterlable :Vec<String> = self._revers_domain_names(&chost)?;
+
+			if domainlabels.len() < filterlable.len()  {
+				continue;
+			}
+
+
+			idx = 0;
+			let mut matched :bool = true;
+			while idx < filterlable.len() {
+				if filterlable[idx] != domainlabels[idx] {
+					matched = false;
+					break;
+				}
+				idx += 1;
+			}
+
+			if matched {
+				return Ok(true);
+			}
+		}
+
+		return Ok(false);
+	}
+
 	fn _check_cert(&self,cert :&Asn1X509,parent :&Asn1X509) -> Result<(),Box<dyn Error>> {
 		let certbuild = cert.to_export_build()?;
 		let parentbuild = parent.to_export_build()?;
@@ -1356,7 +1409,23 @@ impl X509VerifyOption {
 			}
 		}
 
+		if parentbuild.perm_uris.len() > 0 {
+			for f in certbuild.uris.iter() {
+				let retb = self._check_uri(f,&parentbuild.perm_uris,true)?;
+				if !retb {
+					ssllib_new_error!{X509BuildError,"{} uri not in perm_uris {:?}",f, parentbuild.perm_uris}
+				}
+			}
+		}
 
+		if parentbuild.ex_uris.len() > 0 {
+			for f in certbuild.uris.iter() {
+				let retb = self._check_uri(f,&parentbuild.ex_uris,false)?;
+				if retb {
+					ssllib_new_error!{X509BuildError,"{} uri not in ex_uris {:?}",f, parentbuild.ex_uris}
+				}
+			}
+		}
 
 		Ok(())
 	}

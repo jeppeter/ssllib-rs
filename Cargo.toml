@@ -35,6 +35,7 @@ zeroize = "^1.8.1"
 num-traits = "^0.2"
 num-bigint-dig = "^0.8.1"
 num-bigint = "^0.4.3"
+url = {version = "^2.5.7"}
 
 
 # [dependencies.num-bigint]
