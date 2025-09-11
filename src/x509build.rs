@@ -1,7 +1,7 @@
 #[allow(unused_imports)]
 use crate::{ssllib_new_error,ssllib_error_class};
 #[allow(unused_imports)]
-use crate::{ssllib_buffer_trace,ssllib_buffer_error,ssllib_format_buffer_log,ssllib_log_trace};
+use crate::{ssllib_buffer_trace,ssllib_buffer_error,ssllib_format_buffer_log,ssllib_log_trace,ssllib_log_error};
 use crate::logger::*;
 use crate::x509::*;
 use crate::pemlib::{read_file_into_der};
@@ -1360,6 +1360,10 @@ impl X509VerifyOption {
 		return Ok(false);
 	}
 
+	fn _check_ip_range(&self, ipaddr :&str, ipgranges :&Vec<String>, okval : bool) -> Result<bool,Box<dyn Error>> {
+		Ok(false)
+	}
+
 	fn _check_cert(&self,cert :&Asn1X509,parent :&Asn1X509) -> Result<(),Box<dyn Error>> {
 		let certbuild = cert.to_export_build()?;
 		let parentbuild = parent.to_export_build()?;
@@ -1385,7 +1389,7 @@ impl X509VerifyOption {
 		if parentbuild.perm_email_addresses.len() > 0 {
 			for f in certbuild.email_addresses.iter() {
 				let retb = self._check_email_address_match(f,&parentbuild.perm_email_addresses,true)?;
-				if !retb {
+				if retb {
 					ssllib_new_error!{X509BuildError,"{} email not in perm_email_addresses {:?}",f,parentbuild.perm_email_addresses}
 				}
 			}
@@ -1424,6 +1428,41 @@ impl X509VerifyOption {
 				if retb {
 					ssllib_new_error!{X509BuildError,"{} uri not in ex_uris {:?}",f, parentbuild.ex_uris}
 				}
+			}
+		}
+
+		if parentbuild.perm_ip_ranges.len() > 0 {
+			for f in certbuild.ip_addresses.iter() {
+				let retb = self._check_ip_range(f,&parentbuild.perm_ip_ranges,true)?;
+				if !retb {
+					ssllib_new_error!{X509BuildError,"{} uri not in perm_ip_ranges {:?}",f, parentbuild.perm_ip_ranges}
+				}
+			}
+		}
+
+		if parentbuild.ex_ip_ranges.len() > 0 {
+			for f in certbuild.ip_addresses.iter() {
+				let retb = self._check_ip_range(f,&parentbuild.ex_ip_ranges,false)?;
+				if retb {
+					ssllib_new_error!{X509BuildError,"{} uri not in perm_ip_ranges {:?}",f, parentbuild.ex_ip_ranges}
+				}
+			}
+		}
+
+		Ok(())
+	}
+
+	fn _check_ca_mode(&self,x509cert :&Asn1X509,chainsize :usize) -> Result<(),Box<dyn Error>> {
+		let certbuild :X509BuildConfig = x509cert.to_export_build()?;
+		if !certbuild.is_ca || !certbuild.basic_constraints_valid {
+			if !x509cert.is_self_signed() {
+				ssllib_new_error!{X509BuildError,"not authorized cert"}
+			}
+		}
+
+		if certbuild.basic_constraints_valid && certbuild.max_path_len > 0 {
+			if certbuild.max_path_len as usize >= chainsize {
+				ssllib_new_error!{X509BuildError,"greater than max_path_len {}", certbuild.max_path_len}
 			}
 		}
 
@@ -1494,9 +1533,20 @@ impl X509VerifyOption {
 			for sx509 in scaned.iter() {
 				let ores = self._check_cert(&curcert,sx509);
 				if ores.is_ok() {
-					curcert = sx509.clone();
-					matched = true;
-					break;
+					/*we check twice*/
+					let ores = self._check_cert(cert,sx509);
+					if ores.is_ok() {
+						let ores = self._check_ca_mode(sx509,retv.len());
+						if ores.is_ok() {
+							curcert = sx509.clone();
+							matched = true;
+							break;
+						} else {
+							ssllib_log_error!("not ca mode {:?}",ores.err().unwrap());
+						}
+
+					}
+
 				}
 			}
 
