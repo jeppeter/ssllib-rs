@@ -1360,7 +1360,89 @@ impl X509VerifyOption {
 		return Ok(false);
 	}
 
+	fn _parse_ip_addr(&self,ipaddr :&str) -> Result<Vec<u8>,Box<dyn Error>> {
+		let ores = ipaddr.parse::<std::net::Ipv4Addr>();
+		if ores.is_ok() {
+			let ipv4 = ores.unwrap();
+			return Ok(ipv4.octets().to_vec().clone());
+		}
+		let ores = ipaddr.parse::<std::net::Ipv6Addr>();
+		if ores.is_ok() {
+			let ipv6 = ores.unwrap();
+			return Ok(ipv6.octets().to_vec().clone());
+		}
+		ssllib_new_error!{X509BuildError,"{} not valid ip address",ipaddr}
+	}
+
 	fn _check_ip_range(&self, ipaddr :&str, ipgranges :&Vec<String>, okval : bool) -> Result<bool,Box<dyn Error>> {
+		let ipcode :Vec<u8>;
+
+
+		if ipaddr.len() == 0 {
+			if okval {
+				return Ok(true);
+			} else {
+				return Ok(false);
+			}
+		}
+
+		ipcode = self._parse_ip_addr(ipaddr)?;
+
+
+		for f in ipgranges.iter() {
+			let fcode :Vec<u8>;
+			let mut mcode :Vec<u8> = vec![];
+			let ipsarr :Vec<&str> = f.split("/").collect();
+			if ipsarr.len() < 2 {
+				fcode = self._parse_ip_addr(&ipsarr[0])?;
+				while mcode.len() < fcode.len() {
+					mcode.push(0xff);
+				}
+			} else {
+				fcode = self._parse_ip_addr(&ipsarr[0])?;
+				let ores = i64::from_str_radix(ipsarr[1],10);
+				if ores.is_err() {
+					ssllib_new_error!{X509BuildError,"{} not valid iprange",f}
+				}
+				let midx = ores.unwrap();
+				let mut idx:i64;
+
+				if midx > (fcode.len() * 8) as i64 {
+					ssllib_new_error!{X509BuildError,"{} not valid for ipaddr {}",ipsarr[1],ipsarr[0]}
+				}
+
+				while mcode.len() < fcode.len() {
+					mcode.push(0);
+				}
+
+				idx = 0;
+				while idx < midx {
+					let cidx = (idx >> 3) as usize;
+					let lidx = (7 - (idx % 8)) as usize;
+
+					mcode[cidx] |= 1 << lidx;
+					idx += 1;
+				}
+			}
+
+			/*now to give the code*/
+			if ipcode.len() == mcode.len() {
+				let mut sidx :usize = 0;
+				let mut matched :bool = true;
+				while sidx < ipcode.len() {
+					if (ipcode[sidx] & mcode[sidx] ) != fcode[sidx] {
+						matched = false;
+						break;
+					}
+					sidx += 1;
+				}
+
+				if matched {
+					return Ok(true);
+				}
+			}
+		}
+
 		Ok(false)
 	}
 

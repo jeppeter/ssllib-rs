@@ -468,9 +468,36 @@ fn x509create_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetI
 	Ok(())
 }
 
+fn x509vfy_handler(ns :NameSpaceEx,_optargset :Option<Arc<RefCell<dyn ArgSetImpl>>>,_ctx :Option<Arc<RefCell<dyn Any>>>) -> Result<(),Box<dyn Error>> {
+	let sarr :Vec<String>;
 
+	sarr = ns.get_array("subnargs");
+	if sarr.len() < 2 {
+		extargs_new_error!{X509ExecError,"need x509pem and X509VerifyOptionJson jsonfile"}
+	}
 
-#[extargs_map_function(x509dec_handler,csrdec_handler,crldec_handler,x509sigdec_handler,x509auxdec_handler,x509auxenc_handler,psstypeenc_handler,pkixnamedec_handler,exportbuild_handler,x509selfverify_handler,csrselfverify_handler,csrcfgexport_handler,csrcreate_handler,x509permex_handler,x509create_handler)]
+	let x509pem = format!("{}",sarr[0]);
+	let jsonfile = format!("{}",sarr[1]);
+
+	let code = read_file_into_der(&x509pem)?;
+	let mut pv :Asn1X509 = Asn1X509::init_asn1();
+	pv.decode_asn1(&code)?;
+	let s = read_file(&jsonfile)?;
+	let xjs :X509VerifyOptionJson = serde_json::from_str(&s)?;
+	let opt :X509VerifyOption = X509VerifyOption::try_from(xjs)?;
+
+	let chains:Vec<Asn1X509> = opt.verify_cert(&pv)?;
+	let mut idx :usize = 0;
+	let mut f = std::io::stdout();
+	while idx < chains.len() {
+		let s = format!("chain[{}]",idx);
+		chains[idx].print_asn1(&s,0,&mut f)?;
+		idx += 1;
+	}
+	Ok(())
+}
+
+#[extargs_map_function(x509dec_handler,csrdec_handler,crldec_handler,x509sigdec_handler,x509auxdec_handler,x509auxenc_handler,psstypeenc_handler,pkixnamedec_handler,exportbuild_handler,x509selfverify_handler,csrselfverify_handler,csrcfgexport_handler,csrcreate_handler,x509permex_handler,x509create_handler,x509vfy_handler)]
 pub fn load_x509exec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>> {
 	let cmdline = r#"
 	{
@@ -518,6 +545,9 @@ pub fn load_x509exec_handler(parser :ExtArgsParser) -> Result<(),Box<dyn Error>>
 		},
 		"x509create<x509create_handler>##jsonfile [child.rsa] to encode Asn1X509##" : {
 			"$" : "+"
+		},
+		"x509vfy<x509vfy_handler>##x509pem jsonfile to verify x509pem  with X509VerifyOptionJson##" : {
+			"$" : 2
 		}
 	}
 	"#;
